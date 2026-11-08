@@ -23,4 +23,15 @@
       expect(UI.withFirstSeat(two(false, false, 'them'), rng).firstSeat).toBe(2);
     });
   });
+
+  describe('drop4 UI: toolsMode (ばんを みる)', function () {
+    it('shows the tools while playing, whether or not viewing is set', function () {
+      expect(UI.toolsMode(false, false)).toBe('tools');
+      expect(UI.toolsMode(false, true)).toBe('tools');
+    });
+    it('after game over: nothing with the card open, only けっかを みる while viewing', function () {
+      expect(UI.toolsMode(true, false)).toBe('none');
+      expect(UI.toolsMode(true, true)).toBe('result');
+    });
+  });
 })(window.Ailand);

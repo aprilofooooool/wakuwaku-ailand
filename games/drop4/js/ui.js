@@ -203,6 +203,7 @@
     function showSettings() {
       controller.stop();
       Fx.stop();
+      viewing = false;
       Bgm.stop();
       gameScreen.hidden = true;
       settingsScreen.hidden = false;
@@ -216,6 +217,8 @@
     var g = null;            // DOM refs and per-game data, rebuilt on every 'started'
     var view = { state: null, turnSeat: 0, humanTurn: false, over: false };
     var mode = 'drop';       // 'drop' | 'pop' | 'block'
+    var viewing = false;     // finished board is shown without the result card (ばんを みる)
+    var lastResult = null;
     var sel = null;          // { type, col }: ghost (drop/block) or picked piece (pop)
     var layout = null;
     var chain = Promise.resolve();
@@ -497,7 +500,14 @@
       if (!g || !view.state) { return; }
       var t = g.tools, state = view.state;
       t.innerHTML = '';
-      if (view.over) { return; }
+      var tm = toolsMode(view.over, viewing);
+      if (tm === 'none') { return; }
+      if (tm === 'result') {
+        var rb = button('d4-tool d4-viewresult', 'けっかを' + NL + 'みる', reopenResult);
+        rb.setAttribute('aria-label', 'けっかを みる');
+        t.appendChild(rb);
+        return;
+      }
       var off = !view.humanTurn;
       function modeBtn(id, label) {
         var b = button('d4-tool d4-tool-' + id, label, function () {
@@ -571,7 +581,23 @@
       if (controller.input(move) && move.type !== 'drop') { mode = 'drop'; }
     }
 
+    function reopenResult() {
+      viewing = false;
+      if (lastResult) { showResult(lastResult); }
+      renderTools();
+    }
+
+    function viewBoard() {
+      g.result.hidden = true;
+      viewing = true;
+      Fx.stop();
+      Fx.keepRings(winEls(lastResult));
+      renderTools();
+    }
+
     function showResult(result) {
+      lastResult = result;
+      viewing = false;
       var box = g.result;
       box.innerHTML = '';
       var text;
@@ -585,6 +611,7 @@
       var card = el('div', 'd4-result-card');
       card.appendChild(el('p', 'd4-result-text', text));
       var row = el('div', 'd4-result-actions');
+      row.appendChild(button('btn btn-sub', 'ばんを みる', viewBoard));
       row.appendChild(button('btn btn-main', 'もういちど', function () {
         controller.start(withFirstSeat(normalize(controller.settings()), rng));
       }));
@@ -608,6 +635,8 @@
         var settings = controller.settings();
         draft = normalize(settings);
         Fx.stop();
+        viewing = false;
+        lastResult = null;
         view = { state: p.state, turnSeat: 0, humanTurn: false, over: false };
         syncTempo(p.state);
         greetUntil = {};
@@ -691,6 +720,7 @@
     bus.on('undo', function (p) {
       queue(function () {
         Fx.stop();
+        viewing = false;
         view.state = p.state;
         view.over = false;
         mode = 'drop';
@@ -711,5 +741,11 @@
     showSettings();
   }
 
-  G.UI = { init: init, withFirstSeat: withFirstSeat };
+  // What the bottom/side bar shows: 'tools' (mode/undo), 'result' (only the けっかを みる button) or 'none'.
+  function toolsMode(over, viewing) {
+    if (!over) { return 'tools'; }
+    return viewing ? 'result' : 'none';
+  }
+
+  G.UI = { init: init, withFirstSeat: withFirstSeat, toolsMode: toolsMode };
 })(Ailand.games.drop4);

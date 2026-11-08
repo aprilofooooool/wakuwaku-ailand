@@ -63,6 +63,11 @@
     if (pendingResolve) { var done = pendingResolve; pendingResolve = null; done(); }
   }
 
+  // Persistent rings on the winning discs; removed by stop(). Also used when viewing the finished board.
+  function keepRings(els) {
+    (els || []).forEach(function (p) { p.classList.add('is-win'); winPieces.push(p); rings.push(F.ring(p, { keep: true })); });
+  }
+
   function newGroup(cls) {
     stop();
     group = el('div', 'fx-group ' + (cls || ''));
@@ -115,7 +120,7 @@
     var text, row;
     if (persp === 'win') {
       var winners = ((ctx.result && ctx.result.seats) || [picked.event.seat]).slice(0, 4);
-      (ctx.winEls || []).forEach(function (p) { p.classList.add('is-win'); winPieces.push(p); rings.push(F.ring(p, { keep: true })); });
+      keepRings(ctx.winEls);
       row = heroes(winners, ctx, 'joy', true);
       if (winners.length > 1) { row.classList.add('multi'); }
       ['a', 'b', 'c', 'd'].forEach(function (k) { row.appendChild(el('span', 'd4-spark ' + k, F.glyph('sparkle'))); });
@@ -210,5 +215,5 @@
     fadeOutAt(g, BANNER_MS);
   }
 
-  G.Fx = { play: play, drop: drop, dropMs: dropMs, stop: stop, heroSize: heroSize, heroTop: heroTop };
+  G.Fx = { play: play, drop: drop, dropMs: dropMs, stop: stop, keepRings: keepRings, heroSize: heroSize, heroTop: heroTop };
 })(Ailand.games.drop4);
