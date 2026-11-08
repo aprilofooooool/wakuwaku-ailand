@@ -118,7 +118,6 @@
       (ctx.winEls || []).forEach(function (p) { p.classList.add('is-win'); winPieces.push(p); rings.push(F.ring(p, { keep: true })); });
       row = heroes(winners, ctx, 'joy', true);
       if (winners.length > 1) { row.classList.add('multi'); }
-      place(g, ctx);
       ['a', 'b', 'c', 'd'].forEach(function (k) { row.appendChild(el('span', 'd4-spark ' + k, F.glyph('sparkle'))); });
       text = 'やったー！';
       F.burst(g.el, 'confetti');
@@ -130,28 +129,61 @@
       row = heroes(seats.slice(0, 2), ctx, 'joy', false);
       text = 'ひきわけ！ いい しょうぶ！';
     }
+    var textEl = el('p', 'd4-end-text', text);
     g.el.appendChild(row);
-    g.el.appendChild(el('p', 'd4-end-text', text));
+    g.el.appendChild(textEl);
+    if (persp === 'win') { place(g, row, textEl, ctx, winners.length); }
     fadeOutAt(g, END_MS);
     return promise;
   }
 
-  // Puts the hero above or below the winning line, whichever side has more room (never over the line or the faces).
-  // Faces end at the name row: in landscape the seat box also holds the bubble's reserved space.
-  function place(g, ctx) {
-    var bottom = window.innerHeight, faces = 0;
-    Object.keys(ctx.seats).forEach(function (s) {
-      var box = ctx.seats[s].box;
-      var name = box.querySelector ? box.querySelector('.d4-name') : null;
-      faces = Math.max(faces, (name || box).getBoundingClientRect().bottom);
-    });
+  var HERO_GAP = 8;        // gap between heroes (.d4-heroes gap)
+  var TEXT_GAP = 12;       // gap between heroes and caption (.d4-end gap)
+  var EDGE = 8;            // margin to the header and the viewport bottom
+  var BOUNCE = 0.05;       // d4-hero keyframes lift the hero by 5% of its size
+
+  // Pure. Hero size for n winners: one hero is min(60vw, 70vh); several are min(36vw, 40vh) each,
+  // wrapped in rows of the full width. All are shrunk so heroes + bounce fit in `avail` px of height.
+  // Returns { size, rows, height, bounce } (height = rows of heroes, without bounce or caption).
+  function heroSize(o) {
+    var n = Math.max(1, o.n || 1);
+    var size = n > 1 ? Math.min(0.36 * o.vw, 0.4 * o.vh) : Math.min(0.6 * o.vw, 0.7 * o.vh);
+    var perRow = n > 1 ? Math.max(1, Math.floor((o.vw + HERO_GAP) / (size + HERO_GAP))) : 1;
+    var rows = Math.ceil(n / perRow);
+    var fit = ((o.avail - (rows - 1) * HERO_GAP) / rows) / (1 + BOUNCE);
+    size = Math.max(40.5, Math.min(size, fit));  // shrinking only adds room per row, so rows never grows
+    return { size: size, rows: rows, height: rows * size + (rows - 1) * HERO_GAP, bounce: size * BOUNCE };
+  }
+
+  // Pure. Top (px) of a block heroH tall: inside [headerBottom + margin, vh - margin], on the side of the
+  // winning line with more room when it fits there (centered in that side), else centered in the viewport.
+  function heroTop(o) {
+    var m = o.margin, minTop = o.headerBottom + m, maxTop = o.vh - m - o.heroH;
+    var above = { from: minTop, to: o.lineTop - m };
+    var below = { from: o.lineBottom + m, to: o.vh - m };
+    var sides = [above, below].filter(function (r) { return r.to - r.from >= o.heroH; })
+      .sort(function (a, b) { return (b.to - b.from) - (a.to - a.from); });
+    var top = sides.length ? sides[0].from + (sides[0].to - sides[0].from - o.heroH) / 2 : (o.vh - o.heroH) / 2;
+    return Math.max(minTop, Math.min(maxTop, top));
+  }
+
+  // Sizes the winner heroes to the free height and puts the block (heroes + caption) fully inside the
+  // viewport below the header, beside the winning line when there is room (otherwise over the board).
+  function place(g, row, textEl, ctx, n) {
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var hdr = document.querySelector ? document.querySelector('.app-header') : null;
+    var headerBottom = hdr ? hdr.getBoundingClientRect().bottom : 0;
+    var capH = textEl.getBoundingClientRect().height || 56;
+    var hs = heroSize({ vw: vw, vh: vh, n: n, avail: vh - headerBottom - 2 * EDGE - TEXT_GAP - capH });
+    if (n > 1) { row.style.setProperty('--d4-hero-s', hs.size + 'px'); }
+    else { row.style.width = hs.size + 'px'; row.style.maxWidth = 'none'; }
     var minY = Infinity, maxY = -Infinity;
     (ctx.winEls || []).forEach(function (p) { var r = p.getBoundingClientRect(); minY = Math.min(minY, r.top); maxY = Math.max(maxY, r.bottom); });
-    if (minY === Infinity) { return; }
-    var above = minY - (faces + 8), below = (bottom - 96) - maxY;
-    if (above >= below) { g.el.classList.add('at-top'); g.el.style.paddingTop = (faces + 8) + 'px'; }
-    else { g.el.classList.add('at-bottom'); g.el.style.paddingBottom = '96px'; }
-
+    if (minY === Infinity) { minY = maxY = vh / 2; }
+    var blockH = hs.bounce + hs.height + TEXT_GAP + capH;
+    var top = heroTop({ vh: vh, headerBottom: headerBottom, heroH: blockH, lineTop: minY, lineBottom: maxY, margin: EDGE });
+    g.el.classList.add('at-top');
+    g.el.style.paddingTop = (top + hs.bounce) + 'px';
   }
 
   // picked: controller's reaction.picked ({event, perspective}) or null.
@@ -178,5 +210,5 @@
     fadeOutAt(g, BANNER_MS);
   }
 
-  G.Fx = { play: play, drop: drop, dropMs: dropMs, stop: stop };
+  G.Fx = { play: play, drop: drop, dropMs: dropMs, stop: stop, heroSize: heroSize, heroTop: heroTop };
 })(Ailand.games.drop4);

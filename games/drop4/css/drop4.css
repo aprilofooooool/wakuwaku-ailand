@@ -147,7 +147,6 @@ body.d4-playing { overflow: hidden; }
 .d4-end.is-lose, .d4-end.is-draw { background: var(--fx-dim); }
 #fx-layer .d4-end { pointer-events: auto; }
 .d4-end.at-top { justify-content: flex-start; }
-.d4-end.at-bottom { justify-content: flex-end; }
 .d4-heroes { position: relative; width: 60vw; max-width: 70vh; flex-wrap: wrap; display: flex; justify-content: center; align-items: flex-end; gap: 8px; }
 .d4-hero { flex: 1 1 100%; min-width: 0; aspect-ratio: 1; border-radius: 50%; background: var(--surface); border: var(--border-w) solid var(--outline); box-shadow: var(--shadow-m); overflow: hidden; }
 .d4-hero .char-img { display: block; width: 100%; height: 100%; object-fit: contain; }
@@ -173,5 +172,5 @@ body.d4-playing { overflow: hidden; }
 .d4-seat .fx-ring { inset: -8px; border-radius: 20px; }
 .d4-piece .fx-ring { inset: -4px; border-width: 4px; }
 .d4-heroes.multi { width: 100%; max-width: none; }
-.d4-heroes.multi .d4-hero { flex: 0 0 min(36vw, 40vh); }
+.d4-heroes.multi .d4-hero { flex: 0 0 var(--d4-hero-s, min(36vw, 40vh)); }
 .d4-menu { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
