@@ -15,6 +15,14 @@
   var CHARS_H = 112;    // portrait character row (face + name; the bubble floats over the board)
   var SIDE_W = 132;     // landscape character column, one on each side
   var CELL_MAX = 88;
+  // Landscape seats: the bubble sits in the seat box (normal flow), so the face shrinks until
+  // ceil(players / 2) seats fit the side column. Heights match drop4.css (.is-landscape rules).
+  var FACE_P = 64;      // portrait face
+  var FACE_MIN_L = 56;
+  var FACE_MAX_L = 96;
+  var NAME_H_L = 24;    // 2px margin + 22px name row
+  var BUBBLE_H_L = 73;  // 2px margin + 2x2px border + 2x2px padding + 3 lines x 21px
+  var SEAT_GAP_L = 2;   // gap between stacked seats
 
   // Space around the board (ghost row and board excluded) for an orientation.
   function reserved(orientation) {
@@ -32,9 +40,17 @@
     var cellW = Math.floor((availW - (o.cols - 1) * GAP - 2 * PAD) / o.cols);
     var cellH = Math.floor((availH - (o.rows - 1) * GAP - 2 * PAD) / (o.rows + 1));
     var cell = Math.max(1, Math.min(cellW, cellH, CELL_MAX));
+    var face = FACE_P;
+    if (orientation === 'landscape') {
+      var perSide = Math.ceil((o.players || 2) / 2);
+      var slot = Math.floor((o.height - 2 * VPAD_L - (perSide - 1) * SEAT_GAP_L) / perSide);
+      face = Math.max(FACE_MIN_L, Math.min(FACE_MAX_L, slot - NAME_H_L - BUBBLE_H_L));
+    }
     return {
       orientation: orientation,
       cell: cell,
+      face: face,
+      seatH: face + NAME_H_L + BUBBLE_H_L,
       boardW: o.cols * cell + (o.cols - 1) * GAP + 2 * PAD,
       boardH: o.rows * cell + (o.rows - 1) * GAP + 2 * PAD,
       colHit: cell + GAP
@@ -51,6 +67,7 @@
   G.Layout = {
     compute: compute, colAt: colAt, reserved: reserved,
     SIDE: SIDE, VPAD: VPAD, VPAD_L: VPAD_L, GAP: GAP, PAD: PAD, DECOR_W: DECOR_W, DECOR_H: DECOR_H,
-    TOOLS_H: TOOLS_H, TOOLS_W: TOOLS_W, CHARS_H: CHARS_H, SIDE_W: SIDE_W, CELL_MAX: CELL_MAX
+    TOOLS_H: TOOLS_H, TOOLS_W: TOOLS_W, CHARS_H: CHARS_H, SIDE_W: SIDE_W, CELL_MAX: CELL_MAX,
+    NAME_H_L: NAME_H_L, BUBBLE_H_L: BUBBLE_H_L, SEAT_GAP_L: SEAT_GAP_L
   };
 })(Ailand.games.drop4);

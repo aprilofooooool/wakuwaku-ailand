@@ -76,6 +76,29 @@
         });
       });
     });
+    it('landscape: two stacked seats (face + name + 3-line bubble reserve) fit the side column height', function () {
+      // [width, full height, game-area height below the header]
+      [[844, 390, 323], [1024, 768, 696], [1280, 800, 728]].forEach(function (v) {
+        [3, 4].forEach(function (players) {
+          [v[1], v[2]].forEach(function (h) {
+            var r = L.compute({ width: v[0], height: h, cols: 9, rows: 7, players: players });
+            expect(r.orientation).toBe('landscape');
+            expect(r.face).toBeGreaterThanOrEqual(56);
+            expect(r.face).toBeLessThanOrEqual(96);
+            expect(r.seatH).toBe(r.face + L.NAME_H_L + L.BUBBLE_H_L);
+            expect(2 * r.seatH + L.SEAT_GAP_L + 2 * L.VPAD_L).toBeLessThanOrEqual(h);
+            expect(r.face).toBeLessThanOrEqual(L.SIDE_W);
+          });
+        });
+      });
+    });
+    it('landscape 2 players: one seat per side keeps the large face', function () {
+      var r = L.compute({ width: 1280, height: 728, cols: 7, rows: 6, players: 2 });
+      expect(r.face).toBe(96);
+    });
+    it('portrait keeps the 64px face', function () {
+      expect(L.compute({ width: 390, height: 772, cols: 7, rows: 6, players: 4 }).face).toBe(64);
+    });
     it('reserved space matches the orientation', function () {
       expect(L.reserved('portrait').h).toBe(2 * L.VPAD + L.TOOLS_H + L.CHARS_H + L.DECOR_H);
       expect(L.reserved('landscape').w).toBe(2 * L.SIDE + 2 * L.SIDE_W + L.TOOLS_W + L.DECOR_W);

@@ -137,9 +137,14 @@
   }
 
   // Puts the hero above or below the winning line, whichever side has more room (never over the line or the faces).
+  // Faces end at the name row: in landscape the seat box also holds the bubble's reserved space.
   function place(g, ctx) {
     var bottom = window.innerHeight, faces = 0;
-    Object.keys(ctx.seats).forEach(function (s) { faces = Math.max(faces, ctx.seats[s].box.getBoundingClientRect().bottom); });
+    Object.keys(ctx.seats).forEach(function (s) {
+      var box = ctx.seats[s].box;
+      var name = box.querySelector ? box.querySelector('.d4-name') : null;
+      faces = Math.max(faces, (name || box).getBoundingClientRect().bottom);
+    });
     var minY = Infinity, maxY = -Infinity;
     (ctx.winEls || []).forEach(function (p) { var r = p.getBoundingClientRect(); minY = Math.min(minY, r.top); maxY = Math.max(maxY, r.bottom); });
     if (minY === Infinity) { return; }

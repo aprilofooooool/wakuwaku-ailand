@@ -424,6 +424,9 @@
       st.setProperty('--tools-w', L.TOOLS_W + 'px');
       st.setProperty('--chars-h', L.CHARS_H + 'px');
       st.setProperty('--side-w', L.SIDE_W + 'px');
+      st.setProperty('--face', layout.face + 'px');
+      st.setProperty('--seat-h', layout.seatH + 'px');
+      st.setProperty('--seat-gap', L.SEAT_GAP_L + 'px');
       // Review Focus 4: a resize drops the ghost / picked piece.
       sel = null;
       renderMarks();
