@@ -80,7 +80,42 @@
     for (var c = 0; c < state.cols; c++) {
       if (dropRow(state, c) >= 0) { moves.push({ type: 'drop', col: c, seat: seat }); }
     }
+    if (state.blocks && state.blocksLeft[seat] > 0) {
+      for (var b = 0; b < state.cols; b++) {
+        if (dropRow(state, b) >= 0) { moves.push({ type: 'block', col: b, seat: seat }); }
+      }
+    }
+    if (state.popOut) {
+      for (var p = 0; p < state.cols; p++) {
+        if (at(state, p, 0) === seat) { moves.push({ type: 'pop', col: p, seat: seat }); }
+      }
+    }
     return moves;
+  }
+
+  // After a pop: check every piece left in the column, then pick the winning side.
+  // Popper's side first; otherwise the first seat after the popper (turn order) that has a line.
+  function popResult(state, cells, col, popper) {
+    var found = [];
+    for (var r = 0; r < state.rows; r++) {
+      var owner = cells[col * state.rows + r];
+      if (owner < 1 || owner > state.players) { continue; }
+      linesThrough(state, cells, col, r, owner).forEach(function (ln) { found.push({ owner: owner, line: ln }); });
+    }
+    if (found.length === 0) { return null; }
+    var winner = null;
+    var start = state.order.indexOf(popper);
+    for (var i = 0; i < state.order.length && winner === null; i++) {
+      var s = state.order[(start + i) % state.order.length];
+      if (found.some(function (f) { return sameSide(state, f.owner, s); })) { winner = s; }
+    }
+    var seen = {}, lines = [];
+    found.forEach(function (f) {
+      if (!sameSide(state, f.owner, winner)) { return; }
+      var key = JSON.stringify(f.line);
+      if (!seen[key]) { seen[key] = true; lines.push(f.line); }
+    });
+    return winResult(state, cells, lines, winner);
   }
 
   function apply(state, move) {
@@ -88,22 +123,37 @@
       return m.type === move.type && m.col === move.col && m.seat === move.seat;
     });
     if (!legal) { throw new Error('illegal move'); }
-    var r = dropRow(state, move.col);
     var cells = state.cells.slice();
-    cells[move.col * state.rows + r] = move.seat;
+    var blocksLeft = {};
+    for (var k in state.blocksLeft) { blocksLeft[k] = state.blocksLeft[k]; }
     var next = {
       cols: state.cols, rows: state.rows, cells: cells, players: state.players, teams: state.teams,
       popOut: state.popOut, blocks: state.blocks, order: state.order, turnIndex: state.turnIndex + 1,
-      moveCount: state.moveCount + 1, blocksLeft: state.blocksLeft,
-      lastMove: { type: 'drop', col: move.col, seat: move.seat }, result: null
+      moveCount: state.moveCount + 1, blocksLeft: blocksLeft,
+      lastMove: { type: move.type, col: move.col, seat: move.seat }, result: null
     };
-    var lines = linesThrough(state, cells, move.col, r, move.seat);
-    if (lines.length > 0) {
-      next.result = winResult(state, cells, lines, move.seat);
-    } else if (!hasDrop(next)) {
-      next.result = { type: 'draw', reason: 'full' };
-    } else if (next.moveCount >= state.cols * state.rows * 2) {
-      next.result = { type: 'draw', reason: 'limit' };
+    var lines = [];
+    if (move.type === 'pop') {
+      for (var y = 0; y < state.rows - 1; y++) { cells[move.col * state.rows + y] = cells[move.col * state.rows + y + 1]; }
+      cells[move.col * state.rows + state.rows - 1] = K.EMPTY;
+      next.result = popResult(state, cells, move.col, move.seat);
+    } else {
+      var r = dropRow(state, move.col);
+      if (move.type === 'block') {
+        cells[move.col * state.rows + r] = K.BLOCK;
+        blocksLeft[move.seat] -= 1;
+      } else {
+        cells[move.col * state.rows + r] = move.seat;
+        lines = linesThrough(state, cells, move.col, r, move.seat);
+        if (lines.length > 0) { next.result = winResult(state, cells, lines, move.seat); }
+      }
+    }
+    if (!next.result) {
+      if (!hasDrop(next)) {
+        next.result = { type: 'draw', reason: 'full' };
+      } else if (next.moveCount >= state.cols * state.rows * 2) {
+        next.result = { type: 'draw', reason: 'limit' };
+      }
     }
     return next;
   }

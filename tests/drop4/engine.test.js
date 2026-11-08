@@ -71,8 +71,8 @@
       expect(function () { E.apply(s, { type: 'drop', col: 0, seat: 2 }); }).toThrow();
       expect(function () { E.apply(s, { type: 'drop', col: 7, seat: 1 }); }).toThrow();
     });
-    it('legalMoves are drops only', function () {
-      var m = E.legalMoves(mk({ popOut: true, blocks: true }));
+    it('legalMoves are drops only without options', function () {
+      var m = E.legalMoves(mk({}));
       expect(m.length).toBe(7);
       expect(m.every(function (x) { return x.type === 'drop' && x.seat === 1; })).toBe(true);
     });
