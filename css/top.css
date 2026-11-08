@@ -1,0 +1,71 @@
+/* Entry page. Lavender background, distinct from the cream of the othello page. */
+:root {
+  --page-bg: #f3ecff;
+  --page-dot: #e0d2fb;
+}
+.top-page { min-height: 100dvh; }
+.top {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 20px 16px calc(32px + env(safe-area-inset-bottom));
+  text-align: center;
+}
+
+/* Logo (design B of logo-v2) */
+.logo { margin: 0 auto 8px; text-align: center; position: relative; width: 358px; max-width: 100%; }
+.ch {
+  display: inline-block; font-weight: 900; line-height: 1.1;
+  text-shadow: -3px -3px 0 var(--outline), 3px -3px 0 var(--outline), -3px 3px 0 var(--outline), 3px 3px 0 var(--outline),
+               0 -3px 0 var(--outline), 0 3px 0 var(--outline), -3px 0 0 var(--outline), 3px 0 0 var(--outline), 0 6px 0 var(--outline);
+}
+.c0 { color: var(--accent-pink); } .c1 { color: var(--accent-yellow); } .c2 { color: var(--accent-blue); }
+.c3 { color: var(--accent-green); } .c4 { color: var(--accent-purple); }
+.small { font-size: 40px; } .mid { font-size: 46px; }
+.row { display: flex; align-items: flex-end; justify-content: center; }
+.row-ai { align-items: center; }
+.sticker { position: relative; width: 170px; height: 150px; display: inline-flex; align-items: center; justify-content: center; margin-right: -4px; }
+.sticker svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.sticker .ch { position: relative; font-size: 74px; margin-top: -8px; }
+.ai-white { color: #fff; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .ch, .sticker { animation: pop .6s ease-out both, bob 2.4s ease-in-out infinite; animation-delay: calc(var(--i, 0) * 60ms), calc(1s + var(--i, 0) * 120ms); }
+  .sticker { animation-name: pop, wobble; animation-duration: .6s, 3s; }
+  .sticker .ch { animation: none; }
+}
+@keyframes pop { 0% { transform: scale(0) rotate(-20deg); opacity: 0; } 70% { transform: scale(1.25) rotate(6deg); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes wobble { 0%, 100% { transform: rotate(-4deg) scale(1); } 50% { transform: rotate(4deg) scale(1.04); } }
+
+.lead { margin: 4px 0 18px; font-size: 1.1rem; font-weight: 800; color: var(--ink-sub); }
+
+/* Cards */
+.cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px 14px; }
+.cards li { min-width: 0; }
+.card {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  min-height: 150px; height: 100%; padding: 12px 8px;
+  color: var(--ink); text-decoration: none; font-weight: 900; font-size: 1.2rem;
+  background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-l); box-shadow: var(--shadow-m);
+  touch-action: manipulation;
+}
+a.card:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--outline); }
+a.card:focus-visible { outline: 4px solid var(--accent-blue); outline-offset: 3px; }
+.card-art { width: 72px; height: 72px; display: block; }
+.card-art svg { width: 100%; height: 100%; display: block; }
+.card-name { line-height: 1.2; }
+.card-note { font-size: 1rem; font-weight: 800; color: var(--disabled-ink); }
+.card-soon { background: var(--disabled-bg); border-color: var(--disabled-ink); box-shadow: none; color: var(--disabled-ink); font-size: 1.05rem; }
+.card-soon .card-art { opacity: .45; filter: grayscale(.4); }
+.card-badge {
+  position: absolute; top: -12px; right: -6px; padding: 4px 12px; font-size: 1rem; font-weight: 900;
+  color: var(--on-accent-strong); background: var(--accent-pink-strong); border: var(--border-w) solid var(--outline);
+  border-radius: var(--radius-round); box-shadow: var(--shadow-s); transform: rotate(6deg);
+}
+
+@media (min-width: 640px) { .cards { grid-template-columns: repeat(3, 1fr); } .top { max-width: 720px; } }
+@media (orientation: landscape) and (max-height: 500px) {
+  .top { padding-top: 8px; }
+  .logo { zoom: .7; }
+  .cards { grid-template-columns: repeat(4, 1fr); }
+}
