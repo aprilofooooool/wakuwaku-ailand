@@ -586,7 +586,8 @@
         events.forEach(function (e) { setFace(e.seat, e.emotion); });
         Object.keys(p.lines || {}).forEach(function (s) { setBubble(Number(s), p.lines[s]); });
         var result = view.state && view.state.result;
-        Fx.play(p.picked, { seats: g.seats, boardEl: g.boardwrap, winEls: winEls(result), result: result, humans: g.humans });
+        // The queue waits for the ending display, so the result card appears after it.
+        return Fx.play(p.picked, { seats: g.seats, boardEl: g.boardwrap, winEls: winEls(result), result: result, humans: g.humans });
       });
     });
     bus.on('gameover', function (p) {

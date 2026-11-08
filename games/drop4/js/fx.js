@@ -9,6 +9,9 @@
 
   var group = null;       // the one full-screen effect that is on screen
   var timers = [];
+  var rings = [];         // kept rings on the winning discs (removed by stop)
+  var winPieces = [];
+  var pendingResolve = null;
 
   function el(tag, cls, text) {
     var e = document.createElement(tag);
@@ -53,6 +56,11 @@
     timers = [];
     if (group && group.parentNode) { group.parentNode.removeChild(group); }
     group = null;
+    rings.forEach(function (r) { if (r.parentNode) { r.parentNode.removeChild(r); } });
+    winPieces.forEach(function (p) { p.classList.remove('is-win'); });
+    rings = [];
+    winPieces = [];
+    if (pendingResolve) { var done = pendingResolve; pendingResolve = null; done(); }
   }
 
   function newGroup(cls) {
@@ -97,15 +105,20 @@
     return row;
   }
 
+  // Resolves when the display is gone (fade end, tap to skip, or stop()).
   function ending(picked, ctx) {
     var persp = picked.perspective;
     var g = newGroup('d4-end is-' + persp);
+    var promise = new Promise(function (resolve) { pendingResolve = resolve; });
+    g.el.addEventListener('click', stop);
     var seats = Object.keys(ctx.seats).map(Number);
     var text, row;
     if (persp === 'win') {
       var winners = ((ctx.result && ctx.result.seats) || [picked.event.seat]).slice(0, 4);
-      (ctx.winEls || []).forEach(function (p) { p.classList.add('is-win'); F.ring(p); });
+      (ctx.winEls || []).forEach(function (p) { p.classList.add('is-win'); winPieces.push(p); rings.push(F.ring(p, { keep: true })); });
       row = heroes(winners, ctx, 'joy', true);
+      if (winners.length > 1) { row.classList.add('multi'); }
+      place(g, ctx);
       ['a', 'b', 'c', 'd'].forEach(function (k) { row.appendChild(el('span', 'd4-spark ' + k, F.glyph('sparkle'))); });
       text = 'やったー！';
       F.burst(g.el, 'confetti');
@@ -120,15 +133,29 @@
     g.el.appendChild(row);
     g.el.appendChild(el('p', 'd4-end-text', text));
     fadeOutAt(g, END_MS);
+    return promise;
+  }
+
+  // Puts the hero above or below the winning line, whichever side has more room (never over the line or the faces).
+  function place(g, ctx) {
+    var bottom = window.innerHeight, faces = 0;
+    Object.keys(ctx.seats).forEach(function (s) { faces = Math.max(faces, ctx.seats[s].box.getBoundingClientRect().bottom); });
+    var minY = Infinity, maxY = -Infinity;
+    (ctx.winEls || []).forEach(function (p) { var r = p.getBoundingClientRect(); minY = Math.min(minY, r.top); maxY = Math.max(maxY, r.bottom); });
+    if (minY === Infinity) { return; }
+    var above = minY - (faces + 8), below = (bottom - 96) - maxY;
+    if (above >= below) { g.el.classList.add('at-top'); g.el.style.paddingTop = (faces + 8) + 'px'; }
+    else { g.el.classList.add('at-bottom'); g.el.style.paddingBottom = '96px'; }
+
   }
 
   // picked: controller's reaction.picked ({event, perspective}) or null.
   // ctx: { seats: {seat: {box, face, profile}}, boardEl, winEls, result, humans }
   function play(picked, ctx) {
-    if (!picked) { return; }
+    if (!picked) { return undefined; }
     var kind = picked.event.kind;
     // Task 16 sound hook: one call site, e.g. Ailand.core.Sound && Ailand.core.Sound.play(kind).
-    if (kind === 'win' || kind === 'lose' || kind === 'draw') { ending(picked, ctx); return; }
+    if (kind === 'win' || kind === 'lose' || kind === 'draw') { return ending(picked, ctx); }
     if (kind !== 'reach' && kind !== 'block' && kind !== 'double') { return; }   // endgame / place: no full-screen effect
     var g = newGroup('d4-mini');
     var at = centerOf(ctx.boardEl);

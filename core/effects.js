@@ -103,12 +103,14 @@
   }
 
   // An expanding ring around `target` (adds a child; target must be positioned).
-  function ring(target) {
+  // opts.keep: the ring pulses until the caller removes it (no automatic removal).
+  function ring(target, opts) {
     if (!target) { return null; }
-    var r = el('span', 'fx-ring' + (isReduced() ? ' fx-static' : ''));
+    var keep = !!(opts && opts.keep);
+    var r = el('span', 'fx-ring' + (isReduced() ? ' fx-static' : '') + (keep ? ' fx-keep' : ''));
     r.setAttribute('aria-hidden', 'true');
     target.appendChild(r);
-    setTimeout(function () { if (r.parentNode) { r.parentNode.removeChild(r); } }, RING_MS * 2);
+    if (!keep) { setTimeout(function () { if (r.parentNode) { r.parentNode.removeChild(r); } }, RING_MS * 2); }
     return r;
   }
 

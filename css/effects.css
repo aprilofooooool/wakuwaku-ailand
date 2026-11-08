@@ -43,6 +43,7 @@
 .fx-p.fx-static { opacity: 1; transform: translate(calc(var(--dx) * 0.5), calc(var(--dy) * 0.5)); }
 
 /* Ring around an element */
+.fx-ring.fx-keep { animation-iteration-count: infinite; }
 .fx-ring { position: absolute; inset: -6px; border: 5px solid var(--fx-gold); border-radius: 50%; opacity: 0.9; box-shadow: 0 0 10px 2px var(--fx-gold-light); animation: fx-ring var(--fx-ring-dur) ease-out 2 both; }
 @keyframes fx-ring {
   0% { opacity: 0; transform: scale(0.7); }
