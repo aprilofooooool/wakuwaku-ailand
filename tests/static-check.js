@@ -161,6 +161,22 @@ if (exists(gameCss)) {
   }
 }
 
+// 5. Display images: 512x512 RGBA PNG. assets-src (full-size originals) must not be referenced by the app.
+const { readPngInfo } = require('./tools/png-info.js');
+for (const f of listFiles(path.join(root, 'assets', 'characters'), ['.png'])) {
+  try {
+    const info = readPngInfo(fs.readFileSync(f));
+    if (info.width !== 512 || info.height !== 512 || info.colorType !== 6) {
+      problems.push(rel(f) + ': expected 512x512 colorType 6, got ' + info.width + 'x' + info.height + ' colorType ' + info.colorType);
+    }
+  } catch (e) {
+    problems.push(rel(f) + ': ' + e.message);
+  }
+}
+for (const f of [...appFiles, ...htmlFiles.filter(exists)]) {
+  if (read(f).includes('assets-src')) { problems.push(rel(f) + ': references assets-src'); }
+}
+
 warnings.forEach((w) => console.log('WARN ' + w));
 if (problems.length > 0) {
   problems.forEach((p) => console.log('NG   ' + p));

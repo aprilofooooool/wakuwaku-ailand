@@ -24,8 +24,8 @@ node tests\tools\serve.js 8080
 exit /b %errorlevel%
 
 :resize
-echo resize-images: not implemented yet
-exit /b 1
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\resize-images\resize-images.ps1
+exit /b %errorlevel%
 
 :drop4
 echo measure-drop4: not implemented yet
