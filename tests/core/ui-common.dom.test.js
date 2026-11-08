@@ -25,6 +25,18 @@
       expect(calls).toEqual(['back', 'sound', 'settings']);
       document.body.removeChild(h);
     });
+    it('header repaints on Sound.onChange', function () {
+      var S = Ailand.core.Sound;
+      var h = U.header({ title: 't', soundOn: true });
+      document.body.appendChild(h);
+      var b = h.querySelector('.hdr-sound');
+      try {
+        S.setEnabled(false);
+        expect(b.getAttribute('aria-pressed')).toBe('false');
+        S.setEnabled(true);
+        expect(b.getAttribute('aria-pressed')).toBe('true');
+      } finally { S.setEnabled(true); document.body.removeChild(h); }
+    });
     it('modal closes and toast appears', function () {
       var m = U.modal('t', [document.createElement('p')]);
       expect(document.querySelectorAll('.modal-back').length > 0).toBe(true);

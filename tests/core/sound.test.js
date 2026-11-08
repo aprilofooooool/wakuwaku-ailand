@@ -280,4 +280,21 @@
       });
     });
   });
+
+  describe('core/Sound onChange', function () {
+    it('onChange fires once per real change', function () {
+      memStorage(function () {
+        Sound._reset();
+        var got = [];
+        var off = Sound.onChange(function (v) { got.push(v); });
+        Sound.setEnabled(false);
+        Sound.setEnabled(false);
+        Sound.setEnabled(true);
+        off();
+        Sound.setEnabled(false);
+        expect(got).toEqual([false, true]);
+        Sound.setEnabled(true);
+      });
+    });
+  });
 })(Ailand);
