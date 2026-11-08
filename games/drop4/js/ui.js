@@ -14,6 +14,7 @@
   var FIRSTS = [['me', 'じぶん'], ['them', 'あいて'], ['random', 'ランダム']];
   var THINKING_TEXT = 'うーん…';
   var ENDGAME_BPM = 150;   // requirements 3.9: endgame raises the BGM tempo
+  var GREETING_MS = 2000;  // the start greeting stays this long before thinking / reactions may replace it
   var FIRST_LANDING = 0.55; // fx.js d4-drop: the disc first touches down at 55% of dropMs
   var coreStore = C.Storage.create('core');
 
@@ -86,6 +87,7 @@
     var linePicker = o.linePicker || null;
     var draft = normalize(controller.loadSettings());
     var fast = false;        // endgame tempo reached in this game
+    var greetUntil = {};     // seat -> Date.now() until which its start greeting is kept
 
     var settingsScreen = el('main', 'screen d4-settings-screen');
     settingsScreen.id = 'screen-settings';
@@ -232,6 +234,12 @@
       Bgm.start(G.Sounds.NORMAL);
       if (fast) { Bgm.setTempo(ENDGAME_BPM); }
     }
+    // Same condition as Reactions' endgame event: empty cells <= a quarter of the board.
+    function syncTempo(state) {
+      fast = E.emptyCount(state) * 4 <= state.cells.length;
+      Bgm.setTempo(fast ? ENDGAME_BPM : G.Sounds.NORMAL.bpm);
+    }
+    function greeting(seat) { return Date.now() < (greetUntil[seat] || 0); }
     function line(seat, situation) {
       var v = g.seats[seat];
       return linePicker && v ? linePicker.pick(v.profile.id, situation) : '';
@@ -603,7 +611,8 @@
         draft = normalize(settings);
         Fx.stop();
         view = { state: p.state, turnSeat: 0, humanTurn: false, over: false };
-        fast = false;
+        syncTempo(p.state);
+        greetUntil = {};
         mode = 'drop';
         sel = null;
         buildGame(settings, p.state);
@@ -612,7 +621,11 @@
         resetFaces();   // also clears any thinking indicator left by a game restarted mid-think (R4)
         renderBoard();
         renderMarks();
-        Object.keys(g.seats).forEach(function (s) { setBubble(Number(s), line(Number(s), 'start')); });
+        var until = Date.now() + GREETING_MS;
+        Object.keys(g.seats).forEach(function (s) {
+          setBubble(Number(s), line(Number(s), 'start'));
+          greetUntil[s] = until;
+        });
         startBgm();
       });
     });
@@ -629,7 +642,8 @@
       queue(function () {
         g.seats[p.seat].box.classList.toggle('is-thinking', p.on);
         setFace(p.seat, p.on ? 'thinking' : 'normal');
-        setBubble(p.seat, p.on ? (line(p.seat, 'thinking') || THINKING_TEXT) : '');
+        // While the greeting is up, thinking shows the dots only.
+        if (!greeting(p.seat)) { setBubble(p.seat, p.on ? (line(p.seat, 'thinking') || THINKING_TEXT) : ''); }
       });
     });
     bus.on('moved', function (p) {
@@ -648,7 +662,8 @@
         // Lower-priority events first so the higher-priority emotion wins for a seat.
         var pri = G.Reactions.PRIORITY;
         var events = p.events.slice().sort(function (a, b) { return pri.indexOf(b.kind) - pri.indexOf(a.kind); });
-        Object.keys(g.seats).forEach(function (s) { setFace(Number(s), 'normal'); setBubble(Number(s), ''); });
+        // A greeting still on screen is replaced only by a new line for that seat.
+        Object.keys(g.seats).forEach(function (s) { setFace(Number(s), 'normal'); if (!greeting(s)) { setBubble(Number(s), ''); } });
         events.forEach(function (e) { setFace(e.seat, e.emotion); });
         Object.keys(p.lines || {}).forEach(function (s) { setBubble(Number(s), p.lines[s]); });
         var result = view.state && view.state.result;
@@ -682,9 +697,12 @@
         view.over = false;
         mode = 'drop';
         sel = null;
+        greetUntil = {};
         resetFaces();
         renderBoard();
         renderMarks();
+        // Undo is refused after game over (R16), so the BGM is still running (or OFF); only the tempo changes.
+        syncTempo(p.state);
       });
     });
 
