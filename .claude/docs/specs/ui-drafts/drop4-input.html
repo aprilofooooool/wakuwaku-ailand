@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ぽとん4 操作案</title>
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; background: #f6f0ff; color: #333; }
+  h1 { font-size: 20px; text-align: center; margin: 16px; }
+  .wrap { display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; padding: 0 16px 32px; }
+  .col { width: 390px; }
+  .col h2 { font-size: 18px; margin: 8px 0; }
+  .col p { font-size: 14px; line-height: 1.6; margin: 4px 0; }
+  .phone { width: 390px; height: 760px; background: #fff7fb; border: 3px solid #333; border-radius: 32px; overflow: hidden; display: flex; flex-direction: column; }
+  .hdr { display: flex; justify-content: space-between; padding: 12px 16px; font-size: 18px; }
+  .hdr span { background: #fff; border-radius: 12px; padding: 6px 10px; box-shadow: 0 1px 3px #0002; }
+  .players { display: flex; justify-content: space-around; padding: 4px 8px; }
+  .pl { text-align: center; font-size: 14px; }
+  .face { width: 72px; height: 72px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; margin: 0 auto; }
+  .pl.turn .face { outline: 4px solid #ffcc00; }
+  .bubble { background: #fff; border-radius: 12px; padding: 4px 8px; margin-top: 4px; font-size: 14px; box-shadow: 0 1px 3px #0002; }
+  .boardwrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ghostrow, .board { display: grid; grid-template-columns: repeat(7, 48px); gap: 4px; }
+  .ghostrow { height: 52px; align-items: center; }
+  .board { background: #6a8cff; padding: 6px; border-radius: 12px; touch-action: none; }
+  .cell { width: 48px; height: 48px; border-radius: 50%; background: #fff; cursor: pointer; }
+  .cell.p1 { background: #ff6fa8; } .cell.p2 { background: #ffc93c; } .cell.blk { background: #9a9a9a; border-radius: 10px; }
+  .cell.can-pop { box-shadow: 0 0 0 4px #fff, 0 0 0 7px #ff6fa8; }
+  .col-hl { background: #ffffff55; border-radius: 8px; }
+  .ghost { width: 44px; height: 44px; border-radius: 50%; margin: auto; opacity: .55; }
+  .ghost.p1 { background: #ff6fa8; } .ghost.blk { background: #9a9a9a; border-radius: 10px; }
+  .tools { display: flex; gap: 8px; justify-content: center; padding: 12px; }
+  .tool { min-width: 96px; min-height: 64px; border-radius: 16px; border: 3px solid #ccc; background: #fff; font-size: 18px; cursor: pointer; }
+  .tool.on { border-color: #ff6fa8; background: #ffe3ef; }
+  .hint { text-align: center; font-size: 18px; min-height: 28px; }
+</style>
+</head>
+<body>
+<h1>ぽとん4：コマの落とし方・ぬきとり・おじゃまブロックの操作案（タップして試せます）</h1>
+<div class="wrap">
+  <div class="col">
+    <h2>案A：下のボタンで「おとす／ぬく／ブロック」を切り替える</h2>
+    <p>・ふだんは「おとす」。列をタップ → 上にうすいコマ（ゴースト）が出る → 同じ列をもう一度タップで落ちる。</p>
+    <p>・「ぬく」を押すと、抜ける自分のコマが光る → 光ったコマをタップ → もう一度タップで抜ける。</p>
+    <p>・「ブロック」を押すと、落とすものが灰色ブロックに変わる（のこり数を表示）。</p>
+    <div class="phone" id="A"></div>
+  </div>
+  <div class="col">
+    <h2>案B：切り替えなし。ボタンは「ブロック」だけ</h2>
+    <p>・列の上半分〜空きマスをタップ → ゴースト → もう一度で落ちる。</p>
+    <p>・いちばん下の自分のコマを直接タップ → 「ぬく？」のゴースト表示 → もう一度で抜ける。</p>
+    <p>・切り替えが少ない分、まちがえて抜こうとして落とす（またはその逆）が起きやすい。</p>
+    <div class="phone" id="B"></div>
+  </div>
+</div>
+<script>
+(function () {
+  var COLS = 7, ROWS = 6;
+  function initial() {
+    var g = [];
+    for (var r = 0; r < ROWS; r++) { g.push([]); for (var c = 0; c < COLS; c++) g[r].push(''); }
+    g[5][2] = 'p1'; g[5][3] = 'p2'; g[4][3] = 'p1'; g[5][4] = 'p1'; g[4][2] = 'p2'; g[5][1] = 'p2'; g[3][3] = 'blk';
+    return g;
+  }
+  function make(root, withModes) {
+    var grid = initial(), mode = 'drop', sel = null, blocks = 2, hint = '';
+    function topEmpty(c) { for (var r = ROWS - 1; r >= 0; r--) if (!grid[r][c]) return r; return -1; }
+    function render() {
+      var h = '<div class="hdr"><span>もどる</span><span>おと</span><span>せってい</span></div>';
+      h += '<div class="players"><div class="pl turn"><div class="face" style="background:#ff6fa8">(^o^)</div>あなた<div class="bubble">どこにしよう？</div></div>';
+      h += '<div class="pl"><div class="face" style="background:#ffc93c">(・_・)</div>CPU<div class="bubble">…</div></div></div>';
+      h += '<div class="boardwrap"><div class="ghostrow">';
+      for (var c = 0; c < COLS; c++) {
+        var g = (sel && sel.type !== 'pop' && sel.c === c) ? '<div class="ghost ' + (sel.type === 'blk' ? 'blk' : 'p1') + '"></div>' : '';
+        h += '<div data-c="' + c + '">' + g + '</div>';
+      }
+      h += '</div><div class="board">';
+      for (var r = 0; r < ROWS; r++) for (var c2 = 0; c2 < COLS; c2++) {
+        var cls = 'cell ' + grid[r][c2];
+        var popable = r === ROWS - 1 && grid[r][c2] === 'p1' && (mode === 'pop' || !withModes);
+        if (popable && (withModes || (sel && sel.type === 'pop' && sel.c === c2))) cls += ' can-pop';
+        h += '<div class="' + cls + '" data-r="' + r + '" data-c="' + c2 + '"></div>';
+      }
+      h += '</div></div><div class="hint">' + hint + '</div><div class="tools">';
+      if (withModes) {
+        h += '<button class="tool ' + (mode === 'drop' ? 'on' : '') + '" data-m="drop">おとす</button>';
+        h += '<button class="tool ' + (mode === 'pop' ? 'on' : '') + '" data-m="pop">ぬく</button>';
+      }
+      h += '<button class="tool ' + (mode === 'blk' ? 'on' : '') + '" data-m="blk">ブロック<br>のこり' + blocks + '</button></div>';
+      root.innerHTML = h;
+    }
+    root.addEventListener('pointerdown', function (e) {
+      var m = e.target.closest('[data-m]');
+      if (m) { var nm = m.getAttribute('data-m'); mode = (!withModes && mode === nm) ? 'drop' : nm; sel = null; hint = ''; render(); return; }
+      var t = e.target.closest('[data-c]'); if (!t) return;
+      var c = +t.getAttribute('data-c'), r = t.hasAttribute('data-r') ? +t.getAttribute('data-r') : -1;
+      var wantPop = withModes ? mode === 'pop' : (r === ROWS - 1 && grid[r][c] === 'p1');
+      if (wantPop) {
+        if (grid[ROWS - 1][c] !== 'p1') { hint = 'じぶんのコマをえらんでね'; render(); return; }
+        if (sel && sel.type === 'pop' && sel.c === c) {
+          for (var rr = ROWS - 1; rr > 0; rr--) grid[rr][c] = grid[rr - 1][c]; grid[0][c] = '';
+          sel = null; hint = 'すぽっ！'; if (withModes) mode = 'drop';
+        } else { sel = { type: 'pop', c: c }; hint = 'もういちどタップでぬく'; }
+        render(); return;
+      }
+      var type = mode === 'blk' ? 'blk' : 'p1';
+      if (topEmpty(c) < 0) { hint = 'そこはいっぱい！'; render(); return; }
+      if (sel && sel.c === c && sel.type === type) {
+        grid[topEmpty(c)][c] = type; if (type === 'blk') { blocks--; mode = 'drop'; }
+        sel = null; hint = 'ぽとん！';
+      } else { sel = { type: type, c: c }; hint = 'もういちどタップでおとす'; }
+      render();
+    });
+    render();
+  }
+  make(document.getElementById('A'), true);
+  make(document.getElementById('B'), false);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ロゴ案 v2</title>
+<style>
+  :root {
+    --bg: #fff7e8; --bg-dot: #ffe3b8; --outline: #3a2f5a;
+    --pink: #ff5c9a; --blue: #3aa0ff; --yellow: #ffc83a; --green: #36c486; --purple: #9a6bff; --hot: #ff2e7e;
+    --font: "Hiragino Maru Gothic ProN", "M PLUS Rounded 1c", "BIZ UDPGothic", "Yu Gothic UI", system-ui, sans-serif;
+  }
+  body { margin: 0; font-family: var(--font); color: var(--outline); background: #eee; }
+  h1.page { font-size: 18px; text-align: center; margin: 12px; }
+  .wrap { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; padding: 0 12px 24px; }
+  .phone { width: 390px; height: 300px; border: 3px solid #333; border-radius: 24px; overflow: hidden; position: relative;
+           background-color: var(--bg); background-image: radial-gradient(var(--bg-dot) 2.5px, transparent 3px); background-size: 22px 22px;
+           display: flex; align-items: center; justify-content: center; }
+  .cap { text-align: center; font-size: 16px; margin-top: 6px; }
+
+  /* shared logo letters (same technique as othellocchi) */
+  .logo { margin: 0; text-align: center; position: relative; width: 358px; }
+  .ch { display: inline-block; font-weight: 900; line-height: 1.1;
+        text-shadow: -3px -3px 0 var(--outline), 3px -3px 0 var(--outline), -3px 3px 0 var(--outline), 3px 3px 0 var(--outline),
+                     0 -3px 0 var(--outline), 0 3px 0 var(--outline), -3px 0 0 var(--outline), 3px 0 0 var(--outline), 0 6px 0 var(--outline); }
+  .c0 { color: var(--pink); } .c1 { color: var(--yellow); } .c2 { color: var(--blue); } .c3 { color: var(--green); } .c4 { color: var(--purple); }
+  .small { font-size: 40px; } .mid { font-size: 46px; }
+  .big { font-size: 96px; letter-spacing: -2px; }
+  .ai-white { color: #fff; }
+  .ai-hot { color: var(--hot); }
+  .row { display: flex; align-items: flex-end; justify-content: center; }
+
+  /* A: colorful letters + giant hot-pink あい with shine and hearts */
+  .a .shine { position: absolute; width: 16px; height: 9px; border-radius: 50%; background: #fff; transform: rotate(-30deg); }
+  .a .ai { position: relative; display: inline-block; }
+  .heart { position: absolute; font-size: 26px; color: var(--pink); text-shadow: 0 0 0 var(--outline), -2px -2px 0 var(--outline), 2px -2px 0 var(--outline), -2px 2px 0 var(--outline), 2px 2px 0 var(--outline); }
+
+  /* B: あい on a heart sticker */
+  .b .sticker { position: relative; width: 170px; height: 150px; display: inline-flex; align-items: center; justify-content: center; margin-right: -4px; }
+  .b .sticker svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .b .sticker .ch { position: relative; font-size: 74px; margin-top: -8px; }
+
+  /* C: あい on a floating donut island with a palm tree, candy-striped letters */
+  .c .isl { position: relative; display: inline-block; padding-bottom: 26px; }
+  .c .isl svg { position: absolute; left: -14px; right: -14px; bottom: -4px; height: 54px; width: calc(100% + 28px); }
+  .c .stripe { color: transparent; background: repeating-linear-gradient(-45deg, var(--pink) 0 10px, #ffd1e4 10px 18px);
+               -webkit-background-clip: text; background-clip: text; position: relative; }
+  .c .stack { position: relative; display: inline-block; }
+  .c .stack .under { position: absolute; left: 0; top: 0; color: var(--outline); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .ch, .sticker, .stack { animation: pop .6s ease-out both, bob 2.4s ease-in-out infinite; animation-delay: calc(var(--i, 0) * 60ms), calc(1s + var(--i, 0) * 120ms); }
+    .heart { animation: twinkle 1.6s ease-in-out infinite; } .heart.h2 { animation-delay: .8s; }
+    .sticker { animation-name: pop, wobble; animation-duration: .6s, 3s; }
+  }
+  @keyframes pop { 0% { transform: scale(0) rotate(-20deg); opacity: 0; } 70% { transform: scale(1.25) rotate(6deg); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+  @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+  @keyframes wobble { 0%, 100% { transform: rotate(-4deg) scale(1); } 50% { transform: rotate(4deg) scale(1.04); } }
+  @keyframes twinkle { 0%, 100% { transform: scale(.7); opacity: .5; } 50% { transform: scale(1.15); opacity: 1; } }
+</style>
+</head>
+<body>
+<h1 class="page">入口ロゴ v2（オセロっちのトップ画面の作りを土台にした3案・幅 390px）</h1>
+<div class="wrap">
+
+  <div>
+    <div class="phone">
+      <h1 class="logo a" aria-label="わくわく！あいランド">
+        <span class="row">
+          <span class="ch small c0" style="--i:0">わ</span><span class="ch small c1" style="--i:1">く</span><span class="ch small c2" style="--i:2">わ</span><span class="ch small c3" style="--i:3">く</span><span class="ch small c4" style="--i:4">！</span>
+        </span>
+        <span class="row">
+          <span class="ai">
+            <span class="ch big ai-hot" style="--i:5">あ</span><span class="ch big ai-hot" style="--i:6">い</span>
+            <i class="shine" style="left:20px;top:26px"></i><i class="shine" style="left:112px;top:24px"></i>
+            <i class="heart" style="left:-22px;top:6px">♥</i><i class="heart h2" style="right:-14px;top:-4px">♥</i>
+          </span>
+          <span class="ch mid c2" style="--i:7">ラ</span><span class="ch mid c3" style="--i:8">ン</span><span class="ch mid c1" style="--i:9">ド</span>
+        </span>
+      </h1>
+    </div>
+    <div class="cap">A：オセロっち風のカラフル文字＋特大ピンクの「あい」</div>
+  </div>
+
+  <div>
+    <div class="phone">
+      <h1 class="logo b" aria-label="わくわく！あいランド">
+        <span class="row">
+          <span class="ch small c0" style="--i:0">わ</span><span class="ch small c1" style="--i:1">く</span><span class="ch small c2" style="--i:2">わ</span><span class="ch small c3" style="--i:3">く</span><span class="ch small c4" style="--i:4">！</span>
+        </span>
+        <span class="row" style="align-items:center">
+          <span class="sticker" style="--i:5">
+            <svg viewBox="0 0 170 150" aria-hidden="true">
+              <path d="M85 142 C24 100 4 66 16 38 C28 10 70 10 85 40 C100 10 142 10 154 38 C166 66 146 100 85 142Z" fill="#3a2f5a" transform="translate(0 6)"/>
+              <path d="M85 142 C24 100 4 66 16 38 C28 10 70 10 85 40 C100 10 142 10 154 38 C166 66 146 100 85 142Z" fill="#ff5c9a" stroke="#3a2f5a" stroke-width="4"/>
+              <ellipse cx="42" cy="38" rx="12" ry="7" fill="#fff" opacity=".8" transform="rotate(-30 42 38)"/>
+            </svg>
+            <span class="ch ai-white" aria-hidden="true">あい</span>
+          </span>
+          <span class="ch mid c2" style="--i:7">ラ</span><span class="ch mid c3" style="--i:8">ン</span><span class="ch mid c1" style="--i:9">ド</span>
+        </span>
+      </h1>
+    </div>
+    <div class="cap">B：ハートのシールに白い「あい」</div>
+  </div>
+
+  <div>
+    <div class="phone">
+      <h1 class="logo c" aria-label="わくわく！あいランド">
+        <span class="row">
+          <span class="ch small c0" style="--i:0">わ</span><span class="ch small c1" style="--i:1">く</span><span class="ch small c2" style="--i:2">わ</span><span class="ch small c3" style="--i:3">く</span><span class="ch small c4" style="--i:4">！</span>
+        </span>
+        <span class="row">
+          <span class="isl">
+            <svg viewBox="0 0 200 54" preserveAspectRatio="none" aria-hidden="true">
+              <ellipse cx="100" cy="30" rx="96" ry="18" fill="#7fd3ff" stroke="#3a2f5a" stroke-width="3"/>
+              <ellipse cx="100" cy="24" rx="78" ry="14" fill="#ffe08a" stroke="#3a2f5a" stroke-width="3"/>
+              <ellipse cx="100" cy="20" rx="60" ry="8" fill="#7ee0a8"/>
+            </svg>
+            <span class="stack" style="--i:5"><span class="ch big under">あい</span><span class="ch big stripe" style="text-shadow:none">あい</span></span>
+          </span>
+          <span class="ch mid c2" style="--i:7">ラ</span><span class="ch mid c3" style="--i:8">ン</span><span class="ch mid c1" style="--i:9">ド</span>
+        </span>
+      </h1>
+    </div>
+    <div class="cap">C：ぷかぷか島に乗ったキャンディ柄の「あい」</div>
+  </div>
+
+</div>
+</body>
+</html>

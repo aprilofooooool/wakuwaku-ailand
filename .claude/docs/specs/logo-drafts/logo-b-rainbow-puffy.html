@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ロゴ案B 虹色ぷっくり</title>
+<style>
+  :root { --font: "Hiragino Maru Gothic ProN", "BIZ UDPGothic", "Yu Gothic UI", "Meiryo", sans-serif; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+         background: radial-gradient(circle at 50% 40%, #fff 0, #ffeaf6 60%, #e9e2ff 100%); font-family: var(--font); }
+  .logo { width: min(358px, 92vw); text-align: center; margin: 0; }
+  .waku, .land { font-weight: 900; color: #7a5cff;
+                 text-shadow: 0 3px 0 #fff, 3px 0 0 #fff, -3px 0 0 #fff, 0 -3px 0 #fff, 2px 2px 0 #fff, -2px -2px 0 #fff, 0 6px 8px #7a5cff44; }
+  .waku { display: block; font-size: 34px; letter-spacing: 3px; }
+  .row { display: flex; align-items: flex-end; justify-content: center; gap: 4px; }
+  .land { font-size: 44px; padding-bottom: 10px; }
+  .ai { position: relative; display: inline-block; font-size: 104px; font-weight: 900; line-height: 1.05; letter-spacing: -4px; }
+  .ai::before, .ai::after { content: "あい"; position: absolute; left: 0; top: 0; }
+  .ai::before { color: #fff; -webkit-text-stroke: 16px #fff; text-shadow: 0 10px 14px #ff4f9a55; z-index: 0; }
+  .ai::after { z-index: 1; background: linear-gradient(100deg, #ff5ca8, #ff9b3d 25%, #ffd93d 45%, #4fd8a0 62%, #4fb6ff 80%, #b07bff);
+               background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .ai span { visibility: hidden; }
+  .hl { position: absolute; z-index: 2; width: 14px; height: 8px; border-radius: 50%; background: #fffc; transform: rotate(-30deg); }
+  .star { position: absolute; z-index: 2; font-size: 22px; color: #ffcf33; }
+  @media (prefers-reduced-motion: no-preference) {
+    .ai { animation: boing 2.6s ease-in-out infinite; transform-origin: 50% 100%; }
+    .ai::after { animation: flow 6s linear infinite; }
+    .star { animation: twinkle 1.6s ease-in-out infinite; } .star.t2 { animation-delay: .8s; }
+  }
+  @keyframes boing { 0%, 70%, 100% { transform: scale(1, 1); } 78% { transform: scale(1.06, .92); } 86% { transform: scale(.96, 1.06); } 93% { transform: scale(1.02, .98); } }
+  @keyframes flow { to { background-position: 200% 0; } }
+  @keyframes twinkle { 0%, 100% { opacity: .2; transform: scale(.6) rotate(0); } 50% { opacity: 1; transform: scale(1.1) rotate(20deg); } }
+</style>
+</head>
+<body>
+<h1 class="logo" aria-label="わくわく！あいランド">
+  <span class="waku">わくわく！</span>
+  <span class="row">
+    <span class="ai" aria-hidden="true"><span>あい</span>
+      <i class="hl" style="left:18px;top:30px"></i><i class="hl" style="left:118px;top:28px"></i>
+      <i class="star" style="left:-14px;top:4px">★</i><i class="star t2" style="right:-10px;top:-6px">★</i>
+    </span>
+    <span class="land">ランド</span>
+  </span>
+</h1>
+</body>
+</html>
