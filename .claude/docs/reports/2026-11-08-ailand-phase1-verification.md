@@ -4,7 +4,7 @@
 
 | 項目 | コマンド | 結果（出力そのまま） |
 |---|---|---|
-| 単体テスト | `scripts\run.bat test` | `passed 407 / failed 0`（移植元オセロっちの 212 件を含む） |
+| 単体テスト | `scripts\run.bat test` | `passed 416 / failed 0`（移植元オセロっちの 212 件を含む。最終レビューの修正後） |
 | 静的チェック | `scripts\run.bat check` | `static-check OK (0 violations)`（`type="module"`・`fetch(`・外部 URL・ファイル名の大文字小文字不一致なし） |
 | オセロ再生比較 | `scripts\run.bat replay-othello` | `replay: 95/95 match (232.1s)` |
 | ぽとん4 強さ計測 | `scripts\run.bat measure-drop4`（引数なし、seed 1） | 下表 |
@@ -79,5 +79,11 @@ Task 7 の記録と一致。
 ## 6. 未了・注意
 - 手動テスト（iPhone / iPad / PC 実機）は未実施。依頼書は `.claude/docs/reports/2026-11-08-ailand-phase1-manual-test.md`。結果を受け取るまで完了宣言しない。
 - 「つよい」は子ども役に 100% 勝つ（R14）。ママが勝てるかは実機で確認する。
-- 列のタップ幅は縦で約 50px・横向きで約 40px（R17）。
+- 列のタップ幅（R17。`Layout.compute` の `colHit`、iPhone 390×844 相当で計算）。スマホでは 64px を確保できない。
+
+  | 盤 | 縦（390×844） | 横（844×390） |
+  |---|---|---|
+  | 7×6（2人） | 49px | 52px |
+  | 9×7（3人） | 38px | 45px |
+  | 10×8（4人） | 34px | 40px |
 - 実機確認のための公開方法は未決（serve は 127.0.0.1 のみ、`tests/tools/serve.js:17`）。
