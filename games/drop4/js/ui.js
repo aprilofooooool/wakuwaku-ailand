@@ -1,7 +1,7 @@
 (function (G) {
   'use strict';
   // drop4 screens: settings (requirements 3.7) and game (3.8, design 6.6). DOM is touched only after init().
-  var C = Ailand.core, E = G.Engine, L = G.Layout, Fx = G.Fx;
+  var C = Ailand.core, E = G.Engine, L = G.Layout, Fx = G.Fx, Sound = C.Sound, Bgm = C.Bgm;
 
   var SYMBOLS = { 1: '♥', 2: '★', 3: '●', 4: '◆' };
   var PLAYER_MODES = [
@@ -13,6 +13,21 @@
   var LEVELS = [['weak', 'よわい'], ['normal', 'ふつう'], ['strong', 'つよい']];
   var FIRSTS = [['me', 'じぶん'], ['them', 'あいて'], ['random', 'ランダム']];
   var THINKING_TEXT = 'うーん…';
+  var ENDGAME_BPM = 150;   // requirements 3.9: endgame raises the BGM tempo
+  var FIRST_LANDING = 0.55; // fx.js d4-drop: the disc first touches down at 55% of dropMs
+  var coreStore = C.Storage.create('core');
+
+  // BGM ON/OFF lives next to Sound's `sound` flag in ailand:core:settings.v1 (default ON).
+  function bgmOn() {
+    var s = coreStore.get('settings.v1', null);
+    return !(s && s.bgm === false);
+  }
+  function setBgmOn(on) {
+    var s = coreStore.get('settings.v1', null);
+    s = (s && typeof s === 'object') ? s : {};
+    s.bgm = !!on;
+    coreStore.set('settings.v1', s);
+  }
   var NL = '\n';  // tool labels use white-space: pre-line
 
   function el(tag, cls, text) {
@@ -68,8 +83,9 @@
     var bus = o.bus;
     if (!bus || typeof bus.on !== 'function') { throw new Error('drop4 UI.init: opts.bus (EventBus) is required'); }
     var rng = o.rng || Math.random;
+    var linePicker = o.linePicker || null;
     var draft = normalize(controller.loadSettings());
-    var soundOn = true;
+    var fast = false;        // endgame tempo reached in this game
 
     var settingsScreen = el('main', 'screen d4-settings-screen');
     settingsScreen.id = 'screen-settings';
@@ -81,11 +97,10 @@
 
     document.body.insertBefore(C.UI.header({
       title: 'ぽとん4',
-      soundOn: soundOn,
-      onBack: function () { location.href = C.CharacterView.basePath() + 'index.html'; },
-      // Sound arrives in Task 17; the button only remembers the choice for now.
-      onSound: function () { soundOn = !soundOn; return soundOn; },
-      onSettings: showSettings
+      soundOn: Sound.isEnabled(),
+      onBack: function () { Bgm.stop(); location.href = C.CharacterView.basePath() + 'index.html'; },
+      onSound: function () { Sound.setEnabled(!Sound.isEnabled()); return Sound.isEnabled(); },
+      onSettings: openMenu
     }), document.body.firstChild);
 
     // ---------- settings screen ----------
@@ -192,6 +207,7 @@
     }
 
     function showSettings() {
+      Bgm.stop();
       gameScreen.hidden = true;
       settingsScreen.hidden = false;
       document.body.classList.remove('d4-playing');
@@ -209,6 +225,49 @@
     var chain = Promise.resolve();
     var pending = 0;
 
+    // Effects only while the game is on screen (a CPU move may still arrive after going back to settings).
+    function sfx(name, opts2) { if (!gameScreen.hidden) { Sound.play(name, opts2); } }
+    function startBgm() {
+      if (gameScreen.hidden || view.over || !bgmOn()) { return; }
+      Bgm.start(G.Sounds.NORMAL);
+      if (fast) { Bgm.setTempo(ENDGAME_BPM); }
+    }
+    function line(seat, situation) {
+      var v = g.seats[seat];
+      return linePicker && v ? linePicker.pick(v.profile.id, situation) : '';
+    }
+
+    // Header せってい: restart / back to settings (in a game) and BGM ON/OFF.
+    function openMenu() {
+      var nodes = [];
+      var inGame = !gameScreen.hidden && !!controller.settings();
+      var m = null;
+      if (inGame) {
+        var acts = el('div', 'd4-menu');
+        acts.appendChild(button('btn btn-main', 'はじめから', function () {
+          m.close();
+          controller.start(withFirstSeat(normalize(controller.settings()), rng));
+        }));
+        acts.appendChild(button('btn btn-sub', 'せっていに もどる', function () { m.close(); showSettings(); }));
+        nodes.push(acts);
+      }
+      var row = el('div', 'd4-rule');
+      row.appendChild(el('span', 'd4-rulename', 'BGM'));
+      var opts3 = el('div', 'd4-choices');
+      [[true, 'ON'], [false, 'OFF']].forEach(function (it) {
+        var b = button('d4-choice', it[1], function () {
+          setBgmOn(it[0]);
+          if (it[0]) { startBgm(); } else { Bgm.stop(); }
+          Array.prototype.forEach.call(opts3.children, function (x, i) { x.setAttribute('aria-pressed', String((i === 0) === it[0])); });
+        });
+        b.setAttribute('aria-pressed', String(bgmOn() === it[0]));
+        opts3.appendChild(b);
+      });
+      row.appendChild(opts3);
+      nodes.push(row);
+      m = C.UI.modal('せってい', nodes);
+    }
+
     // Review Focus 3: input is ignored while the CPU thinks or any queued animation/render is pending.
     function inputLocked() {
       return controller.isBusy() || pending > 0 || !view.state || !view.humanTurn || view.over;
@@ -217,6 +276,7 @@
     // Drop / block: a piece falls into its landing cell (two bounces). Pop is shown without animation.
     // Runs before the board shows `after`; input stays locked meanwhile (pending > 0).
     function animateMove(move) {
+      if (move.type === 'pop') { sfx('pop'); }
       if (move.type === 'pop' || !view.state) { return Promise.resolve(); }
       var st = view.state, r = 0;
       while (r < st.rows && E.at(st, move.col, r) !== E.EMPTY) { r++; }
@@ -224,7 +284,10 @@
       var block = move.type === 'block';
       var piece = el('div', 'd4-piece ' + (block ? 'is-block' : 's' + move.seat), block ? '' : SYMBOLS[move.seat]);
       g.cells[move.col][r].appendChild(piece);
-      return Fx.drop(piece, st.rows - r).then(function () {
+      var fall = st.rows - r;
+      // The drop sound starts at the first landing; the second bounce is timed inside the sound.
+      setTimeout(function () { sfx('drop', { rows: fall }); }, C.Effects.isReduced() ? 0 : FIRST_LANDING * Fx.dropMs(fall));
+      return Fx.drop(piece, fall).then(function () {
         if (piece.parentNode) { piece.parentNode.removeChild(piece); }
       });
     }
@@ -540,6 +603,7 @@
         draft = normalize(settings);
         Fx.stop();
         view = { state: p.state, turnSeat: 0, humanTurn: false, over: false };
+        fast = false;
         mode = 'drop';
         sel = null;
         buildGame(settings, p.state);
@@ -548,6 +612,8 @@
         resetFaces();   // also clears any thinking indicator left by a game restarted mid-think (R4)
         renderBoard();
         renderMarks();
+        Object.keys(g.seats).forEach(function (s) { setBubble(Number(s), line(Number(s), 'start')); });
+        startBgm();
       });
     });
     bus.on('turn', function (p) {
@@ -563,7 +629,7 @@
       queue(function () {
         g.seats[p.seat].box.classList.toggle('is-thinking', p.on);
         setFace(p.seat, p.on ? 'thinking' : 'normal');
-        setBubble(p.seat, p.on ? THINKING_TEXT : '');
+        setBubble(p.seat, p.on ? (line(p.seat, 'thinking') || THINKING_TEXT) : '');
       });
     });
     bus.on('moved', function (p) {
@@ -586,6 +652,15 @@
         events.forEach(function (e) { setFace(e.seat, e.emotion); });
         Object.keys(p.lines || {}).forEach(function (s) { setBubble(Number(s), p.lines[s]); });
         var result = view.state && view.state.result;
+        if (p.events.some(function (e) { return e.kind === 'endgame'; })) { fast = true; Bgm.setTempo(ENDGAME_BPM); }
+        var kind = p.picked && p.picked.event.kind;
+        if (result) {
+          // Game over: the ending sound replaces the BGM (same perspective as the controller's gameover event).
+          Bgm.stop();
+          sfx(p.picked ? p.picked.perspective : 'draw');
+        } else if (kind === 'reach' || kind === 'block' || kind === 'double') {
+          sfx(kind);
+        }
         // The queue waits for the ending display, so the result card appears after it.
         return Fx.play(p.picked, { seats: g.seats, boardEl: g.boardwrap, winEls: winEls(result), result: result, humans: g.humans });
       });
@@ -594,6 +669,7 @@
       queue(function () {
         view.over = true;
         view.humanTurn = false;
+        Bgm.stop();
         Object.keys(g.seats).forEach(function (s) { g.seats[s].box.classList.remove('is-turn'); });
         renderMarks();
         showResult(p.result);

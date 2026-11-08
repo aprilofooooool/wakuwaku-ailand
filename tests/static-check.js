@@ -120,7 +120,8 @@ const forbidden = [
   [/XMLHttpRequest/, 'XMLHttpRequest'],
   [/new\s+Worker\s*\(/, 'new Worker('],
   [/(?:src|href)\s*=\s*["']https?:\/\//i, 'external src/href'],
-  [/url\(\s*["']?https?:\/\//i, 'external url()']
+  [/url\(\s*["']?https?:\/\//i, 'external url()'],
+  [/getImageData/, 'getImageData']
 ];
 const appFiles = [
   ...pageFiles.filter(exists),
@@ -134,6 +135,66 @@ for (const f of appFiles) {
       if (re.test(line)) { problems.push(rel(f) + ':' + (i + 1) + ': forbidden pattern ' + label); }
     }
   });
+}
+
+// 2b. localStorage only through the two storage modules (comments are ignored).
+const storageModules = new Set(['core/storage.js', 'games/othello/js/core/storage.js']);
+function stripComments(text) {
+  return text.replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, ' ')).replace(/(^|[^:\\])\/\/.*$/gm, '$1');
+}
+for (const f of appFiles) {
+  if (storageModules.has(rel(f))) { continue; }
+  stripComments(read(f)).split('\n').forEach((line, i) => {
+    if (/\blocalStorage\b/.test(line)) { problems.push(rel(f) + ':' + (i + 1) + ': localStorage outside the storage modules'); }
+  });
+}
+
+// 2c. data-base: must point at the repo root; pages that load core/character-view.js need it,
+// and every core character image (base + dir + emotion image) must resolve from that page.
+const coreSandbox = {};
+coreSandbox.window = coreSandbox;
+const coreCtx = vm.createContext(coreSandbox);
+let coreProfiles = [];
+let coreImages = [];
+try {
+  for (const f of ['namespace.js', 'emotion-map.js', 'characters.js']) {
+    vm.runInContext(read(path.join(root, 'core', f)), coreCtx, { filename: f });
+  }
+  coreProfiles = vm.runInContext('Ailand.core.Characters.list()', coreCtx);
+  coreImages = [...new Set(vm.runInContext('Ailand.core.EmotionMap.LOGICAL.map(function (k) { return Ailand.core.EmotionMap.resolve(k).image; })', coreCtx))];
+} catch (e) {
+  problems.push('core/characters.js: failed to load: ' + e.message);
+}
+for (const f of pageFiles.filter(exists)) {
+  const text = read(f);
+  const m = /<html\b[^>]*\bdata-base\s*=\s*"([^"]*)"/i.exec(text);
+  const usesView = /core\/character-view\.js/.test(text);
+  if (!m) {
+    if (usesView) { problems.push(rel(f) + ': loads core/character-view.js but has no data-base on <html>'); }
+    continue;
+  }
+  const base = m[1];
+  if (path.resolve(path.dirname(f), base || '.') !== root) {
+    problems.push(rel(f) + ': data-base "' + base + '" does not point at the repo root');
+    continue;
+  }
+  if (!usesView) { continue; }
+  for (const pf of coreProfiles) {
+    for (const img of coreImages) { checkExact(base + pf.image.dir + img + '.' + pf.image.ext, f); }
+  }
+}
+
+// 2d. Every tests/**/*.test.js must be listed in tests/test.html (the single test list).
+const testHtml = path.join(root, 'tests', 'test.html');
+if (exists(testHtml)) {
+  const listed = new Set();
+  const re = /<script\b[^>]*\bsrc\s*=\s*"([^"]+)"/gi;
+  let m;
+  const html = read(testHtml);
+  while ((m = re.exec(html)) !== null) { listed.add(path.resolve(path.dirname(testHtml), m[1])); }
+  for (const f of listFiles(path.join(root, 'tests'), ['.test.js'])) {
+    if (!listed.has(f)) { problems.push(rel(f) + ': not listed in tests/test.html'); }
+  }
 }
 
 // 3. File and folder names

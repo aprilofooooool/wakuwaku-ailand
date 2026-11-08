@@ -169,3 +169,4 @@ body.d4-playing { overflow: hidden; }
 .d4-piece .fx-ring { inset: -4px; border-width: 4px; }
 .d4-heroes.multi { width: 100%; max-width: none; }
 .d4-heroes.multi .d4-hero { flex: 0 0 min(36vw, 40vh); }
+.d4-menu { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
