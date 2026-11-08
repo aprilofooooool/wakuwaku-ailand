@@ -147,6 +147,13 @@
 
     function humanCount() { return humans().length; }
 
+    // Index of the last human move that undo would take back, or -1 when undo is not allowed now.
+    function lastHumanIndex() {
+      if (!state || thinking || state.result || undoLeft <= 0 || humanCount() !== 1) { return -1; }
+      for (var i = history.length - 1; i >= 0; i--) { if (isHuman(history[i].seat)) { return i; } }
+      return -1;
+    }
+
     return {
       start: function (s) {
         storage.remove(SAVE_KEY);
@@ -180,10 +187,9 @@
         commit(move);
         return true;
       },
+      canUndo: function () { return lastHumanIndex() >= 0; },
       undo: function () {
-        if (!state || thinking || state.result || undoLeft <= 0 || humanCount() !== 1) { return false; }
-        var idx = -1;
-        for (var i = history.length - 1; i >= 0 && idx < 0; i--) { if (isHuman(history[i].seat)) { idx = i; } }
+        var idx = lastHumanIndex();
         if (idx < 0) { return false; }
         var next = history.slice(0, idx);
         var r = replay(settings, next);
@@ -199,7 +205,7 @@
       },
       undoLeft: function () { return undoLeft; },
       state: function () { return state; },
-      settings: function () { return settings; },
+      settings: function () { return settings ? Object.assign({}, settings) : null; },
       isBusy: function () { return thinking; }
     };
   }

@@ -15,7 +15,7 @@
       now: function () { return performance.now(); },
       linePicker: C.LinePicker.create({ gameLines: D.Lines, commonLines: C.CommonLines, rng: rng })
     });
-    D.UI.init(document.getElementById('app'), controller, { bus: bus });
+    D.UI.init(document.getElementById('app'), controller, { bus: bus, rng: rng });
   }
 
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', boot); } else { boot(); }

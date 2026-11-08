@@ -265,5 +265,25 @@
       expect(h2.ctl.resume()).toBe(true);
       expect(h2.ctl.settings().seats[1].charId).toBe('kuchipatchi');
     });
+    it('returns a shallow copy', function () {
+      var h = make();
+      h.ctl.start(settings());
+      h.ctl.settings().level = 'strong';
+      expect(h.ctl.settings().level).toBe('normal');
+    });
+  });
+
+  describe('drop4 controller: canUndo', function () {
+    it('false before the first human move and while the CPU thinks; true on the next human turn', async function () {
+      var h = make({ script: [3] });
+      h.ctl.start(settings());
+      expect(h.ctl.canUndo()).toBe(false);
+      h.ctl.input(drop(0));
+      expect(h.ctl.canUndo()).toBe(false);
+      await cpuMove(h);
+      expect(h.ctl.canUndo()).toBe(true);
+      expect(h.ctl.undo()).toBe(true);
+      expect(h.ctl.canUndo()).toBe(false);
+    });
   });
 })(window.Ailand);

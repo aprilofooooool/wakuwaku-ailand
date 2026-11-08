@@ -56,17 +56,19 @@
   }
 
   // Settings for Controller.start: resolves "どっちが さき？" (2 players) or a random first seat (3+).
-  function withFirstSeat(s) {
+  function withFirstSeat(s, rng) {
     var out = JSON.parse(JSON.stringify(s));
     if (s.players === 2 && s.firstChoice === 'me') { out.firstSeat = 1; }
     else if (s.players === 2 && s.firstChoice === 'them') { out.firstSeat = 2; }
-    else { out.firstSeat = 1 + Math.floor(Math.random() * s.players); }
+    else { out.firstSeat = 1 + Math.min(s.players - 1, Math.floor(rng() * s.players)); }
     return out;
   }
 
   function init(root, controller, opts) {
     var o = opts || {};
     var bus = o.bus;
+    if (!bus || typeof bus.on !== 'function') { throw new Error('drop4 UI.init: opts.bus (EventBus) is required'); }
+    var rng = o.rng || Math.random;
     var draft = normalize(controller.loadSettings());
     var soundOn = true;
 
@@ -181,7 +183,7 @@
       }
 
       var p6 = el('section', 'd4-panel d4-startpanel');
-      p6.appendChild(button('btn btn-main d4-start', 'はじめる', function () { controller.start(withFirstSeat(draft)); }));
+      p6.appendChild(button('btn btn-main d4-start', 'はじめる', function () { controller.start(withFirstSeat(draft, rng)); }));
       if (controller.hasSave()) {
         p6.appendChild(button('btn btn-sub d4-resume', 'つづきから', function () {
           if (!controller.resume()) { C.UI.toast('つづきが よめなかったよ'); renderSettings(); }
@@ -282,7 +284,6 @@
       var tools = el('div', 'd4-tools');
       tools.id = 'd4-tools';
       center.appendChild(boardwrap);
-      center.appendChild(tools);
 
       var result = el('div', 'd4-result');
       result.id = 'd4-result';
@@ -291,6 +292,7 @@
       wrap.appendChild(left);
       wrap.appendChild(center);
       wrap.appendChild(right);
+      wrap.appendChild(tools);
       wrap.appendChild(result);
       gameScreen.appendChild(wrap);
 
@@ -320,8 +322,9 @@
       st.setProperty('--cols', String(g.cols));
       st.setProperty('--board-w', layout.boardW + 'px');
       st.setProperty('--side', L.SIDE + 'px');
-      st.setProperty('--vpad', L.VPAD + 'px');
+      st.setProperty('--vpad', (layout.orientation === 'landscape' ? L.VPAD_L : L.VPAD) + 'px');
       st.setProperty('--tools-h', L.TOOLS_H + 'px');
+      st.setProperty('--tools-w', L.TOOLS_W + 'px');
       st.setProperty('--chars-h', L.CHARS_H + 'px');
       st.setProperty('--side-w', L.SIDE_W + 'px');
       // Review Focus 4: a resize drops the ghost / picked piece.
@@ -426,11 +429,14 @@
         modeBtn('block', 'ブロック' + NL + 'のこり' + left).disabled = off || left <= 0;
       }
       if (g.humans.length === 1 && controller.undoLeft() > 0) {
+        // Shown whenever undo is allowed this game; inactive until there is a human move to take back.
+        var can = controller.canUndo();
         var u = button('d4-tool d4-undo', '1て もどす' + NL + 'のこり' + controller.undoLeft(), function () {
-          if (controller.isBusy() || pending > 0) { return; }
+          if (!controller.canUndo() || pending > 0) { return; }
           controller.undo();
         });
         u.id = 'd4-undo';
+        u.setAttribute('aria-disabled', String(!can));
         t.appendChild(u);
       }
     }
@@ -490,7 +496,7 @@
       card.appendChild(el('p', 'd4-result-text', text));
       var row = el('div', 'd4-result-actions');
       row.appendChild(button('btn btn-main', 'もういちど', function () {
-        controller.start(withFirstSeat(normalize(controller.settings())));
+        controller.start(withFirstSeat(normalize(controller.settings()), rng));
       }));
       row.appendChild(button('btn btn-sub', 'せってい', showSettings));
       card.appendChild(row);
@@ -582,6 +588,7 @@
 
     window.addEventListener('resize', applyLayout);
     window.addEventListener('orientationchange', applyLayout);
+    if (window.visualViewport) { window.visualViewport.addEventListener('resize', applyLayout); }
 
     showSettings();
   }
