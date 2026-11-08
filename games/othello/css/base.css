@@ -85,6 +85,10 @@ body {
 .modal h2 { margin: 0 0 12px; font-size: 1.3rem; text-align: center; }
 .modal ul { margin: 0 0 16px; padding-left: 1.2em; line-height: 1.8; }
 .modal .modal-actions { display: flex; justify-content: center; gap: 12px; }
+/* Header せってい modal */
+.settings-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-bottom: 16px; }
+.settings-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 16px; }
+.settings-label { font-weight: bold; font-size: 1.125rem; }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }

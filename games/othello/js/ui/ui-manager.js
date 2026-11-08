@@ -579,6 +579,55 @@
     pushed = false;
   }
 
+  function askRestart() {
+    confirmDialog('さいしょから やりなおす？').then(function (ok) { if (ok && G) { restartGame(); } });
+  }
+  function askTop() {
+    confirmDialog('トップへ もどる？').then(function (ok) { if (ok) { leaveGame(false); } });
+  }
+
+  // Header せってい (same shape as ぽとん4): in a game, restart / back to top; always BGM ON/OFF.
+  function openSettings() {
+    var nodes = [];
+    var m = null;
+    if (gameActive && G) {
+      var acts = el('div', 'settings-actions');
+      [['btn btn-main', 'はじめから', askRestart], ['btn btn-sub', 'トップに もどる', askTop]].forEach(function (a) {
+        var b = el('button', a[0], a[1]);
+        b.type = 'button';
+        b.addEventListener('click', function () { m.close(); if (G) { G.ctrl.notifyActivity(); } a[2](); });
+        acts.appendChild(b);
+      });
+      nodes.push(acts);
+    }
+    var row = el('div', 'settings-row');
+    row.appendChild(el('span', 'settings-label', 'BGM'));
+    var group = el('div', 'choices');
+    group.setAttribute('role', 'radiogroup');
+    group.setAttribute('aria-label', 'BGM');
+    var S = Ailand.core.Sound;
+    [[true, 'ON'], [false, 'OFF']].forEach(function (it) {
+      var b = el('button', 'choice', it[1]);
+      b.type = 'button';
+      b.setAttribute('role', 'radio');
+      b.addEventListener('click', function () {
+        S.setBgmOn(it[0]);
+        O.BgmLink.sync();
+        paint();
+      });
+      group.appendChild(b);
+    });
+    function paint() {
+      Array.prototype.forEach.call(group.children, function (b, i) {
+        b.setAttribute('aria-checked', String((i === 0) === S.isBgmOn()));
+      });
+    }
+    paint();
+    row.appendChild(group);
+    nodes.push(row);
+    m = Ailand.core.UI.modal('せってい', nodes);
+  }
+
   function restartGame() {
     if (!G) { return; }
     closeResult();
@@ -764,12 +813,8 @@
         renderControls();
       }),
       sound: makeControl('♪', 'おと', 'おとの オンオフ', toggleSound),
-      reset: makeControl('⟲', 'リセット', 'さいしょから やりなおす', function () {
-        confirmDialog('さいしょから やりなおす？').then(function (ok) { if (ok && G) { restartGame(); } });
-      }),
-      top: makeControl('⌂', 'トップ', 'トップへ もどる', function () {
-        confirmDialog('トップへ もどる？').then(function (ok) { if (ok) { leaveGame(false); } });
-      })
+      reset: makeControl('⟲', 'リセット', 'さいしょから やりなおす', askRestart),
+      top: makeControl('⌂', 'トップ', 'トップへ もどる', askTop)
     };
     // Two groups: portrait shows them as one row of 6, landscape puts one group under each panel.
     [['c1', ['undo', 'redo', 'assist']], ['c2', ['sound', 'reset', 'top']]].forEach(function (g) {
@@ -1083,6 +1128,7 @@
     showResult: showResult,
     showHelp: showHelp,
     announceColors: announceColors,
+    openSettings: openSettings,
     _normalizeSettings: normalizeSettings
   };
 })(Ailand.games.othello);

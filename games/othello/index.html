@@ -49,7 +49,7 @@
       soundOn: Ailand.core.Sound.isEnabled(),
       onBack: function () { Ailand.games.othello.BgmLink.stop(); location.href = '../../index.html'; },
       onSound: function () { return Ailand.games.othello.UI.toggleSound(); },
-      onSettings: function () { Ailand.games.othello.UI.leave(); }
+      onSettings: function () { Ailand.games.othello.UI.openSettings(); }
     }), document.body.firstChild);
   }
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', mountHeader); }
