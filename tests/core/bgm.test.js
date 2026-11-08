@@ -51,6 +51,26 @@
     });
   });
 
+  describe('core/Bgm.notesBetween optional chords voice', function () {
+    var withChords = {
+      bpm: 120, wave: 'triangle',
+      bass: [[100, 4], [0, 4]],
+      steps: [[500, 8]],
+      chords: [[0, 1], [300, 1], [0, 1], [350, 1]] // 4-beat loop of off-beat ticks
+    };
+    function chords(list) { return list.filter(function (n) { return n.chord; }); }
+    it('chord notes are flagged chord:true (not bass) and loop on their own length', function () {
+      var n = chords(Bgm.notesBetween(withChords, 120, 0, 8));
+      expect(n.map(function (x) { return x.beat; })).toEqual([1, 3, 5, 7]);
+      expect(n.map(function (x) { return x.freq; })).toEqual([300, 350, 300, 350]);
+      expect(n.every(function (x) { return x.bass === false && x.len === 0.5; })).toBe(true);
+    });
+    it('a score without chords (drop4 NORMAL) yields no chord notes', function () {
+      expect(chords(Bgm.notesBetween(A.games.drop4.Sounds.NORMAL, 120, 0, 32)).length).toBe(0);
+      expect(chords(Bgm.notesBetween(score, 120, 0, 16)).length).toBe(0);
+    });
+  });
+
   describe('core/Bgm without audio', function () {
     it('start / setTempo / stop never throw when AudioContext is missing', function () {
       Bgm.start(score);

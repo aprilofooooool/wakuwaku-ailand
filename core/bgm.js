@@ -1,12 +1,15 @@
 (function (C) {
   'use strict';
 
-  // Looping BGM. score = { bpm, wave, bass: [[freq|0, beats], ...], steps: [[freq|0, beats], ...] }.
+  // Looping BGM. score = { bpm, wave, bass: [[freq|0, beats], ...], steps: [[freq|0, beats], ...],
+  //   chords (optional): [[freq|0, beats], ...] played as soft short sine plucks (off-beat "pah" / arpeggio) }.
   // Notes are scheduled slightly ahead of the audio clock (lookahead) from a setTimeout loop.
   var LOOKAHEAD = 0.1;   // seconds scheduled ahead
   var TICK_MS = 25;
   var MELODY_PEAK = 0.32;
   var BASS_PEAK = 0.38;
+  var CHORD_PEAK = 0.12;   // quieter than melody and bass
+  var CHORD_MAX_S = 0.12;  // chord plucks stay short (staccato)
 
   var score = null;
   var bpm = 120;
@@ -22,7 +25,7 @@
     return sum;
   }
 
-  function pushNotes(out, steps, bpmNow, from, to, isBass) {
+  function pushNotes(out, steps, bpmNow, from, to, isBass, isChord) {
     if (!steps || !steps.length) { return; }
     var total = loopBeats(steps);
     if (total <= 0) { return; }
@@ -34,19 +37,22 @@
         var beat = k * total + off;
         off += steps[i][1];
         if (steps[i][0] > 0 && beat >= from && beat < to) {
-          out.push({ beat: beat, freq: steps[i][0], len: steps[i][1] * 60 / bpmNow, bass: isBass });
+          var n = { beat: beat, freq: steps[i][0], len: steps[i][1] * 60 / bpmNow, bass: isBass };
+          if (isChord) { n.chord = true; }
+          out.push(n);
         }
       }
     }
   }
 
   // Pure. Notes whose start beat is in [fromBeat, toBeat); beats count up across loops.
-  // len is in seconds at the given bpm; bass notes carry bass:true.
+  // len is in seconds at the given bpm; bass notes carry bass:true, chord-voice notes chord:true.
   function notesBetween(sc, bpmNow, fromBeat, toBeat) {
     var out = [];
     if (!sc || !(bpmNow > 0) || !(toBeat > fromBeat)) { return out; }
     pushNotes(out, sc.steps, bpmNow, fromBeat, toBeat, false);
     pushNotes(out, sc.bass, bpmNow, fromBeat, toBeat, true);
+    pushNotes(out, sc.chords, bpmNow, fromBeat, toBeat, false, true);
     out.sort(function (a, b) { return a.beat - b.beat; });
     return out;
   }
@@ -71,9 +77,10 @@
           for (var i = 0; i < notes.length; i++) {
             var n = notes[i];
             var at = nextTime + (n.beat - nextBeat) * 60 / bpm;
-            var dur = n.len * 0.92;
-            var osc = n.bass ? S.note(ctx, dest, at, n.freq, 0, dur, 'sine', BASS_PEAK, 0, 0.02)
-              : S.note(ctx, dest, at, n.freq, 0, dur, score.wave || 'triangle', MELODY_PEAK, 0, 0.02);
+            var dur = n.chord ? Math.min(n.len * 0.6, CHORD_MAX_S) : n.len * 0.92;
+            var osc = n.chord ? S.note(ctx, dest, at, n.freq, 0, dur, 'sine', CHORD_PEAK, 0, 0.01)
+              : n.bass ? S.note(ctx, dest, at, n.freq, 0, dur, 'sine', BASS_PEAK, 0, 0.02)
+                : S.note(ctx, dest, at, n.freq, 0, dur, score.wave || 'triangle', MELODY_PEAK, 0, 0.02);
             live.push({ osc: osc, end: at + dur + 0.05 });
           }
           live = live.filter(function (l) { return l.end > now; });

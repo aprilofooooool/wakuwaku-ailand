@@ -1,27 +1,45 @@
 (function (O) {
   'use strict';
-  // オセロっち BGM: relaxed D major pentatonic melody over a D-Bm-G-A bass, 8 bars of 4/4 (32 beats) at 96 bpm.
-  // Played by core/bgm.js (triangle melody, sine bass; same gains as drop4). Othello's own SE stay in sound-synthesizer.js.
-  var D4 = 293.66, E4 = 329.63, FS4 = 369.99, A4 = 440, B4 = 493.88, D5 = 587.33, E5 = 659.25, FS5 = 739.99;
-  // [root, fifth] per bar, all >= 100 Hz.
-  var BARS = [[146.83, 110], [123.47, 185], [196, 146.83], [110, 164.81],
-    [146.83, 110], [123.47, 185], [196, 164.81], [146.83, 110]];
-  var BASS = [];
-  BARS.forEach(function (b) { BASS.push([b[0], 1], [0, 1], [b[1], 1], [0, 1]); });
+  // オセロっち BGM "ぴょこぴょこポルカ": cheerful F major, 120 bpm, 8 bars of 4/4 (32 beats).
+  // Melody: a 2-bar call-and-answer motif (dotted 8ths, syncopated rests, octave leap) repeated a step higher,
+  // then a climbing Dm-Bb phrase and a run up to C6 that falls home. Bass walks root-fifth on every beat
+  // (staccato); chords tick softly on every off-beat ("oom-pah" polka). Chords: F Bb C F | Dm Bb C F.
+  // Played by core/bgm.js (triangle melody, sine bass, soft sine chord plucks; same gains as drop4).
+  // Othello's own SE stay in sound-synthesizer.js.
+  var F4 = 349.23, G4 = 392, A4 = 440, BB4 = 466.16, C5 = 523.25, D5 = 587.33, E5 = 659.25;
+  var F5 = 698.46, G5 = 783.99, A5 = 880, C6 = 1046.5;
+  var BB2 = 116.54, C3 = 130.81, D3 = 146.83, F3 = 174.61, G3 = 196, A3 = 220, BB3 = 233.08;
+  var C4 = 261.63, D4 = 293.66, E4 = 329.63;
+
+  // Per bar: [bass root, bass fifth, off-beat chord tone 1, off-beat chord tone 2]; all >= 100 Hz.
+  var BARS = [
+    [F3, C3, A3, C4], [BB2, F3, BB3, D4], [C3, G3, C4, E4], [F3, C3, A3, C4],
+    [D3, A3, A3, D4], [BB2, F3, BB3, D4], [C3, G3, C4, E4], [F3, C3, A3, C4]
+  ];
+  var BASS = [], CHORDS = [];
+  BARS.forEach(function (b) {
+    BASS.push([b[0], 0.5], [0, 0.5], [b[1], 0.5], [0, 0.5], [b[0], 0.5], [0, 0.5], [b[1], 0.5], [0, 0.5]);
+    CHORDS.push([0, 0.5], [b[2], 0.5], [0, 0.5], [b[3], 0.5], [0, 0.5], [b[2], 0.5], [0, 0.5], [b[3], 0.5]);
+  });
 
   O.BGM_SCORE = {
-    bpm: 96,
+    bpm: 120,
     wave: 'triangle',
     bass: BASS,
+    chords: CHORDS,
     steps: [
-      [FS4, 1], [A4, 1], [B4, 1], [A4, 1],
-      [D5, 1.5], [B4, 0.5], [A4, 2],
-      [B4, 1], [D5, 1], [E5, 1], [D5, 1],
-      [E5, 1.5], [D5, 0.5], [B4, 1], [0, 1],
-      [A4, 1], [FS5, 1], [E5, 1], [D5, 1],
-      [B4, 1], [D5, 0.5], [B4, 0.5], [A4, 2],
-      [B4, 1], [A4, 1], [E4, 1], [FS4, 1],
-      [D4, 2], [0, 2]
+      // call and answer (bars 1-2)
+      [C5, 0.75], [A4, 0.25], [C5, 0.5], [F5, 0.5], [0, 0.5], [F5, 0.5], [E5, 0.5], [F5, 0.5],
+      [D5, 0.5], [0, 0.25], [D5, 0.25], [BB4, 0.5], [D5, 0.5], [C5, 1], [0, 1],
+      // the same, a step higher (bars 3-4)
+      [C5, 0.75], [G4, 0.25], [C5, 0.5], [E5, 0.5], [0, 0.5], [G5, 0.5], [F5, 0.5], [E5, 0.5],
+      [F5, 0.5], [0, 0.25], [C5, 0.25], [A4, 0.5], [C5, 0.5], [F4, 1], [0, 1],
+      // climbing phrase (bars 5-6)
+      [A4, 0.5], [D5, 0.5], [F5, 0.5], [A5, 0.5], [0, 0.5], [A5, 0.25], [G5, 0.25], [F5, 0.5], [D5, 0.5],
+      [BB4, 0.5], [D5, 0.5], [F5, 1], [0, 0.5], [D5, 0.5], [F5, 0.5], [D5, 0.5],
+      // run up to C6 and fall home with an octave leap (bars 7-8)
+      [E5, 0.75], [F5, 0.25], [G5, 0.5], [C5, 0.5], [E5, 0.75], [F5, 0.25], [G5, 0.5], [C6, 0.5],
+      [A5, 0.5], [F5, 0.5], [C5, 0.5], [A4, 0.5], [F4, 0.5], [F5, 0.5], [0, 1]
     ]
   };
 })(Ailand.games.othello);
