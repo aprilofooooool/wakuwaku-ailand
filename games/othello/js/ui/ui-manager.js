@@ -7,7 +7,7 @@
   var RECEIVERS = [['p1', '1P'], ['p2', '2P']];
   var DEFAULT_STATE = {
     mode: 'solo', humans: 2, p1: null, p2: null, p3: null, p4: null, cpu: null, first: 'random', level: 'normal',
-    handicapLevel: 0, handicapReceiver: 'p1', boardSize: 8, winRule: 'normal', assist: false, sound: true
+    handicapLevel: 0, handicapReceiver: 'p1', boardSize: 8, winRule: 'normal', assist: false
   };
 
   var callbacks = {};
@@ -28,7 +28,11 @@
   function oneOf(v, list, fallback) { return list.indexOf(v) >= 0 ? v : fallback; }
 
   function loadState() {
-    var saved = O.Storage.get(O.Const.SETTINGS_KEY, {}) || {};
+    return normalizeSettings(O.Storage.get(O.Const.SETTINGS_KEY, {}) || {});
+  }
+
+  // Saved top-screen settings -> valid state. An old `sound` field is ignored (sound is the shared core setting).
+  function normalizeSettings(saved) {
     var s = {};
     Object.keys(DEFAULT_STATE).forEach(function (k) { s[k] = DEFAULT_STATE[k]; });
     s.mode = oneOf(saved.mode, ['solo', 'duo', 'four'], s.mode);
@@ -45,7 +49,6 @@
     s.boardSize = oneOf(saved.boardSize, [8, 6], 8);
     s.winRule = oneOf(saved.winRule, ['normal', 'anti'], 'normal');
     s.assist = saved.assist === true;
-    s.sound = saved.sound !== false;
     if (s.p1 && s.p1 === s.p2) { s.p2 = null; }
     if (s.p3 && (s.p3 === s.p1 || s.p3 === s.p2)) { s.p3 = null; }
     if (s.p4 && (s.p4 === s.p1 || s.p4 === s.p2 || s.p4 === s.p3)) { s.p4 = null; }
@@ -202,16 +205,16 @@
     els.start.disabled = reason !== '';
     els.reason.textContent = reason;
     els.resume.hidden = !O.GameController.hasSave();
-    els.sound.setAttribute('aria-pressed', String(state.sound));
-    els.sound.textContent = state.sound ? 'おと：ON' : 'おと：OFF';
+    var soundOn = Ailand.core.Sound.isEnabled();
+    els.sound.setAttribute('aria-pressed', String(soundOn));
+    els.sound.textContent = soundOn ? 'おと：ON' : 'おと：OFF';
   }
 
+  // Flips the shared sound flag; every view repaints through Sound.onChange (see init).
   function toggleSound() {
-    state.sound = !state.sound;
-    saveState();
-    render();
-    if (callbacks.onSoundToggle) { callbacks.onSoundToggle(state.sound); }
-    return state.sound;
+    var S = Ailand.core.Sound;
+    S.setEnabled(!S.isEnabled());
+    return S.isEnabled();
   }
 
   function openModal(title, bodyNodes) {
@@ -760,7 +763,7 @@
         saveState();
         renderControls();
       }),
-      sound: makeControl('♪', 'おと', 'おとの オンオフ', function () { toggleSound(); renderControls(); }),
+      sound: makeControl('♪', 'おと', 'おとの オンオフ', toggleSound),
       reset: makeControl('⟲', 'リセット', 'さいしょから やりなおす', function () {
         confirmDialog('さいしょから やりなおす？').then(function (ok) { if (ok && G) { restartGame(); } });
       }),
@@ -989,7 +992,7 @@
 
   function renderControls() {
     if (!G || !G.btn) { return; }
-    var soundOn = state ? state.sound : true;
+    var soundOn = Ailand.core.Sound.isEnabled();
     G.btn.undo.disabled = !G.ctrl.canUndo();
     G.btn.redo.disabled = !G.ctrl.canRedo();
     G.btn.assist.setAttribute('aria-pressed', String(G.assistOn));
@@ -1061,6 +1064,7 @@
   function init(cb) {
     callbacks = cb || {};
     state = loadState();
+    Ailand.core.Sound.onChange(function () { render(); renderControls(); });
     buildTop();
     render();
     showScreen('top');
@@ -1070,7 +1074,7 @@
     init: init,
     showScreen: showScreen,
     readSettings: readSettings,
-    isSoundOn: function () { return state.sound; },
+    isSoundOn: function () { return Ailand.core.Sound.isEnabled(); },
     bindGame: bindGame,
     leave: function () { leaveGame(false); },
     toggleSound: toggleSound,
@@ -1078,6 +1082,7 @@
     confirm: confirmDialog,
     showResult: showResult,
     showHelp: showHelp,
-    announceColors: announceColors
+    announceColors: announceColors,
+    _normalizeSettings: normalizeSettings
   };
 })(Ailand.games.othello);

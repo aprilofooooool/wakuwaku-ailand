@@ -46,7 +46,7 @@
   function mountHeader() {
     document.body.insertBefore(Ailand.core.UI.header({
       title: 'ぱたぱた！オセロっち',
-      soundOn: Ailand.games.othello.UI.isSoundOn(),
+      soundOn: Ailand.core.Sound.isEnabled(),
       onBack: function () { Ailand.games.othello.BgmLink.stop(); location.href = '../../index.html'; },
       onSound: function () { return Ailand.games.othello.UI.toggleSound(); },
       onSettings: function () { Ailand.games.othello.UI.leave(); }
@@ -55,7 +55,7 @@
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', mountHeader); }
   else { mountHeader(); }
   // BGM: core AudioContext unlocks on a user gesture (each one: iOS can re-suspend); the loop starts on the first.
-  // Sound toggles reach BgmLink.sync through main.js onSoundToggle.
+  // Sound toggles reach BgmLink.sync through Ailand.core.Sound.onChange (main.js).
   ['pointerdown', 'touchend', 'click'].forEach(function (type) {
     document.addEventListener(type, function () { Ailand.core.Sound.unlock(); Ailand.games.othello.BgmLink.sync(); }, true);
   });

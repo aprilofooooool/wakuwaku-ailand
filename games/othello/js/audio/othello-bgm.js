@@ -47,17 +47,16 @@
 (function (O) {
   'use strict';
   // Page wiring for the BGM (called from index.html and main.js; never from game logic).
-  // Plays only while othello's own sound setting AND the shared core sound + BGM settings are all ON.
+  // Plays only while the shared core sound and BGM settings are both ON.
   var playing = false;
 
   function wanted() {
     var C = Ailand.core;
-    var own = false;
-    try { own = !!(O.UI && O.UI.isSoundOn()); } catch (e) { own = false; } // UI not initialised yet
-    return own && C.Sound.isEnabled() && C.Sound.isBgmOn();
+    return C.Sound.isEnabled() && C.Sound.isBgmOn();
   }
 
   O.BgmLink = {
+    wanted: wanted,
     sync: function () {
       var want = wanted();
       if (want && !playing) { Ailand.core.Bgm.start(O.BGM_SCORE); playing = true; }
