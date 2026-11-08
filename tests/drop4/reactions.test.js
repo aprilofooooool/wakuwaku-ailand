@@ -44,6 +44,33 @@
       expect(emo(r.events, 'double', 2)).toBe('surprised');
       expect(of(r.events, 'reach').length).toBe(0);
     });
+    it('persisting double threat after a quiet move fires nothing', function () {
+      var s = play(mk({}), [1, 1, 2, 2, 3, 6]);
+      var r = step(s, drop(s, 6));
+      expect(of(r.events, 'double').length).toBe(0);
+      expect(of(r.events, 'reach').length).toBe(0);
+    });
+    it('persisting single threat after a quiet move fires no reach', function () {
+      var s = play(mk({}), [0, 6, 0, 6, 0, 5]);
+      var r = step(s, drop(s, 4));
+      expect(of(r.events, 'reach').length).toBe(0);
+    });
+    it('2 wins growing to 3 with a new column fires double', function () {
+      var found = null;
+      for (var seed = 1; seed < 3000 && !found; seed++) {
+        var rng = A.core.Rng.mulberry32(seed), s = mk({ players: 4 });
+        while (!s.result && !found) {
+          var m = randomMove(s, rng), a = E.apply(s, m);
+          if (!a.result) {
+            var wb = E.immediateWins(s, m.seat), wa = E.immediateWins(a, m.seat);
+            if (wb.length === 2 && wa.length === 3 && wa.some(function (c) { return wb.indexOf(c) < 0; })) { found = { b: s, m: m, a: a }; }
+          }
+          s = a;
+        }
+      }
+      expect(!!found).toBe(true);
+      expect(of(R.detect(found.b, found.m, found.a, { endgameFired: true }), 'double').length).toBe(4);
+    });
     it('plain move yields only a place event', function () {
       var s = mk({});
       var r = step(s, drop(s, 3));

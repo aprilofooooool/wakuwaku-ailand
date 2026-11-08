@@ -15,6 +15,7 @@
   }
 
   // Events for one move. before/after are engine states; ctx = { endgameFired:boolean }.
+  // The caller must set ctx.endgameFired once an endgame event was emitted, even if another event won pick().
   // Every event: { kind, seat, emotion, by } where by is the mover's seat.
   function detect(before, move, after, ctx) {
     var mover = move.seat, events = [];
@@ -40,11 +41,13 @@
       return events;
     }
 
-    var wins = E.immediateWins(after, mover).length;
-    if (wins >= 2) {
-      addMoverAndOthers('double', 'excited', 'surprised', others);
-    } else if (wins >= 1 && wins > E.immediateWins(before, mover).length) {
-      addMoverAndOthers('reach', 'joy', 'worried', others);
+    // reach/double need a winning column this move newly created (not one that already existed).
+    var winsAfter = E.immediateWins(after, mover);
+    var winsBefore = E.immediateWins(before, mover);
+    var fresh = winsAfter.filter(function (c) { return winsBefore.indexOf(c) < 0; });
+    if (fresh.length > 0) {
+      if (winsAfter.length >= 2) { addMoverAndOthers('double', 'excited', 'surprised', others); }
+      else { addMoverAndOthers('reach', 'joy', 'worried', others); }
     }
 
     if (move.type === 'drop' || move.type === 'block') {
