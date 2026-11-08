@@ -32,9 +32,11 @@ echo measure-drop4: not implemented yet
 exit /b 1
 
 :replay
-node tests\tools\replay-othello.js %2 %3
+rem %* is not shifted by "shift", so pass the remaining arguments explicitly (up to 8).
+node tests\tools\replay-othello.js %2 %3 %4 %5 %6 %7 %8 %9
 exit /b %errorlevel%
 
 :usage
 echo Usage: scripts\run.bat ^<test^|check^|serve^|resize-images^|measure-drop4^|replay-othello^>
+echo   replay-othello extra args: --write, --verbose, --only ^<key prefix^> (space-separated)
 exit /b 1

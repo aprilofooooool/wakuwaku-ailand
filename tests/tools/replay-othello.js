@@ -1,7 +1,7 @@
 'use strict';
 // Replays full games through GameController with a seeded rng, a fake clock and an instant scheduler,
 // and compares the record with tests/golden/othello-replay.json.
-// Usage: node tests/tools/replay-othello.js [--write]
+// Usage: node tests/tools/replay-othello.js [--write] [--verbose] [--only <key prefix>]
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -24,6 +24,7 @@ const FILES = [
   'js/game/line-picker.js',
   'js/game/game-controller.js'
 ];
+// Namespace object of the app inside the vm, as a dotted path (Task 3 switches it to the ported one).
 const NS = 'Otc';
 // Fake clock: every performance.now() call advances this many ms (0.05 made four/strong take over an hour per game).
 const CLOCK_STEP_MS = 10;
@@ -78,7 +79,7 @@ function createWorld() {
     next.fn();
     return true;
   }
-  return { ns: sandbox[NS], sched, runNext };
+  return { ns: NS.split('.').reduce((o, k) => o[k], sandbox), sched, runNext };
 }
 
 function memStorage(ns) {
@@ -94,16 +95,16 @@ function memStorage(ns) {
 
 function playGame(combo) {
   const w = createWorld();
-  const Otc = w.ns;
+  const api = w.ns;
   const rng = mulberry32(combo.seed);
-  const bus = Otc.createBus();
+  const bus = api.createBus();
   const rec = { moves: [], board: [], emotions: [], result: null };
   bus.on('moved', (p) => { rec.moves.push(p.mover + ':' + p.index); });
   bus.on('emotion', (p) => { rec.emotions.push({ player: p.player, emotion: p.emotion }); });
   bus.on('gameover', (p) => {
     rec.result = { result: p.result, winner: p.winner === undefined ? null : p.winner, winners: p.winners || null, ranks: p.ranks || null };
   });
-  const ctrl = Otc.GameController.create({ bus, scheduler: w.sched, rng, storage: memStorage(Otc) });
+  const ctrl = api.GameController.create({ bus, scheduler: w.sched, rng, storage: memStorage(api) });
   const names = ['mametchi', 'kuchipatchi', 'mimitchi', 'flowertchi'];
   let settings;
   if (combo.mode === 'four') {
@@ -147,8 +148,9 @@ function buildCombos() {
 function main() {
   const write = process.argv.includes('--write');
   const t0 = Date.now();
-  const onlyArg = process.argv.find((a) => a.startsWith('--only='));
-  const combos = buildCombos().filter((c) => !onlyArg || c.key.startsWith(onlyArg.slice(7)));
+  const onlyAt = process.argv.indexOf('--only');
+  const only = onlyAt >= 0 ? process.argv[onlyAt + 1] : null;
+  const combos = buildCombos().filter((c) => !only || c.key.startsWith(only));
   const games = {};
   for (const c of combos) {
     const g0 = Date.now();
