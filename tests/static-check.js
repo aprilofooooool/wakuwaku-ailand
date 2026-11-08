@@ -45,9 +45,13 @@ function checkExact(target, from) {
 function isExternal(u) { return /^([a-z][a-z0-9+.-]*:|\/\/|#)/i.test(u); }
 
 // 1. References
-const htmlFiles = [path.join(root, 'index.html'), path.join(root, 'tests', 'test.html')];
-const cssFiles = listFiles(path.join(root, 'css'), ['.css']);
-const jsFiles = listFiles(path.join(root, 'js'), ['.js']);
+const gameDirs = exists(path.join(root, 'games'))
+  ? fs.readdirSync(path.join(root, 'games'), { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)
+  : [];
+const pageFiles = [path.join(root, 'index.html'), ...gameDirs.map((g) => path.join(root, 'games', g, 'index.html'))];
+const htmlFiles = [...pageFiles, path.join(root, 'tests', 'test.html')];
+const cssFiles = [...listFiles(path.join(root, 'css'), ['.css']), ...listFiles(path.join(root, 'games'), ['.css'])];
+const jsFiles = [...listFiles(path.join(root, 'core'), ['.js']), ...listFiles(path.join(root, 'games'), ['.js'])];
 
 for (const f of htmlFiles) {
   if (!exists(f)) { warnings.push(rel(f) + ' not found (skipped)'); continue; }
@@ -68,7 +72,8 @@ for (const f of jsFiles) {
   let m;
   while ((m = re.exec(text)) !== null) { if (!isExternal(m[1])) { checkExact(m[1], f); } }
 }
-const charsFile = path.join(root, 'js', 'data', 'characters.js');
+const gameRoot = path.join(root, 'games', 'othello');
+const charsFile = path.join(gameRoot, 'js', 'data', 'characters.js');
 if (exists(charsFile)) {
   const sandbox = {};
   sandbox.window = sandbox;
@@ -76,9 +81,10 @@ if (exists(charsFile)) {
   let chars;
   let loaded = false;
   try {
-    vm.runInContext(read(path.join(root, 'js', 'core', 'namespace.js')), ctx);
+    vm.runInContext(read(path.join(root, 'core', 'namespace.js')), ctx);
+    vm.runInContext(read(path.join(gameRoot, 'js', 'core', 'namespace.js')), ctx);
     vm.runInContext(read(charsFile), ctx, { filename: charsFile });
-    chars = vm.runInContext('Otc.Characters', ctx);
+    chars = vm.runInContext('Ailand.games.othello.Characters', ctx);
     loaded = true;
   } catch (e) {
     problems.push(rel(charsFile) + ': failed to load: ' + e.message);
@@ -86,7 +92,7 @@ if (exists(charsFile)) {
   if (loaded) {
     const list = Array.isArray(chars) ? chars : (chars && typeof chars === 'object' ? Object.values(chars) : []);
     if (list.length === 0) {
-      problems.push(rel(charsFile) + ': Otc.Characters is missing or empty');
+      problems.push(rel(charsFile) + ': Ailand.games.othello.Characters is missing or empty');
     }
     const emotions = ['normal', 'joy', 'anger', 'sadness', 'panic', 'thinking'];
     for (const c of list) {
@@ -98,11 +104,11 @@ if (exists(charsFile)) {
       const dir = img.dir.endsWith('/') ? img.dir : img.dir + '/';
       const names = emotions.map((emo) => emo + '.' + img.ext);
       if (img.hasDisc) { names.push('disc.' + img.ext); }
-      for (const n of names) { checkExact(path.join(root, dir + n), charsFile); }
+      for (const n of names) { checkExact(path.join(gameRoot, dir + n), charsFile); }
     }
   }
 } else {
-  warnings.push('js/data/characters.js not found (skipped)');
+  warnings.push('games/othello/js/data/characters.js not found (skipped)');
 }
 
 // 2. Forbidden patterns
@@ -117,7 +123,7 @@ const forbidden = [
   [/url\(\s*["']?https?:\/\//i, 'external url()']
 ];
 const appFiles = [
-  ...(exists(htmlFiles[0]) ? [htmlFiles[0]] : []),
+  ...pageFiles.filter(exists),
   ...cssFiles,
   ...jsFiles
 ];
@@ -144,14 +150,14 @@ function walkNames(dir) {
 walkNames(root);
 
 // 4. Disc keyframes: animating opacity flattens the preserve-3d disc, and the back face then shows the front mirrored.
-const gameCss = path.join(root, 'css', 'game.css');
+const gameCss = path.join(gameRoot, 'css', 'game.css');
 if (exists(gameCss)) {
   const css = read(gameCss);
   const used = new Set();
   for (const m of css.matchAll(/\.disc[^{]*\{[^}]*animation:\s*([\w-]+)/g)) { used.add(m[1]); }
   for (const name of used) {
     const kf = css.match(new RegExp('@keyframes\\s+' + name + '\\s*\\{([\\s\\S]*?)\\n\\}'));
-    if (kf && /opacity/.test(kf[1])) { problems.push('css/game.css: @keyframes ' + name + ' animates opacity on .disc'); }
+    if (kf && /opacity/.test(kf[1])) { problems.push('games/othello/css/game.css: @keyframes ' + name + ' animates opacity on .disc'); }
   }
 }
 

@@ -25,7 +25,7 @@ const ctx = vm.createContext(sandbox);
     for (const f of files) {
       vm.runInContext(fs.readFileSync(f, 'utf-8'), ctx, { filename: f });
     }
-    const r = await vm.runInContext('Otc.Test.run()', ctx);
+    const r = await vm.runInContext('Ailand.Test.run()', ctx);
     r.failures.forEach((x) => console.log('FAIL ' + x.name + ': ' + x.message));
     console.log('passed ' + r.passed + ' / failed ' + r.failed);
     process.exit(r.failed > 0 ? 1 : 0);

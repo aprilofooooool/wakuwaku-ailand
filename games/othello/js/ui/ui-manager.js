@@ -1,0 +1,1082 @@
+(function (O) {
+  'use strict';
+  // Top (settings) screen and play screen.
+
+  var LEVELS = [['easy', 'やさしい'], ['normal', 'ふつう'], ['strong', 'つよい']];
+  var HANDICAPS = [[0, 'なし'], [1, 'すみ1'], [2, 'すみ2'], [3, 'すみ3'], [4, 'すみ4']];
+  var RECEIVERS = [['p1', '1P'], ['p2', '2P']];
+  var DEFAULT_STATE = {
+    mode: 'solo', humans: 2, p1: null, p2: null, p3: null, p4: null, cpu: null, first: 'random', level: 'normal',
+    handicapLevel: 0, handicapReceiver: 'p1', boardSize: 8, winRule: 'normal', assist: false, sound: true
+  };
+
+  var callbacks = {};
+  var state = null;
+  var els = {};
+  var cards = { p1: {}, p2: {}, p3: {}, p4: {} };
+  var SEATS = ['p1', 'p2', 'p3', 'p4'];
+  var choiceGroups = [];
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) { e.className = cls; }
+    if (text !== undefined) { e.textContent = text; }
+    return e;
+  }
+
+  function validId(id) { return O.CharacterManager.get(id) ? id : null; }
+  function oneOf(v, list, fallback) { return list.indexOf(v) >= 0 ? v : fallback; }
+
+  function loadState() {
+    var saved = O.Storage.get(O.Const.SETTINGS_KEY, {}) || {};
+    var s = {};
+    Object.keys(DEFAULT_STATE).forEach(function (k) { s[k] = DEFAULT_STATE[k]; });
+    s.mode = oneOf(saved.mode, ['solo', 'duo', 'four'], s.mode);
+    s.humans = oneOf(saved.humans, [1, 2, 3, 4], s.humans);
+    s.p1 = validId(saved.p1);
+    s.p2 = validId(saved.p2);
+    s.p3 = validId(saved.p3);
+    s.p4 = validId(saved.p4);
+    s.cpu = validId(saved.cpu);
+    s.first = oneOf(saved.first, ['p1', 'p2', 'random'], s.first);
+    s.level = oneOf(saved.level, LEVELS.map(function (l) { return l[0]; }), s.level);
+    s.handicapLevel = oneOf(saved.handicapLevel, [0, 1, 2, 3, 4], 0);
+    s.handicapReceiver = oneOf(saved.handicapReceiver, ['p1', 'p2'], 'p1');
+    s.boardSize = oneOf(saved.boardSize, [8, 6], 8);
+    s.winRule = oneOf(saved.winRule, ['normal', 'anti'], 'normal');
+    s.assist = saved.assist === true;
+    s.sound = saved.sound !== false;
+    if (s.p1 && s.p1 === s.p2) { s.p2 = null; }
+    if (s.p3 && (s.p3 === s.p1 || s.p3 === s.p2)) { s.p3 = null; }
+    if (s.p4 && (s.p4 === s.p1 || s.p4 === s.p2 || s.p4 === s.p3)) { s.p4 = null; }
+    if (s.p1 && s.p1 === s.cpu) { s.cpu = null; }
+    if (s.p1 && !s.cpu) { s.cpu = O.CharacterManager.pickCpu(s.p1).id; }
+    return s;
+  }
+
+  function saveState() { O.Storage.set(O.Const.SETTINGS_KEY, state); }
+
+  // Builds a row of radio-like buttons. getLabel lets a label depend on the mode.
+  function makeChoices(container, label, items, key, onPick) {
+    var group = el('div', 'choices');
+    group.setAttribute('role', 'radiogroup');
+    group.setAttribute('aria-label', label);
+    var buttons = items.map(function (item) {
+      var b = el('button', 'choice', item[1]);
+      b.type = 'button';
+      b.setAttribute('role', 'radio');
+      b.addEventListener('click', function () {
+        if (b.disabled) { return; }
+        state[key] = item[0];
+        if (onPick) { onPick(); }
+        saveState();
+        render();
+      });
+      group.appendChild(b);
+      return { el: b, value: item[0] };
+    });
+    container.appendChild(group);
+    var entry = { key: key, buttons: buttons, label: label };
+    choiceGroups.push(entry);
+    return entry;
+  }
+
+  function currentRuleSetId() { return O.RuleSets.idFor(state.boardSize, state.winRule); }
+
+  function makePanel(title) {
+    var p = el('section', 'panel');
+    p.appendChild(el('h2', 'panel-title', title));
+    return p;
+  }
+
+  function buildCards(slot, container) {
+    O.Characters.forEach(function (c) {
+      var b = el('button', 'card');
+      b.type = 'button';
+      b.setAttribute('role', 'radio');
+      b.setAttribute('aria-label', c.name);
+      var img = el('div', 'card-img');
+      O.CharacterManager.applyImage(img, c, 'normal', 'avatar');
+      b.appendChild(img);
+      b.appendChild(el('span', 'card-name', c.name));
+      b.addEventListener('click', function () {
+        if (b.disabled) { return; }
+        state[slot] = c.id;
+        if (slot === 'p1' && state.cpu === c.id) { rerollCpu(); }
+        if (state.mode === 'solo' && !state.cpu) { rerollCpu(); }
+        saveState();
+        render();
+      });
+      container.appendChild(b);
+      cards[slot][c.id] = b;
+    });
+  }
+
+  function rerollCpu() {
+    if (!state.p1) { return; }
+    var next = O.CharacterManager.pickCpu(state.p1);
+    // Try to show a different character than the current one when the roster allows it.
+    if (next.id === state.cpu && O.Characters.length > 2) {
+      next = O.CharacterManager.pickCpu(state.p1);
+    }
+    state.cpu = next.id;
+  }
+
+  function humanPicks() { return SEATS.map(function (k) { return state[k]; }); }
+
+  function startReason() {
+    if (state.mode === 'solo') { return state.p1 ? '' : 'キャラを えらんでね'; }
+    if (state.mode === 'four') {
+      var seats = O.CharacterManager.fillSeats(humanPicks(), state.humans);
+      for (var i = 0; i < state.humans; i += 1) {
+        if (!state[SEATS[i]]) { return (i + 1) + 'Pの キャラを えらんでね'; }
+        if (seats[i] === null) { return 'おなじ キャラは えらべないよ'; }
+      }
+      return '';
+    }
+    if (!state.p1) { return '1Pの キャラを えらんでね'; }
+    if (!state.p2) { return '2Pの キャラを えらんでね'; }
+    if (state.p1 === state.p2) { return 'おなじ キャラは えらべないよ'; }
+    return '';
+  }
+
+  function render() {
+    var solo = state.mode === 'solo';
+    var four = state.mode === 'four';
+    els.p2Panel.hidden = solo || (four && state.humans < 2);
+    els.p3Panel.hidden = !four || state.humans < 3;
+    els.p4Panel.hidden = !four || state.humans < 4;
+    els.humansPanel.hidden = !four;
+    els.fourCpuRow.hidden = !four || state.humans >= 4;
+    els.cpuRow.hidden = !solo;
+    els.levelPanel.hidden = !(solo || (four && state.humans < 4));
+    els.firstPanel.hidden = four;
+    els.rulePanel.hidden = four;
+    els.handicapPanel.hidden = solo || four || !O.RuleSets.allowsHandicap(currentRuleSetId());
+    els.p1Title.textContent = solo ? 'キャラを えらんでね' : '1P の キャラ';
+
+    var seatIds = four ? O.CharacterManager.fillSeats(humanPicks(), state.humans) : null;
+    els.fourCpuRow.innerHTML = '';
+    if (four) {
+      for (var n = state.humans; n < 4; n += 1) {
+        var seatChar = seatIds[n] ? O.CharacterManager.get(seatIds[n]) : null;
+        els.fourCpuRow.appendChild(el('div', 'cpu-name', 'CPU：' + (seatChar ? seatChar.name : '？')));
+      }
+    }
+
+    SEATS.forEach(function (slot, idx) {
+      // Another human seat's pick blocks the card; in solo only the CPU side is separate.
+      var blockers = [];
+      if (four) {
+        SEATS.forEach(function (o, j) { if (j !== idx && j < state.humans && state[o]) { blockers.push(state[o]); } });
+      } else if (!solo) {
+        var otherSlot = slot === 'p1' ? 'p2' : 'p1';
+        if (slot === 'p1' || slot === 'p2') { blockers.push(state[otherSlot]); }
+      }
+      O.Characters.forEach(function (c) {
+        var b = cards[slot][c.id];
+        var blocked = !O.CharacterManager.isSelectable(c.id, null) || blockers.indexOf(c.id) >= 0;
+        b.disabled = blocked;
+        b.setAttribute('aria-checked', String(state[slot] === c.id));
+        b.setAttribute('aria-label', c.name + (blocked ? '（もうひとりが えらんでいます）' : ''));
+      });
+    });
+
+    var cpu = state.cpu ? O.CharacterManager.get(state.cpu) : null;
+    els.cpuName.textContent = 'CPU：' + (cpu ? cpu.name : '？');
+    els.rerollBtn.disabled = !state.p1;
+
+    var handicap = state.handicapLevel > 0 && !solo && O.RuleSets.allowsHandicap(currentRuleSetId());
+    choiceGroups.forEach(function (g) {
+      g.buttons.forEach(function (b) {
+        b.el.setAttribute('aria-checked', String(b.value === state[g.key]));
+        if (g.key === 'first') { b.el.disabled = handicap; }
+      });
+    });
+    var firstLabels = solo ? ['じぶんがさき', 'CPUがさき', 'ランダム'] : ['1Pがさき', '2Pがさき', 'ランダム'];
+    els.firstGroup.buttons.forEach(function (b, i) { b.el.textContent = firstLabels[i]; });
+    els.firstNote.hidden = !handicap;
+    els.receiverWrap.hidden = state.handicapLevel === 0;
+
+    var reason = startReason();
+    els.start.disabled = reason !== '';
+    els.reason.textContent = reason;
+    els.resume.hidden = !O.GameController.hasSave();
+    els.sound.setAttribute('aria-pressed', String(state.sound));
+    els.sound.textContent = state.sound ? 'おと：ON' : 'おと：OFF';
+  }
+
+  function toggleSound() {
+    state.sound = !state.sound;
+    saveState();
+    render();
+    if (callbacks.onSoundToggle) { callbacks.onSoundToggle(state.sound); }
+    return state.sound;
+  }
+
+  function openModal(title, bodyNodes) {
+    var root = document.getElementById('modal-root');
+    var back = el('div', 'modal-back');
+    var box = el('div', 'modal');
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
+    box.setAttribute('aria-label', title);
+    box.appendChild(el('h2', null, title));
+    bodyNodes.forEach(function (n) { box.appendChild(n); });
+    var actions = el('div', 'modal-actions');
+    var close = el('button', 'btn btn-sub', 'とじる');
+    close.type = 'button';
+    close.setAttribute('aria-label', 'とじる');
+    close.addEventListener('click', function () { root.removeChild(back); });
+    actions.appendChild(close);
+    box.appendChild(actions);
+    back.appendChild(box);
+    root.appendChild(back);
+    close.focus();
+  }
+
+  function showHowTo() {
+    var ul = el('ul');
+    ['じぶんの いしで あいての いしを はさむと、ひっくりかえせるよ。',
+      'おけるところを タップして いしを おこう。',
+      'おけるところが なければ パスだよ。',
+      'どちらも おけなくなったら おしまい。いしが おおい ほうが かち！',
+      '【4にんで あそぶとき】4しょくの いしで あそぶよ。はさんだ いしは ぜんぶ じぶんの いろに なるよ（いろが まざっていても OK）。',
+      'いしが ぜんぶ なくなったら、どれかの いしの となりに 1こ おけるよ。その いしは つぎの じぶんの ばんまで とられないよ。',
+      'ばんが うまるか、だれも おけなくなったら おしまい。いしが いちばん おおい ひとが かち！ おなじ かずなら みんな 1い だよ。',
+      'iPhone の マナーモードでは おとが でないことがあるよ'
+    ].forEach(function (t) { ul.appendChild(el('li', null, t)); });
+    openModal('あそびかた', [ul]);
+  }
+
+  function buildLogo() {
+    var logo = el('h1', 'logo');
+    logo.setAttribute('aria-label', 'ぱたぱた！オセロっち');
+    if (O.Const.LOGO_IMAGE) {
+      var img = el('img');
+      img.src = O.Const.LOGO_IMAGE;
+      img.alt = 'ぱたぱた！オセロっち';
+      logo.appendChild(img);
+      return logo;
+    }
+    logo.appendChild(el('span', 'logo-egg left'));
+    logo.appendChild(el('span', 'logo-egg right'));
+    var idx = 0;
+    ['ぱたぱた！', 'オセロっち'].forEach(function (line, n) {
+      var row = el('span', 'logo-line l' + (n + 1));
+      row.setAttribute('aria-hidden', 'true');
+      Array.from(line).forEach(function (ch) {
+        var s = el('span', 'logo-ch c' + (idx % 5), ch);
+        s.style.setProperty('--i', String(idx));
+        row.appendChild(s);
+        idx += 1;
+      });
+      logo.appendChild(row);
+    });
+    return logo;
+  }
+
+  function buildTop() {
+    var wrap = document.getElementById('screen-top');
+    wrap.innerHTML = '';
+    var root = el('div', 'top-wrap');
+    root.appendChild(buildLogo());
+
+    var modePanel = makePanel('だれと あそぶ？');
+    makeChoices(modePanel, 'モード', [['solo', 'ひとりであそぶ'], ['duo', 'ふたりであそぶ'], ['four', '4にんであそぶ']], 'mode', function () {
+      if (state.mode === 'duo' && state.p2 === state.p1) { state.p2 = null; }
+      if (state.mode === 'solo' && state.p1 && (!state.cpu || state.cpu === state.p1)) { rerollCpu(); }
+    });
+    root.appendChild(modePanel);
+
+    els.humansPanel = makePanel('にんげんは なんにん？');
+    makeChoices(els.humansPanel, 'にんげんの人数', [[1, '1にん'], [2, '2にん'], [3, '3にん'], [4, '4にん']], 'humans');
+    root.appendChild(els.humansPanel);
+
+    var p1Panel = makePanel('');
+    els.p1Title = p1Panel.firstChild;
+    var p1Cards = el('div', 'cards');
+    p1Cards.setAttribute('role', 'radiogroup');
+    p1Cards.setAttribute('aria-label', '1Pのキャラ');
+    buildCards('p1', p1Cards);
+    p1Panel.appendChild(p1Cards);
+    els.cpuRow = el('div', 'cpu-row');
+    els.cpuName = el('span', 'cpu-name');
+    els.rerollBtn = el('button', 'btn btn-small', 'かえる');
+    els.rerollBtn.type = 'button';
+    els.rerollBtn.setAttribute('aria-label', 'CPUのキャラをかえる');
+    els.rerollBtn.addEventListener('click', function () { rerollCpu(); saveState(); render(); });
+    els.cpuRow.appendChild(els.cpuName);
+    els.cpuRow.appendChild(els.rerollBtn);
+    p1Panel.appendChild(els.cpuRow);
+    root.appendChild(p1Panel);
+
+    els.p2Panel = makePanel('2P の キャラ');
+    var p2Cards = el('div', 'cards');
+    p2Cards.setAttribute('role', 'radiogroup');
+    p2Cards.setAttribute('aria-label', '2Pのキャラ');
+    buildCards('p2', p2Cards);
+    els.p2Panel.appendChild(p2Cards);
+    root.appendChild(els.p2Panel);
+
+    ['p3', 'p4'].forEach(function (slot) {
+      var panel = makePanel(slot.charAt(1) + 'P の キャラ');
+      var grid = el('div', 'cards');
+      grid.setAttribute('role', 'radiogroup');
+      grid.setAttribute('aria-label', slot.charAt(1) + 'Pのキャラ');
+      buildCards(slot, grid);
+      panel.appendChild(grid);
+      els[slot + 'Panel'] = panel;
+      root.appendChild(panel);
+    });
+
+    els.fourCpuRow = el('div', 'panel');
+    root.appendChild(els.fourCpuRow);
+
+    els.firstPanel = makePanel('どっちが さき？');
+    els.firstGroup = makeChoices(els.firstPanel, '先手', [['p1', ''], ['p2', ''], ['random', '']], 'first');
+    els.firstNote = el('p', 'panel-note', 'ハンデのときは しろが さきだよ');
+    els.firstPanel.appendChild(els.firstNote);
+    root.appendChild(els.firstPanel);
+
+    els.levelPanel = makePanel('CPUの つよさ');
+    makeChoices(els.levelPanel, 'CPUの強さ', LEVELS, 'level');
+    root.appendChild(els.levelPanel);
+
+    var rulePanel = makePanel('ルール');
+    els.rulePanel = rulePanel;
+    makeChoices(rulePanel, '盤の大きさ', [[8, '8x8'], [6, '6x6（ミニ）']], 'boardSize');
+    makeChoices(rulePanel, '勝ち方', [['normal', 'ふつう（おおいほうが かち）'], ['anti', 'アンチ（すくないほうが かち）']], 'winRule');
+    root.appendChild(rulePanel);
+
+    els.handicapPanel = makePanel('ハンデ');
+    makeChoices(els.handicapPanel, 'ハンデの数', HANDICAPS, 'handicapLevel');
+    els.receiverWrap = el('div');
+    els.receiverWrap.appendChild(el('p', 'panel-note', 'ハンデを もらうのは？'));
+    makeChoices(els.receiverWrap, 'ハンデを受ける側', RECEIVERS, 'handicapReceiver');
+    els.handicapPanel.appendChild(els.receiverWrap);
+    root.appendChild(els.handicapPanel);
+
+    var subRow = el('div', 'sub-row');
+    var how = el('button', 'btn btn-sub', 'あそびかた');
+    how.type = 'button';
+    how.setAttribute('aria-label', 'あそびかたを みる');
+    how.addEventListener('click', showHowTo);
+    els.sound = el('button', 'btn btn-sub');
+    els.sound.type = 'button';
+    els.sound.setAttribute('aria-label', 'おとのオンオフ');
+    els.sound.addEventListener('click', toggleSound);
+    subRow.appendChild(how);
+    subRow.appendChild(els.sound);
+    root.appendChild(subRow);
+
+    var actions = el('div', 'actions');
+    els.reason = el('p', 'reason');
+    els.reason.setAttribute('role', 'status');
+    var row = el('div', 'actions-row');
+    els.start = el('button', 'btn btn-main', 'スタート！');
+    els.start.type = 'button';
+    els.start.setAttribute('aria-label', 'ゲームをはじめる');
+    els.start.addEventListener('click', function () {
+      if (els.start.disabled) { return; }
+      if (callbacks.onStart) { callbacks.onStart(readSettings()); }
+    });
+    els.resume = el('button', 'btn', 'つづきから');
+    els.resume.type = 'button';
+    els.resume.setAttribute('aria-label', 'まえのつづきからあそぶ');
+    els.resume.addEventListener('click', function () { if (callbacks.onResume) { callbacks.onResume(); } });
+    row.appendChild(els.resume);
+    row.appendChild(els.start);
+    actions.appendChild(els.reason);
+    actions.appendChild(row);
+    wrap.appendChild(root);
+    wrap.appendChild(actions);
+
+    var footer = el('footer', 'footer');
+    footer.appendChild(el('div', null, 'バージョン ' + O.APP_VERSION));
+    footer.appendChild(el('div', null, 'ひこうしきファンメイド（非公式・非営利）。けんりしゃとは かんけいありません'));
+    root.appendChild(footer);
+  }
+
+  function readSettings() {
+    if (state.mode === 'four') {
+      var seats = O.CharacterManager.fillSeats(humanPicks(), state.humans);
+      return {
+        mode: 'four', humans: state.humans,
+        p1: seats[0], p2: seats[1], p3: seats[2], p4: seats[3],
+        level: state.level, ruleSetId: 'four', assist: state.assist
+      };
+    }
+    var solo = state.mode === 'solo';
+    var ruleSetId = currentRuleSetId();
+    var handicapOk = !solo && O.RuleSets.allowsHandicap(ruleSetId);
+    return {
+      mode: state.mode,
+      p1: state.p1,
+      p2: solo ? state.cpu : state.p2,
+      first: state.first,
+      level: state.level,
+      handicapLevel: handicapOk ? state.handicapLevel : 0,
+      handicapReceiver: state.handicapReceiver,
+      ruleSetId: ruleSetId,
+      assist: state.assist
+    };
+  }
+
+  function showScreen(name) {
+    document.getElementById('screen-top').hidden = name !== 'top';
+    document.getElementById('screen-game').hidden = name !== 'game';
+  }
+
+  // ---------------------------------------------------------------- play screen
+
+  var G = null; // the bound game: { ctrl, offs, settings, chars, panels, cells, ... }
+  var gameActive = false;
+  var pushed = false;
+  var ignorePop = false;
+  var popBound = false;
+  var confirmBack = null;
+  var resultBack = null;
+  var resultTimer = null;
+
+  function closeNode(node) {
+    if (node && node.parentNode) { node.parentNode.removeChild(node); }
+  }
+
+  function buildModal(title, bodyNodes, buttons) {
+    var back = el('div', 'modal-back');
+    var box = el('div', 'modal');
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
+    box.setAttribute('aria-label', title);
+    bodyNodes.forEach(function (n) { box.appendChild(n); });
+    var actions = el('div', 'modal-actions');
+    buttons.forEach(function (b) {
+      var btn = el('button', 'btn ' + b.cls, b.text);
+      btn.type = 'button';
+      btn.setAttribute('aria-label', b.label || b.text);
+      btn.addEventListener('click', b.onClick);
+      actions.appendChild(btn);
+    });
+    box.appendChild(actions);
+    back.appendChild(box);
+    document.getElementById('modal-root').appendChild(back);
+    if (actions.firstChild) { actions.firstChild.focus(); }
+    return back;
+  }
+
+  // Resolves true for "yes", false for "no". A newer confirm cancels an open one.
+  function confirmDialog(message) {
+    if (confirmBack) { confirmBack.cancel(); }
+    return new Promise(function (resolve) {
+      var back;
+      function done(v) {
+        closeNode(back);
+        if (confirmBack === back) { confirmBack = null; }
+        resolve(v);
+      }
+      back = buildModal(message, [el('p', 'confirm-msg', message)], [
+        { text: 'やめる', cls: 'btn-sub', onClick: function () { done(false); } },
+        { text: 'うん', cls: 'btn-main', onClick: function () { done(true); } }
+      ]);
+      back.cancel = function () { done(false); };
+      confirmBack = back;
+    });
+  }
+
+  function closeResult() {
+    if (resultTimer) { clearTimeout(resultTimer); resultTimer = null; }
+    closeNode(resultBack);
+    resultBack = null;
+  }
+
+  // gameoverEvent: the 'gameover' payload { result, winner: 'p1'|'p2'|null }. Safe to call twice.
+  function showResult(gameoverEvent, view) {
+    closeResult();
+    if (!G) { return; }
+    if (G.settings.mode === 'four') { showResultFour(gameoverEvent, view); return; }
+    var winner = gameoverEvent.winner;
+    var solo = G.settings.mode === 'solo';
+    var title;
+    if (winner === null) { title = 'ひきわけ！'; }
+    else if (solo) { title = winner === 'p1' ? 'かち！' : 'まけ…'; }
+    else { title = (winner === 'p1' ? '1P' : '2P') + 'の かち！'; }
+    var score = el('p', 'result-score', '1P ' + view.counts.p1 + ' - ' + view.counts.p2 + ' ' + (solo ? 'CPU' : '2P'));
+    var body = [el('h2', 'result-title', title), score];
+    var rule = O.RuleSets.find(view.state.ruleSetId);
+    if (rule && rule.misere) { body.push(el('p', 'result-rule', 'すくないほうが かち')); }
+    resultBack = buildModal(title, body, resultButtons());
+  }
+
+  function resultButtons() {
+    return [
+      { text: 'ばんを みる', cls: 'btn-sub', onClick: closeResult },
+      { text: 'トップへ', cls: 'btn-sub', onClick: function () { closeResult(); leaveGame(false); } },
+      { text: 'もういちど', cls: 'btn-main', onClick: function () { closeResult(); restartGame(); } }
+    ];
+  }
+
+  // Four mode: 1st to 4th with rank, character, colour and disc count. Tied winners are joined with 'と'.
+  function showResultFour(gameoverEvent, view) {
+    var ranks = gameoverEvent.ranks;
+    var names = gameoverEvent.winners.map(function (p) { return G.chars[p].name; });
+    var title = names.join('と') + 'の かち！';
+    var list = el('ol', 'result-list');
+    view.seats.slice().sort(function (a, b) { return ranks[a] - ranks[b]; }).forEach(function (p) {
+      var color = view.colors[p];
+      var row = el('li', 'result-row' + (ranks[p] === 1 ? ' first' : ''));
+      row.appendChild(el('span', 'result-rank', ranks[p] + 'い'));
+      row.appendChild(colorDot(color));
+      row.appendChild(el('span', 'result-name', G.chars[p].name));
+      row.appendChild(el('span', 'result-color', O.FourEngine.COLOR_NAMES[color]));
+      row.appendChild(el('span', 'result-count', view.counts[p] + 'こ'));
+      list.appendChild(row);
+    });
+    resultBack = buildModal(title, [el('h2', 'result-title', title), list], resultButtons());
+  }
+
+  function showHelp() { showHowTo(); }
+
+  function enterGame() {
+    showScreen('game');
+    if (gameActive) { return; }
+    gameActive = true;
+    try {
+      history.pushState({ screen: 'game' }, '');
+      pushed = true;
+    } catch (e) { pushed = false; }
+    if (!popBound) {
+      popBound = true;
+      window.addEventListener('popstate', onPopState);
+    }
+  }
+
+  function onPopState() {
+    if (ignorePop) { ignorePop = false; return; }
+    if (!gameActive) { return; }
+    pushed = false;
+    confirmDialog('トップへ もどる？').then(function (ok) {
+      if (!gameActive) { return; }
+      if (ok) { leaveGame(true); return; }
+      try { history.pushState({ screen: 'game' }, ''); pushed = true; } catch (e) { pushed = false; }
+    });
+  }
+
+  function leaveGame(fromPopstate) {
+    if (!gameActive) { return; }
+    gameActive = false;
+    closeResult();
+    if (G) { G.ctrl.stop(); unbindGame(); }
+    showScreen('top');
+    render(); // 'つづきから' follows the save that this game just wrote or cleared
+    if (!fromPopstate && pushed) {
+      ignorePop = true;
+      history.back();
+    }
+    pushed = false;
+  }
+
+  function restartGame() {
+    if (!G) { return; }
+    closeResult();
+    // Reset first: start() may emit thinking for a CPU first move synchronously.
+    afterHistoryMove();
+    G.ctrl.start(G.settings);
+    G.ctrl.notifyActivity();
+    announceColors();
+  }
+
+  function unbindGame() {
+    if (!G) { return; }
+    O.Effects.stopAll();
+    if (G.panels) { Object.keys(G.panels).forEach(function (p) { clearHold(G.panels[p]); O.Effects.clearBubbles(G.panels[p].root); }); }
+    clearAnnounce();
+    G.offs.forEach(function (off) { off(); });
+    G.root.innerHTML = '';
+    G = null;
+  }
+
+  function cheb(a, b, size) {
+    return Math.max(Math.abs(Math.floor(a / size) - Math.floor(b / size)), Math.abs((a % size) - (b % size)));
+  }
+
+  // color (four mode only): a FourEngine colour. Adds the colour mark to the tag and puts count + turn mark on one row.
+  function makeCharPanel(player, ch, tag, color) {
+    var p = el('section', 'char-panel side-' + player);
+    var avatar = el('div', 'avatar');
+    avatar.style.backgroundColor = ch.colors.sub;
+    var info = el('div', 'panel-info');
+    var tagEl = el('span', 'panel-tag', tag);
+    if (color) { tagEl.insertBefore(colorDot(color), tagEl.firstChild); }
+    info.appendChild(tagEl);
+    info.appendChild(el('span', 'panel-name', ch.name));
+    var count = el('span', 'panel-count');
+    count.appendChild(document.createTextNode('0'));
+    count.appendChild(el('small', null, 'こ'));
+    var turnMark = el('span', 'turn-mark', 'てばん');
+    if (color) {
+      var row = el('div', 'panel-row');
+      row.appendChild(count);
+      row.appendChild(turnMark);
+      info.appendChild(row);
+    } else {
+      info.appendChild(count);
+      info.appendChild(turnMark);
+    }
+    var bubble = el('div', 'bubble-slot');
+    bubble.dataset.player = player;
+    p.appendChild(avatar);
+    p.appendChild(info);
+    p.appendChild(bubble);
+    return { root: p, avatar: avatar, count: count, bubble: bubble, emotion: null, ch: ch };
+  }
+
+  function clearHold(panel) {
+    if (panel.holdTimer) { clearTimeout(panel.holdTimer); panel.holdTimer = null; }
+  }
+
+  // Shows an emotion image, then returns to normal after the effect and hold times. A new emotion re-arms the timer.
+  function showEmotion(panel, emotion) {
+    clearHold(panel);
+    setAvatar(panel, emotion);
+    if (emotion === 'normal') { return; }
+    panel.holdTimer = setTimeout(function () {
+      panel.holdTimer = null;
+      setAvatar(panel, panel.thinking ? 'thinking' : 'normal');
+    }, O.Const.EFFECT_MS + O.Const.EMOTION_HOLD_MS);
+  }
+
+  function setAvatar(panel, emotion) {
+    if (panel.emotion === emotion) { return; }
+    panel.emotion = emotion;
+    O.CharacterManager.applyImage(panel.avatar, panel.ch, emotion, 'avatar');
+  }
+
+  function makeControl(icon, text, label, onClick) {
+    var b = el('button', 'btn ctl');
+    b.type = 'button';
+    b.setAttribute('aria-label', label);
+    var i = el('span', 'ico', icon);
+    i.setAttribute('aria-hidden', 'true');
+    b.appendChild(i);
+    b.appendChild(el('span', 'ctl-text', text));
+    b.addEventListener('click', function () {
+      if (b.disabled || !G) { return; }
+      G.ctrl.notifyActivity();
+      onClick();
+    });
+    return b;
+  }
+
+  function buildKey(view) {
+    if (view.state.ruleSetId === 'four') {
+      return ['four'].concat(view.seats.map(function (p) { return G.settings[p] + ':' + view.colors[p]; })).join('|');
+    }
+    return [G.settings.p1, G.settings.p2, view.colors.p1, view.state.size, view.state.ruleSetId].join('|');
+  }
+
+  // Four mode: colour -> CSS variable, and colour -> place (clockwise in turn order RED, WHITE, BLACK, BLUE).
+  var FOUR_COLOR_VAR = { 1: 'var(--c-black)', 2: 'var(--c-white)', 3: 'var(--c-red)', 4: 'var(--c-blue)' };
+  var FOUR_PLACE = { 3: 'tl', 2: 'tr', 1: 'br', 4: 'bl' };
+
+  function colorDot(color) {
+    var d = el('span', 'color-dot c-' + color);
+    d.style.setProperty('--dot', FOUR_COLOR_VAR[color]);
+    d.setAttribute('aria-hidden', 'true');
+    return d;
+  }
+
+  function makeHelpButton() {
+    var help = el('button', 'btn help-btn', '？');
+    help.type = 'button';
+    help.setAttribute('aria-label', 'あそびかたを みる');
+    help.addEventListener('click', function () { G.ctrl.notifyActivity(); showHelp(); });
+    return help;
+  }
+
+  function buildGameDom(view) {
+    var s = G.settings;
+    var size = view.state.size;
+    var four = view.state.ruleSetId === 'four';
+    var help = makeHelpButton();
+    G.seats = view.seats.slice();
+    G.chars = {};
+    G.seats.forEach(function (p) { G.chars[p] = O.CharacterManager.get(s[p]); });
+    G.panels = {};
+    if (four) {
+      G.colorSeat = {};
+      G.seats.forEach(function (p, k) {
+        var color = view.colors[p];
+        var tag = (k < s.humans ? (k + 1) + 'P' : 'CPU') + '・' + O.FourEngine.COLOR_NAMES[color];
+        G.colorSeat[color] = p;
+        G.panels[p] = makeCharPanel(p, G.chars[p], tag, color);
+        G.panels[p].root.classList.add('pos-' + FOUR_PLACE[color]);
+      });
+    } else {
+      G.blackSide = view.colors.p1 === O.Engine.BLACK ? 'p1' : 'p2';
+      // Rule name goes in the 2P panel's tag line (never on the board). Standard shows nothing.
+      var rule = view.state.ruleSetId !== 'standard' ? O.RuleSets.find(view.state.ruleSetId) : null;
+      var p2Tag = (s.mode === 'solo' ? 'CPU' : '2P') + (rule ? ' ・ ' + rule.label : '');
+      G.panels.p1 = makeCharPanel('p1', G.chars.p1, '1P');
+      G.panels.p2 = makeCharPanel('p2', G.chars.p2, p2Tag);
+      G.panels.p2.root.appendChild(help);
+    }
+
+    var wrap = el('div', 'board-wrap');
+    var board = el('div', 'board');
+    board.style.setProperty('--n', String(size));
+    board.setAttribute('aria-label', 'ばん');
+    board.addEventListener('pointerdown', function () { G.ctrl.notifyActivity(); });
+    G.cells = [];
+    for (var i = 0; i < size * size; i += 1) {
+      var c = el('button', 'cell');
+      c.type = 'button';
+      c.setAttribute('aria-label', O.Engine.toName(i, size));
+      c.dataset.index = String(i);
+      c.addEventListener('click', onCellClick);
+      board.appendChild(c);
+      G.cells.push({ el: c, disc: null, guard: null });
+    }
+    G.board = board;
+    wrap.appendChild(board);
+    G.banner = el('button', 'pass-banner');
+    G.banner.type = 'button';
+    G.banner.hidden = true;
+    G.banner.addEventListener('click', function () {
+      G.ctrl.notifyActivity();
+      if (G.announceTimer) { clearAnnounce(); G.banner.hidden = true; return; }
+      G.ctrl.skipPass();
+    });
+    wrap.appendChild(G.banner);
+
+    var ctl = el('div', 'controls');
+    G.btn = {
+      undo: makeControl('↩', 'もどす', '1つ もどす', function () { G.ctrl.undo(); afterHistoryMove(); }),
+      redo: makeControl('↪', 'すすめる', '1つ すすめる', function () { G.ctrl.redo(); afterHistoryMove(); }),
+      assist: makeControl('✨', 'アシスト', 'アシストの オンオフ', function () {
+        G.assistOn = !G.assistOn;
+        G.ctrl.setAssist(G.assistOn);
+        state.assist = G.assistOn;
+        saveState();
+        renderControls();
+      }),
+      sound: makeControl('♪', 'おと', 'おとの オンオフ', function () { toggleSound(); renderControls(); }),
+      reset: makeControl('⟲', 'リセット', 'さいしょから やりなおす', function () {
+        confirmDialog('さいしょから やりなおす？').then(function (ok) { if (ok && G) { restartGame(); } });
+      }),
+      top: makeControl('⌂', 'トップ', 'トップへ もどる', function () {
+        confirmDialog('トップへ もどる？').then(function (ok) { if (ok) { leaveGame(false); } });
+      })
+    };
+    // Two groups: portrait shows them as one row of 6, landscape puts one group under each panel.
+    [['c1', ['undo', 'redo', 'assist']], ['c2', ['sound', 'reset', 'top']]].forEach(function (g) {
+      var group = el('div', 'ctl-group ' + g[0]);
+      g[1].forEach(function (k) { group.appendChild(G.btn[k]); });
+      ctl.appendChild(group);
+    });
+
+    var game = el('div', four ? 'game four' : 'game');
+    if (four) {
+      // Four: the help button is the 7th control in portrait; in landscape it sits in the top-right panel's corner.
+      ctl.appendChild(help);
+      G.seats.forEach(function (p) { game.appendChild(G.panels[p].root); });
+      game.appendChild(wrap);
+    } else {
+      game.appendChild(G.panels.p2.root);
+      game.appendChild(wrap);
+      game.appendChild(G.panels.p1.root);
+    }
+    game.appendChild(ctl);
+    G.root.innerHTML = '';
+    G.root.appendChild(game);
+    G.seats.forEach(function (p) { setAvatar(G.panels[p], 'normal'); });
+    G.key = buildKey(view);
+  }
+
+  function clearAnnounce() {
+    if (G && G.announceTimer) { clearTimeout(G.announceTimer); G.announceTimer = null; }
+  }
+
+  // Four mode, right after start() (never on restore): "<name>は <colour>" for each seat on the pass banner.
+  // Closes on a tap or after twice PASS_DISPLAY_MS. A pass banner replaces it.
+  function announceColors() {
+    if (!G || !G.banner || !G.settings || G.settings.mode !== 'four') { return; }
+    clearAnnounce();
+    G.banner.textContent = '';
+    O.FourEngine.ORDER.forEach(function (color) {
+      var line = el('span', 'announce-line');
+      line.appendChild(colorDot(color));
+      line.appendChild(document.createTextNode(G.chars[G.colorSeat[color]].name + 'は ' + O.FourEngine.COLOR_NAMES[color]));
+      G.banner.appendChild(line);
+    });
+    G.banner.appendChild(el('small', null, 'タップで とじる'));
+    G.banner.classList.add('announce');
+    G.banner.hidden = false;
+    G.announceTimer = setTimeout(function () {
+      if (!G) { return; }
+      G.announceTimer = null;
+      G.banner.hidden = true;
+    }, O.Const.PASS_DISPLAY_MS * 2);
+  }
+
+  // After Undo / Redo the controller sends no emotion events, so both avatars go back to normal.
+  function afterHistoryMove() {
+    O.Effects.stopAll();
+    G.seats.forEach(function (p) {
+      O.Effects.clearBubbles(G.panels[p].root);
+      O.Effects.thinking(G.panels[p].root, false);
+      G.panels[p].thinking = false;
+      clearHold(G.panels[p]);
+      setAvatar(G.panels[p], 'normal');
+    });
+  }
+
+  function onCellClick(e) {
+    if (!G) { return; }
+    G.ctrl.notifyActivity();
+    G.ctrl.play(Number(e.currentTarget.dataset.index));
+  }
+
+  // Front face = the black-disc player, back face = the white-disc player (rotateY(180deg) shows the back).
+  function makeDisc() {
+    var d = el('div', 'disc');
+    var white = G.blackSide === 'p1' ? 'p2' : 'p1';
+    [['front', G.blackSide], ['back', white]].forEach(function (f) {
+      var face = el('div', 'face ' + f[0]);
+      var ch = G.chars[f[1]];
+      face.style.setProperty('--ring', ch.colors.main);
+      face.style.setProperty('--ring-bg', ch.colors.sub);
+      O.CharacterManager.applyImage(face, ch, 'normal', 'disc');
+      d.appendChild(face);
+    });
+    return d;
+  }
+
+  // Four mode: one face showing the owner's character inside a ring of the disc colour.
+  function setFourFace(disc, color) {
+    var face = disc.firstChild;
+    var ch = G.chars[G.colorSeat[color]];
+    face.className = 'face c-' + color;
+    face.style.setProperty('--ring', FOUR_COLOR_VAR[color]);
+    face.style.setProperty('--ring-bg', ch.colors.sub);
+    O.CharacterManager.applyImage(face, ch, 'normal', 'disc');
+    disc.dataset.color = String(color);
+  }
+
+  function makeFourDisc(color) {
+    var d = el('div', 'disc four');
+    d.appendChild(el('div', 'face'));
+    setFourFace(d, color);
+    return d;
+  }
+
+  function cancelSwap(disc) {
+    if (disc.swapTimer) { clearTimeout(disc.swapTimer); disc.swapTimer = null; }
+  }
+
+  // Turns the disc edge-on (Y rotation) after delayMs and swaps picture and colour at the half-way point.
+  function flipFour(disc, color, delayMs) {
+    cancelSwap(disc);
+    disc.dataset.color = String(color);
+    disc.classList.remove('flip4');
+    disc.style.animationDelay = delayMs + 'ms';
+    void disc.offsetWidth; // restart the animation
+    disc.classList.add('flip4');
+    var dur = parseFloat(getComputedStyle(disc).animationDuration) * 1000 || 0; // 0 with reduced motion
+    disc.swapTimer = setTimeout(function () {
+      disc.swapTimer = null;
+      if (G) { setFourFace(disc, color); }
+    }, dur > 0 ? delayMs + dur / 2 : 0);
+    disc.addEventListener('animationend', function off() {
+      disc.removeEventListener('animationend', off);
+      disc.classList.remove('flip4');
+      disc.style.animationDelay = '';
+    });
+  }
+
+  function renderBoardFour(view, moved) {
+    var state = view.state;
+    var size = state.size;
+    var flipSet = {};
+    if (moved) { moved.flipped.forEach(function (i) { flipSet[i] = true; }); }
+    var legal = {};
+    if (!view.isCpuTurn && !view.gameOver) { view.legal.forEach(function (i) { legal[i] = true; }); }
+    var guarded = {};
+    view.guards.forEach(function (g) { guarded[g.index] = true; });
+    for (var i = 0; i < state.cells.length; i += 1) {
+      var cell = G.cells[i];
+      var v = state.cells[i];
+      if (v === 0) {
+        if (cell.disc) { cancelSwap(cell.disc); closeNode(cell.disc); cell.disc = null; }
+      } else if (!cell.disc) {
+        var d = makeFourDisc(v);
+        if (moved && moved.index === i) { d.classList.add('placed'); }
+        cell.el.appendChild(d);
+        cell.disc = d;
+      } else if (cell.disc.dataset.color !== String(v)) {
+        cell.disc.classList.remove('placed');
+        if (flipSet[i]) { flipFour(cell.disc, v, cheb(i, moved.index, size) * O.Const.FLIP_STAGGER_MS); }
+        else { cancelSwap(cell.disc); setFourFace(cell.disc, v); }
+      }
+      if (guarded[i] && !cell.guard) {
+        cell.guard = el('span', 'guard', '🛡');
+        cell.guard.setAttribute('aria-hidden', 'true');
+        cell.el.appendChild(cell.guard);
+      } else if (!guarded[i] && cell.guard) {
+        closeNode(cell.guard);
+        cell.guard = null;
+      }
+      cell.el.classList.toggle('legal', !!legal[i]);
+      cell.el.classList.toggle('last', state.lastMove === i);
+    }
+    G.board.classList.toggle('is-busy', view.busy);
+  }
+
+  function flipDone(disc) {
+    function off(e) {
+      if (e.propertyName !== 'transform') { return; }
+      disc.removeEventListener('transitionend', off);
+      disc.classList.remove('flipping');
+      disc.style.transitionDelay = '';
+    }
+    disc.addEventListener('transitionend', off);
+  }
+
+  function renderBoard(view, moved) {
+    if (view.state.ruleSetId === 'four') { renderBoardFour(view, moved); return; }
+    var state = view.state;
+    var size = state.size;
+    var flipSet = {};
+    if (moved) { moved.flipped.forEach(function (i) { flipSet[i] = true; }); }
+    var instant = [];
+    var legal = {};
+    if (!view.isCpuTurn && !view.gameOver) { view.legal.forEach(function (i) { legal[i] = true; }); }
+    for (var i = 0; i < state.cells.length; i += 1) {
+      var cell = G.cells[i];
+      var v = state.cells[i];
+      var wantB = v === O.Engine.WHITE;
+      if (v === 0) {
+        if (cell.disc) { closeNode(cell.disc); cell.disc = null; }
+      } else if (!cell.disc) {
+        var d = makeDisc();
+        d.classList.toggle('side-b', wantB);
+        if (moved && moved.index === i) { d.classList.add('placed'); }
+        cell.el.appendChild(d);
+        cell.disc = d;
+      } else if (cell.disc.classList.contains('side-b') !== wantB) {
+        var disc = cell.disc;
+        disc.classList.remove('placed');
+        if (flipSet[i]) {
+          disc.style.transitionDelay = (cheb(i, moved.index, size) * O.Const.FLIP_STAGGER_MS) + 'ms';
+          disc.classList.add('flipping');
+          disc.classList.toggle('side-b', wantB);
+          flipDone(disc);
+        } else {
+          disc.classList.add('instant');
+          disc.classList.toggle('side-b', wantB);
+          instant.push(disc);
+        }
+      }
+      cell.el.classList.toggle('legal', !!legal[i]);
+      cell.el.classList.toggle('last', state.lastMove === i);
+    }
+    if (instant.length > 0) {
+      void G.board.offsetWidth;
+      instant.forEach(function (disc) { disc.classList.remove('instant'); });
+    }
+    G.board.classList.toggle('is-busy', view.busy);
+  }
+
+  function renderControls() {
+    if (!G || !G.btn) { return; }
+    var soundOn = state ? state.sound : true;
+    G.btn.undo.disabled = !G.ctrl.canUndo();
+    G.btn.redo.disabled = !G.ctrl.canRedo();
+    G.btn.assist.setAttribute('aria-pressed', String(G.assistOn));
+    G.btn.sound.setAttribute('aria-pressed', String(soundOn));
+    G.btn.sound.querySelector('.ctl-text').textContent = soundOn ? 'おと' : 'おと OFF';
+  }
+
+  function onState(view) {
+    if (!G) { return; }
+    G.settings = G.ctrl.getSettings() || G.settings;
+    G.assistOn = !!(G.settings && G.settings.assist); // the controller owns the setting (start / restore / reload)
+    if (!G.chars || G.key !== buildKey(view)) { buildGameDom(view); }
+    var moved = G.moved;
+    G.moved = null;
+    renderBoard(view, moved);
+    G.seats.forEach(function (p) {
+      var panel = G.panels[p];
+      panel.count.firstChild.nodeValue = String(view.counts[p]);
+      panel.root.classList.toggle('turn', !view.gameOver && view.turnPlayer === p);
+    });
+    if (!G.announceTimer) { G.banner.hidden = true; } // the colour announcement closes on its own timer
+    if (!view.gameOver) { closeResult(); }
+    renderControls();
+  }
+
+  // Subscribes to the controller bus and wires the buttons. Call before or after ctrl.start().
+  function bindGame(ctrl) {
+    if (G) { unbindGame(); }
+    enterGame();
+    var bus = O.bus;
+    G = { ctrl: ctrl, root: document.getElementById('screen-game'), offs: [], settings: ctrl.getSettings(), chars: null, assistOn: false };
+    G.assistOn = !!(G.settings && G.settings.assist);
+    G.offs.push(bus.on('state', onState));
+    G.offs.push(bus.on('moved', function (e) { if (G) { G.moved = e; } }));
+    G.offs.push(bus.on('emotion', function (e) { if (G && G.panels) { showEmotion(G.panels[e.player], e.emotion); } }));
+    G.offs.push(bus.on('line', function (e) { if (G && G.panels) { O.Effects.bubble(G.panels[e.player].root, e.text); } }));
+    G.offs.push(bus.on('thinking', function (e) {
+      if (!G || !G.panels) { return; }
+      var panel = G.panels[e.player];
+      O.Effects.thinking(panel.root, e.on);
+      panel.thinking = !!e.on;
+      // An emotion on show keeps the avatar; its hold timer falls back to thinking / normal.
+      if (!panel.holdTimer) { setAvatar(panel, e.on ? 'thinking' : 'normal'); }
+    }));
+    G.offs.push(bus.on('assist', function (e) {
+      if (!G || !G.cells) { return; }
+      G.cells.forEach(function (c, i) { c.el.classList.toggle('assist', e.index === i); });
+    }));
+    G.offs.push(bus.on('busy', function (e) { if (G && G.board) { G.board.classList.toggle('is-busy', e.on); } }));
+    G.offs.push(bus.on('pass', function (e) {
+      if (!G || !G.banner) { return; }
+      clearAnnounce();
+      G.banner.classList.remove('announce');
+      G.banner.textContent = G.chars[e.player].name + 'は パス！';
+      G.banner.appendChild(el('small', null, 'タップで つぎへ'));
+      G.banner.hidden = false;
+    }));
+    G.offs.push(bus.on('gameover', function (e) {
+      if (resultTimer) { clearTimeout(resultTimer); }
+      resultTimer = setTimeout(function () {
+        resultTimer = null;
+        if (G) { showResult(e, ctrl.getView()); }
+      }, O.Const.RESULT_DELAY_MS);
+    }));
+    if (G.settings) { onState(ctrl.getView()); }
+    return unbindGame;
+  }
+
+  function init(cb) {
+    callbacks = cb || {};
+    state = loadState();
+    buildTop();
+    render();
+    showScreen('top');
+  }
+
+  O.UI = {
+    init: init,
+    showScreen: showScreen,
+    readSettings: readSettings,
+    isSoundOn: function () { return state.sound; },
+    bindGame: bindGame,
+    leave: function () { leaveGame(false); },
+    panelEl: function (player) { return G && G.panels && G.panels[player] ? G.panels[player].root : null; },
+    confirm: confirmDialog,
+    showResult: showResult,
+    showHelp: showHelp,
+    announceColors: announceColors
+  };
+})(Ailand.games.othello);

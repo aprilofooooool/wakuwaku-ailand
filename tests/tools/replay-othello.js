@@ -7,25 +7,25 @@ const path = require('path');
 const vm = require('vm');
 
 // Files loaded into the vm, in dependency order (the non-test part of tests/test.html).
-// Task 3 rewrites this list after the files move.
 const FILES = [
-  'js/core/namespace.js',
-  'js/core/event-bus.js',
-  'js/core/storage.js',
-  'js/config/version.js',
-  'js/config/constants.js',
-  'js/data/characters.js',
-  'js/data/rulesets.js',
-  'js/engine/reversi-engine.js',
-  'js/engine/reversi-ai.js',
-  'js/engine/four-engine.js',
-  'js/engine/four-ai.js',
-  'js/game/reaction-engine.js',
-  'js/game/line-picker.js',
-  'js/game/game-controller.js'
+  'core/namespace.js',
+  'games/othello/js/core/namespace.js',
+  'games/othello/js/core/event-bus.js',
+  'games/othello/js/core/storage.js',
+  'games/othello/js/config/version.js',
+  'games/othello/js/config/constants.js',
+  'games/othello/js/data/characters.js',
+  'games/othello/js/data/rulesets.js',
+  'games/othello/js/engine/reversi-engine.js',
+  'games/othello/js/engine/reversi-ai.js',
+  'games/othello/js/engine/four-engine.js',
+  'games/othello/js/engine/four-ai.js',
+  'games/othello/js/game/reaction-engine.js',
+  'games/othello/js/game/line-picker.js',
+  'games/othello/js/game/game-controller.js'
 ];
-// Namespace object of the app inside the vm, as a dotted path (Task 3 switches it to the ported one).
-const NS = 'Otc';
+// Namespace object of the app inside the vm, as a dotted path.
+const NS = 'Ailand.games.othello';
 // Fake clock: every performance.now() call advances this many ms (0.05 made four/strong take over an hour per game).
 const CLOCK_STEP_MS = 10;
 const SEEDS = [1, 2, 3, 4, 5];

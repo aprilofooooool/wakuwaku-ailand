@@ -1,6 +1,6 @@
 (function (root) {
   'use strict';
-  var Otc = root.Otc = root.Otc || {};
+  var Ailand = root.Ailand = root.Ailand || {};
   var suites = [];
   var current = null;
 
@@ -66,7 +66,7 @@
     return chain.then(function () { return result; });
   }
 
-  Otc.Test = { describe: describe, it: it, expect: expect, run: run };
+  Ailand.Test = { describe: describe, it: it, expect: expect, run: run };
   root.describe = describe;
   root.it = it;
   root.expect = expect;
