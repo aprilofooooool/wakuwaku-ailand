@@ -28,8 +28,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\resize-images\resize-i
 exit /b %errorlevel%
 
 :drop4
-echo measure-drop4: not implemented yet
-exit /b 1
+node tests\tools\measure-drop4.js %2 %3 %4 %5 %6 %7 %8 %9
+exit /b %errorlevel%
 
 :replay
 rem %* is not shifted by "shift", so pass the remaining arguments explicitly (up to 8).
