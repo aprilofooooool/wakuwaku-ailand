@@ -253,4 +253,17 @@
       expect(h.ctl.undo()).toBe(false);
     });
   });
+
+  describe('drop4 controller: settings getter (for the UI)', function () {
+    it('returns null before start, the started settings, and the resumed settings', function () {
+      var h = make();
+      expect(h.ctl.settings()).toBe(null);
+      h.ctl.start(settings({ level: 'weak' }));
+      expect(h.ctl.settings().level).toBe('weak');
+      h.ctl.input(drop(0));
+      var h2 = make({ backend: h.backend });
+      expect(h2.ctl.resume()).toBe(true);
+      expect(h2.ctl.settings().seats[1].charId).toBe('kuchipatchi');
+    });
+  });
 })(window.Ailand);

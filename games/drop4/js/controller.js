@@ -199,6 +199,7 @@
       },
       undoLeft: function () { return undoLeft; },
       state: function () { return state; },
+      settings: function () { return settings; },
       isBusy: function () { return thinking; }
     };
   }

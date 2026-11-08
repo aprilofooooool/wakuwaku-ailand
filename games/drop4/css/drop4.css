@@ -1,0 +1,106 @@
+/* drop4 (ぽとん4). Light-blue page, blue board (design 6.6). Sizes in the game screen come from Layout via CSS variables. */
+:root {
+  --page-bg: #e8f6ff;
+  --page-dot: #cdeaff;
+  --d4-board: #5b8cff;
+  --d4-hole: #ffffff;
+  --d4-block: #9a9a9a;
+  --d4-p1: #ff6fa8;   /* pink */
+  --d4-p2: #ffc93c;   /* yellow */
+  --d4-p3: #4cc3ff;   /* light blue */
+  --d4-p4: #4cd07a;   /* green */
+  --d4-a2: #ffb3d1;   /* team A second seat: light pink */
+  --d4-b2: #a6e1ff;   /* team B second seat: pale light blue */
+  --d4-turn: #ffcc00;
+  --d4-on-bg: #ffe3ef;
+}
+
+/* ---------- pieces (shared by settings chips, board, ghost) ---------- */
+.d4-piece { --pc: var(--d4-p1); background: var(--pc); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; line-height: 1; text-shadow: 0 0 2px var(--outline), 0 0 2px var(--outline); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18); }
+.d4-piece.s1 { --pc: var(--d4-p1); }
+.d4-piece.s2 { --pc: var(--d4-p2); }
+.d4-piece.s3 { --pc: var(--d4-p3); }
+.d4-piece.s4 { --pc: var(--d4-p4); }
+.is-teams .d4-piece.s1 { --pc: var(--d4-p1); }
+.is-teams .d4-piece.s3 { --pc: var(--d4-a2); }
+.is-teams .d4-piece.s2 { --pc: var(--d4-p3); }
+.is-teams .d4-piece.s4 { --pc: var(--d4-b2); }
+.d4-piece.is-block { --pc: var(--d4-block); border-radius: 22%; }
+.d4-chip { width: 32px; height: 32px; flex: none; font-size: 18px; border: 2px solid var(--outline); }
+
+/* ---------- settings screen ---------- */
+.d4-settings-screen { max-width: var(--content-max); margin: 0 auto; padding: 12px 16px calc(32px + env(safe-area-inset-bottom)); }
+.d4-panel { background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-l); box-shadow: var(--shadow-m); padding: 14px 16px 16px; margin: 0 0 18px; }
+.d4-panel h2 { margin: 0 0 10px; font-size: 1.2rem; font-weight: 900; }
+.d4-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.d4-choice { font: inherit; font-weight: 800; color: var(--ink); min-width: 64px; min-height: 64px; padding: 6px 16px; background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-round); box-shadow: var(--shadow-s); cursor: pointer; touch-action: manipulation; }
+.d4-choice[aria-pressed="true"] { background: var(--accent-yellow); }
+.d4-choice:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--outline); }
+.d4-choice:focus-visible, .d4-charbtn:focus-visible, .d4-tool:focus-visible { outline: 4px solid var(--accent-blue); outline-offset: 2px; }
+.d4-seatrow { padding: 10px 0; border-top: 2px dashed var(--page-dot); }
+.d4-seatrow:first-of-type { border-top: 0; padding-top: 0; }
+.d4-seathead { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.d4-seatlabel { font-weight: 900; flex: 1; min-width: 0; }
+.d4-who { min-width: 96px; }
+.d4-charlist { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.d4-charbtn { font: inherit; color: var(--ink); min-height: 72px; padding: 4px 2px; display: flex; align-items: center; justify-content: center; background: var(--surface); border: var(--border-w) solid var(--disabled-bg); border-radius: var(--radius-m); cursor: pointer; touch-action: manipulation; }
+.d4-charbtn[aria-pressed="true"] { border-color: var(--outline); background: var(--d4-on-bg); box-shadow: var(--shadow-s); }
+.d4-charface { display: block; width: 56px; height: 56px; }
+.d4-rule { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0; }
+.d4-rulename { font-weight: 900; min-width: 9em; }
+.d4-startpanel { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
+
+/* ---------- game screen ---------- */
+body.d4-playing { overflow: hidden; }
+.d4-game-screen { position: relative; overflow: hidden; }
+.d4-game {
+  position: relative; height: 100%;
+  padding: var(--vpad) var(--side);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: var(--chars-h) minmax(0, 1fr);
+  grid-template-areas: "left right" "center center";
+}
+.d4-game.is-landscape {
+  grid-template-columns: var(--side-w) minmax(0, 1fr) var(--side-w);
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "left center right";
+}
+.d4-side { display: flex; justify-content: space-evenly; align-items: flex-start; gap: 4px; min-width: 0; }
+.d4-side-left { grid-area: left; }
+.d4-side-right { grid-area: right; }
+.is-landscape .d4-side { flex-direction: column; justify-content: center; align-items: center; gap: 12px; }
+.d4-center { grid-area: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; }
+
+.d4-seat { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.d4-face { width: 64px; height: 64px; border-radius: 50%; background: var(--surface); border: var(--border-w) solid var(--outline); overflow: hidden; }
+.d4-seat.is-turn .d4-face { box-shadow: 0 0 0 5px var(--d4-turn); }
+.d4-mark { position: absolute; top: -4px; right: -6px; font-size: 1.2rem; }
+.d4-seat.is-thinking .d4-face::after { content: "…"; position: absolute; left: 50%; top: 40px; transform: translateX(-50%); font-weight: 900; }
+.d4-name { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-weight: 800; white-space: nowrap; }
+.d4-name .d4-chip { width: 24px; height: 24px; font-size: 14px; }
+/* Speech bubble: floats so it never changes the board size. Task 15 restyles it. */
+.d4-bubble { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); z-index: 5; width: max-content; max-width: 180px; margin-top: 4px; padding: 6px 10px; background: var(--surface); border: 2px solid var(--outline); border-radius: var(--radius-s); box-shadow: var(--shadow-soft); font-size: 18px; font-weight: 800; line-height: 1.3; text-align: center; pointer-events: none; }
+.d4-bubble:empty { display: none; }
+.is-landscape .d4-bubble { max-width: var(--side-w); }
+
+.d4-boardwrap { width: var(--board-w); touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }
+.d4-ghostrow { display: grid; grid-template-columns: repeat(var(--cols), var(--cell)); column-gap: var(--gap); padding: 0 var(--pad); height: var(--cell); }
+.d4-slot { width: var(--cell); height: var(--cell); }
+.d4-ghost { width: 100%; height: 100%; opacity: 0.55; font-size: calc(var(--cell) * 0.5); }
+.d4-board { display: grid; grid-template-columns: repeat(var(--cols), var(--cell)); grid-auto-rows: var(--cell); gap: var(--gap); padding: var(--pad); background: var(--d4-board); border-radius: var(--radius-s); box-shadow: 0 0 0 3px var(--outline), 0 6px 0 3px var(--outline); }
+.d4-cell { width: var(--cell); height: var(--cell); border-radius: 50%; background: var(--d4-hole); box-shadow: inset 0 3px 0 rgba(58, 47, 90, 0.18); }
+.d4-cell > .d4-piece { width: 100%; height: 100%; font-size: calc(var(--cell) * 0.5); }
+.d4-cell.can-pop { box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--d4-turn); }
+.d4-cell.is-picked { box-shadow: 0 0 0 4px #fff, 0 0 0 9px var(--accent-pink-strong); }
+
+.d4-tools { display: flex; align-items: center; justify-content: center; gap: 6px; height: var(--tools-h); padding-top: 8px; max-width: 100%; }
+.d4-tool { font: inherit; font-size: 18px; font-weight: 800; color: var(--ink); min-width: 64px; min-height: 64px; padding: 2px 6px; line-height: 1.1; white-space: pre-line; background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-m); box-shadow: var(--shadow-s); cursor: pointer; touch-action: none; }
+.d4-tool[aria-pressed="true"] { background: var(--d4-on-bg); border-color: var(--accent-pink-strong); }
+.d4-tool:disabled { background: var(--disabled-bg); color: var(--disabled-ink); border-color: var(--disabled-ink); box-shadow: none; cursor: not-allowed; }
+.d4-undo { background: var(--accent-green); }
+
+.d4-result { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--overlay); }
+.d4-result-card { background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-l); box-shadow: var(--shadow-soft); padding: 20px; text-align: center; max-width: 420px; width: 100%; }
+.d4-result-text { margin: 0 0 16px; font-size: 1.6rem; font-weight: 900; }
+.d4-result-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
