@@ -41,6 +41,9 @@
       expect(n.length).toBe(1);
       expect(n[0].freq).toBe(100);
     });
+    it('a tiny window at beat 0 still returns the note at beat 0', function () {
+      expect(melody(Bgm.notesBetween(score, 120, 0, 1e-12)).length).toBe(1);
+    });
     it('empty for bad input', function () {
       expect(Bgm.notesBetween(null, 120, 0, 4)).toEqual([]);
       expect(Bgm.notesBetween(score, 0, 0, 4)).toEqual([]);

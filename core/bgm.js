@@ -13,6 +13,8 @@
   var nextBeat = 0;      // first beat not yet scheduled (absolute, grows across loops)
   var nextTime = null;   // audio time of nextBeat; null = re-anchor at the next audible tick
   var timer = null;
+  var live = [];         // oscillators scheduled but maybe not finished: [{ osc, end }]
+  var START_DELAY = 0.15; // lets a previous stop() fade finish before new notes begin
 
   function loopBeats(steps) {
     var sum = 0;
@@ -25,7 +27,7 @@
     var total = loopBeats(steps);
     if (total <= 0) { return; }
     var k0 = Math.floor(from / total);
-    var k1 = Math.floor((to - 1e-9) / total);
+    var k1 = Math.floor(to / total);
     for (var k = k0; k <= k1; k++) {
       var off = 0;
       for (var i = 0; i < steps.length; i++) {
@@ -56,11 +58,12 @@
       var S = C.Sound;
       var dest = S.bgmDest();
       var ctx = S.context();
-      if (!dest || !ctx) {
+      var hidden = typeof document !== 'undefined' && document.hidden === true;
+      if (!dest || !ctx || hidden) {
         nextTime = null; // silent now: resume from the current beat when audible again
       } else {
         var now = ctx.currentTime;
-        if (nextTime === null || nextTime < now - LOOKAHEAD) { nextTime = now + 0.05; }
+        if (nextTime === null || nextTime < now - LOOKAHEAD) { nextTime = now + START_DELAY; }
         var horizon = now + LOOKAHEAD;
         if (horizon > nextTime) {
           var toBeat = nextBeat + (horizon - nextTime) * bpm / 60;
@@ -69,9 +72,11 @@
             var n = notes[i];
             var at = nextTime + (n.beat - nextBeat) * 60 / bpm;
             var dur = n.len * 0.92;
-            if (n.bass) { S.note(ctx, dest, at, n.freq, 0, dur, 'sine', BASS_PEAK, 0, 0.02); }
-            else { S.note(ctx, dest, at, n.freq, 0, dur, score.wave || 'triangle', MELODY_PEAK, 0, 0.02); }
+            var osc = n.bass ? S.note(ctx, dest, at, n.freq, 0, dur, 'sine', BASS_PEAK, 0, 0.02)
+              : S.note(ctx, dest, at, n.freq, 0, dur, score.wave || 'triangle', MELODY_PEAK, 0, 0.02);
+            live.push({ osc: osc, end: at + dur + 0.05 });
           }
+          live = live.filter(function (l) { return l.end > now; });
           nextTime += (toBeat - nextBeat) * 60 / bpm;
           nextBeat = toBeat;
         }
@@ -83,6 +88,16 @@
   function stop() {
     if (timer !== null) { clearTimeout(timer); timer = null; }
     score = null;
+    // Silence notes already scheduled: fade the bus and stop their oscillators.
+    try {
+      var S = C.Sound;
+      var ctx = S.context();
+      if (ctx && live.length) {
+        S.fadeBgm(false);
+        live.forEach(function (l) { try { l.osc.stop(ctx.currentTime + 0.1); } catch (e) { /* ended */ } });
+      }
+    } catch (e) { /* ignore */ }
+    live = [];
   }
 
   C.Bgm = {
@@ -94,6 +109,7 @@
       bpm = sc.bpm > 0 ? sc.bpm : 120;
       nextBeat = 0;
       nextTime = null;
+      C.Sound.fadeBgm(true, START_DELAY - 0.03);
       timer = setTimeout(tick, 0);
     },
     stop: stop,

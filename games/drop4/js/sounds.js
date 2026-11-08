@@ -25,12 +25,12 @@
     reach: function (c, d, t) { seq(c, d, t, [523, 659, 784], 0.09, 0.16, 'triangle', 0.5); },
     block: function (c, d, t) {
       note(c, d, t, 120, 0, 0.18, 'square', 0.35, 70);
-      note(c, d, t, 1760, 0.05, 0.22, 'sine', 0.4);
+      note(c, d, t, 1397, 0.05, 0.22, 'sine', 0.3);
     },
     double: function (c, d, t) {
       seq(c, d, t, [523, 659, 784, 1047, 1319], 0.055, 0.14, 'triangle', 0.45);
-      note(c, d, t, 2093, 0.3, 0.3, 'sine', 0.3);
-      note(c, d, t, 2637, 0.36, 0.3, 'sine', 0.22);
+      note(c, d, t, 1568, 0.3, 0.3, 'sine', 0.22);
+      note(c, d, t, 1319, 0.36, 0.3, 'sine', 0.16);
     },
     win: function (c, d, t) { seq(c, d, t, [523, 659, 784, 659, 784, 1047], 0.13, 0.26, 'triangle', 0.5); },
     lose: function (c, d, t) { seq(c, d, t, [392, 330], 0.3, 0.45, 'sine', 0.4); },

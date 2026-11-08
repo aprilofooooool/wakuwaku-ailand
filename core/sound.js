@@ -37,6 +37,7 @@
     g.connect(dest);
     osc.start(t0);
     osc.stop(t0 + dur + 0.02);
+    return osc;
   }
 
   function seq(c, dest, t, freqs, step, dur, type, peak) {
@@ -69,7 +70,7 @@
           bgmGain.connect(master);
           applyVolumes();
         }
-        if (ctx.state === 'suspended') {
+        if (ctx.state !== 'running') {
           var p = ctx.resume();
           if (p && p.catch) { p.catch(function () {}); }
         }
@@ -77,7 +78,12 @@
     },
     setEnabled: function (on) {
       enabled = !!on;
-      store.set('settings.v1', { sound: enabled });
+      var s = store.get('settings.v1', null);
+      s = (s && typeof s === 'object') ? s : {};
+      s.sound = enabled;
+      store.set('settings.v1', s);
+      // Silence (or restore) notes that are already scheduled.
+      try { if (master && ctx) { master.gain.setTargetAtTime(enabled ? MASTER_VOLUME : 0, ctx.currentTime, 0.02); } } catch (e) { /* ignore */ }
     },
     isEnabled: function () { return enabled; },
     register: function (name, fn) { registry[name] = fn; },
@@ -87,16 +93,23 @@
       try { registry[name](ctx, seGain, ctx.currentTime, opts || {}); } catch (e) { /* never throw */ }
     },
     setVolumes: function (v) {
-      if (v && typeof v.se === 'number' && v.se >= 0) { volumes.se = v.se; }
-      if (v && typeof v.bgm === 'number' && v.bgm >= 0) { volumes.bgm = v.bgm; }
+      if (v && typeof v.se === 'number' && v.se === v.se) { volumes.se = Math.max(0, Math.min(1, v.se)); }
+      if (v && typeof v.bgm === 'number' && v.bgm === v.bgm) { volumes.bgm = Math.max(0, Math.min(1, v.bgm)); }
       applyVolumes();
     },
     // BGM bus, or null while nothing can be heard.
     bgmDest: function () { return playable() ? bgmGain : null; },
+    // Fade the BGM bus out now (stop) or back in after `delay` seconds (start).
+    fadeBgm: function (on, delay) {
+      try {
+        if (!bgmGain || !ctx) { return; }
+        bgmGain.gain.setTargetAtTime(on ? volumes.bgm : 0, ctx.currentTime + (delay || 0), on ? 0.01 : 0.02);
+      } catch (e) { /* ignore */ }
+    },
     context: function () { return playable() ? ctx : null; },
     // Test hook: forget the AudioContext so a fake one can be created by unlock().
     _reset: function () {
-      ctx = null; master = null; seGain = null; bgmGain = null;
+      ctx = null; enabled = true; master = null; seGain = null; bgmGain = null;
       volumes = { se: SE_VOLUME, bgm: BGM_VOLUME };
     }
   };
