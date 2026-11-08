@@ -37,7 +37,7 @@
   }
 
   function setup(over) {
-    var bus = O.createBus();
+    var bus = Ailand.core.EventBus.create();
     var sched = createFakeScheduler();
     var log = [];
     ['state', 'moved', 'pass', 'emotion', 'line', 'gameover'].forEach(function (t) {
@@ -337,7 +337,7 @@
       expect(t.sched.pending()).toBe(0);
     });
     it('a pass listener that calls undo synchronously leaves no illegal pass applied', function () {
-      var bus = O.createBus();
+      var bus = Ailand.core.EventBus.create();
       var sched = createFakeScheduler();
       var ctrl = O.GameController.create({ bus: bus, scheduler: sched, rng: function () { return 0.5; } });
       var undone = false;
@@ -429,16 +429,22 @@
 
   function lastOf(list) { return list[list.length - 1]; }
 
-  // In-memory storage with the O.Storage interface (real get/set/remove, own backend).
+  // A real core store for 'othello' over its own backend. `data` is keyed without the
+  // 'ailand:othello:' prefix so tests can read data[C.SAVE_KEY].
+  var PREFIX = 'ailand:othello:';
+  function storeOver(backend) {
+    var base = Object.create(Ailand.core.Storage);
+    base._backend = backend;
+    return base.create('othello');
+  }
   function createMemStorage(initial) {
     var data = {};
     Object.keys(initial || {}).forEach(function (k) { data[k] = initial[k]; });
-    var st = Object.create(O.Storage);
-    st._backend = {
-      getItem: function (k) { return Object.prototype.hasOwnProperty.call(data, k) ? data[k] : null; },
-      setItem: function (k, v) { data[k] = String(v); },
-      removeItem: function (k) { delete data[k]; }
-    };
+    var st = storeOver({
+      getItem: function (k) { k = k.slice(PREFIX.length); return Object.prototype.hasOwnProperty.call(data, k) ? data[k] : null; },
+      setItem: function (k, v) { data[k.slice(PREFIX.length)] = String(v); },
+      removeItem: function (k) { delete data[k.slice(PREFIX.length)]; }
+    });
     st.data = data;
     return st;
   }
@@ -458,7 +464,7 @@
   // Creates a controller without starting it. opts: { rng, storage, ai, sched }.
   function makeCtrl(opts) {
     var o = opts || {};
-    var bus = O.createBus();
+    var bus = Ailand.core.EventBus.create();
     var sched = o.sched || createFakeScheduler();
     var ai = o.ai || createFakeAi();
     var storage = o.storage || createMemStorage();
@@ -810,12 +816,11 @@
       });
     });
     it('storage が例外を投げても start/play が動く', function () {
-      var st = Object.create(O.Storage);
-      st._backend = {
+      var st = storeOver({
         getItem: function () { throw new Error('denied'); },
         setItem: function () { throw new Error('denied'); },
         removeItem: function () { throw new Error('denied'); }
-      };
+      });
       var t = makeCtrl({ storage: st });
       t.ctrl.start(soloSettings());
       expect(t.ctrl.play(t.ctrl.getView().legal[0])).toBe(true);
@@ -825,7 +830,7 @@
       expect(O.GameController.hasSave(st)).toBe(false);
       O.GameController.clearSave(st);
     });
-    it('hasSave/clearSave は引数なしで O.Storage を使う', function () {
+    it('hasSave/clearSave は引数なしで O.store を使う', function () {
       expect(O.GameController.hasSave()).toBe(false);
       O.GameController.clearSave();
     });

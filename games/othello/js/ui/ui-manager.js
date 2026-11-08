@@ -28,7 +28,7 @@
   function oneOf(v, list, fallback) { return list.indexOf(v) >= 0 ? v : fallback; }
 
   function loadState() {
-    return normalizeSettings(O.Storage.get(O.Const.SETTINGS_KEY, {}) || {});
+    return normalizeSettings(O.store.get(O.Const.SETTINGS_KEY, {}) || {});
   }
 
   // Saved top-screen settings -> valid state. An old `sound` field is ignored (sound is the shared core setting).
@@ -57,7 +57,7 @@
     return s;
   }
 
-  function saveState() { O.Storage.set(O.Const.SETTINGS_KEY, state); }
+  function saveState() { O.store.set(O.Const.SETTINGS_KEY, state); }
 
   // Builds a row of radio-like buttons. getLabel lets a label depend on the mode.
   function makeChoices(container, label, items, key, onPick) {

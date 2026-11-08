@@ -21,7 +21,7 @@
     var scheduler = d.scheduler || realScheduler();
     var rng = d.rng || Math.random;
     var linePicker = d.linePicker || O.LinePicker.create(O.Characters, rng);
-    var storage = d.storage || O.Storage;
+    var storage = d.storage || O.store;
 
     var settings = null;
     var colors = { p1: BLACK, p2: WHITE };
@@ -663,13 +663,13 @@
   }
 
   function hasSave(storage) {
-    var data = (storage || O.Storage).get(O.Const.SAVE_KEY, null);
+    var data = (storage || O.store).get(O.Const.SAVE_KEY, null);
     return !!data && (data.version === O.Const.SAVE_VERSION ||
       (data.version === O.Const.FOUR_SAVE_VERSION && !!data.settings && data.settings.mode === 'four'));
   }
 
   function clearSave(storage) {
-    (storage || O.Storage).remove(O.Const.SAVE_KEY);
+    (storage || O.store).remove(O.Const.SAVE_KEY);
   }
 
   O.GameController = { create: create, hasSave: hasSave, clearSave: clearSave };

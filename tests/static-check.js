@@ -81,7 +81,7 @@ if (exists(charsFile)) {
   let chars;
   let loaded = false;
   try {
-    vm.runInContext(read(path.join(root, 'core', 'namespace.js')), ctx);
+    for (const f of ['namespace.js', 'event-bus.js', 'storage.js']) { vm.runInContext(read(path.join(root, 'core', f)), ctx); }
     vm.runInContext(read(path.join(gameRoot, 'js', 'core', 'namespace.js')), ctx);
     vm.runInContext(read(charsFile), ctx, { filename: charsFile });
     chars = vm.runInContext('Ailand.games.othello.Characters', ctx);
@@ -137,8 +137,8 @@ for (const f of appFiles) {
   });
 }
 
-// 2b. localStorage only through the two storage modules (comments are ignored).
-const storageModules = new Set(['core/storage.js', 'games/othello/js/core/storage.js']);
+// 2b. localStorage only through core/storage.js (comments are ignored).
+const storageModules = new Set(['core/storage.js']);
 function stripComments(text) {
   return text.replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, ' ')).replace(/(^|[^:\\])\/\/.*$/gm, '$1');
 }

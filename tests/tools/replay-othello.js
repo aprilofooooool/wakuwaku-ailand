@@ -9,9 +9,9 @@ const vm = require('vm');
 // Files loaded into the vm, in dependency order (the non-test part of tests/test.html).
 const FILES = [
   'core/namespace.js',
+  'core/event-bus.js',
+  'core/storage.js',
   'games/othello/js/core/namespace.js',
-  'games/othello/js/core/event-bus.js',
-  'games/othello/js/core/storage.js',
   'games/othello/js/config/version.js',
   'games/othello/js/config/constants.js',
   'games/othello/js/data/characters.js',
@@ -79,32 +79,32 @@ function createWorld() {
     next.fn();
     return true;
   }
-  return { ns: NS.split('.').reduce((o, k) => o[k], sandbox), sched, runNext };
+  return { ns: NS.split('.').reduce((o, k) => o[k], sandbox), core: sandbox.Ailand.core, sched, runNext };
 }
 
-function memStorage(ns) {
+function memStorage(core) {
   const data = {};
-  const st = Object.create(ns.Storage);
+  const st = Object.create(core.Storage);
   st._backend = {
     getItem: (k) => (Object.prototype.hasOwnProperty.call(data, k) ? data[k] : null),
     setItem: (k, v) => { data[k] = String(v); },
     removeItem: (k) => { delete data[k]; }
   };
-  return st;
+  return st.create('othello');
 }
 
 function playGame(combo) {
   const w = createWorld();
   const api = w.ns;
   const rng = mulberry32(combo.seed);
-  const bus = api.createBus();
+  const bus = w.core.EventBus.create();
   const rec = { moves: [], board: [], emotions: [], result: null };
   bus.on('moved', (p) => { rec.moves.push(p.mover + ':' + p.index); });
   bus.on('emotion', (p) => { rec.emotions.push({ player: p.player, emotion: p.emotion }); });
   bus.on('gameover', (p) => {
     rec.result = { result: p.result, winner: p.winner === undefined ? null : p.winner, winners: p.winners || null, ranks: p.ranks || null };
   });
-  const ctrl = api.GameController.create({ bus, scheduler: w.sched, rng, storage: memStorage(api) });
+  const ctrl = api.GameController.create({ bus, scheduler: w.sched, rng, storage: memStorage(w.core) });
   const names = ['mametchi', 'kuchipatchi', 'mimitchi', 'flowertchi'];
   let settings;
   if (combo.mode === 'four') {
