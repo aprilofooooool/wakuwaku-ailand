@@ -1073,6 +1073,7 @@
     isSoundOn: function () { return state.sound; },
     bindGame: bindGame,
     leave: function () { leaveGame(false); },
+    toggleSound: toggleSound,
     panelEl: function (player) { return G && G.panels && G.panels[player] ? G.panels[player].root : null; },
     confirm: confirmDialog,
     showResult: showResult,

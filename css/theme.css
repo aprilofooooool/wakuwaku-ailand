@@ -1,0 +1,43 @@
+/* Shared theme variables. Pages override --page-bg and --page-dot. */
+:root {
+  --page-bg: #fff7e8;
+  --page-dot: #ffe3b8;
+  --surface: #ffffff;
+  --surface-sub: #fff0f6;
+  --ink: #3a2f5a;
+  --ink-sub: #5d5280;
+  --outline: #3a2f5a;
+
+  --accent-pink: #ff5c9a;
+  --accent-blue: #3aa0ff;
+  --accent-yellow: #ffc83a;
+  --accent-green: #36c486;
+  --accent-purple: #9a6bff;
+  --on-accent: #3a2f5a;
+  --on-accent-strong: #ffffff;
+  --accent-pink-strong: #c2185b;
+
+  --disabled-bg: #e4e0ee;
+  --disabled-ink: #6c6580;
+
+  --radius-s: 12px;
+  --radius-m: 20px;
+  --radius-l: 28px;
+  --radius-round: 999px;
+  --border-w: 3px;
+
+  --shadow-s: 0 3px 0 var(--outline);
+  --shadow-m: 0 5px 0 var(--outline);
+  --overlay: rgba(58, 47, 90, 0.55);
+  --shadow-soft: 0 8px 20px rgba(58, 47, 90, 0.18);
+
+  --t-press: 90ms;
+  --t-ui: 180ms;
+
+  --font: "Hiragino Maru Gothic ProN", "M PLUS Rounded 1c", "Yu Gothic UI", system-ui, sans-serif;
+
+  --tap-min: 64px;
+  --content-max: 560px;
+  --modal-max-w: 420px;
+  --modal-max-h: 90dvh;
+}

@@ -10,12 +10,14 @@
 <link rel="stylesheet" href="css/top.css">
 <link rel="stylesheet" href="css/game.css">
 <link rel="stylesheet" href="css/effects.css">
+<link rel="stylesheet" href="../../css/header.css">
 </head>
-<body>
+<body class="has-header">
 <main id="screen-top" class="screen"></main>
 <main id="screen-game" class="screen" hidden></main>
 <div id="modal-root"></div>
 <script src="../../core/namespace.js"></script>
+<script src="../../core/ui-common.js"></script>
 <script src="js/core/namespace.js"></script>
 <script src="js/core/event-bus.js"></script>
 <script src="js/core/storage.js"></script>
@@ -35,5 +37,19 @@
 <script src="js/ui/effects.js"></script>
 <script src="js/ui/ui-manager.js"></script>
 <script src="js/main.js"></script>
+<script>
+  // Registered after main.js, so its DOMContentLoaded handler (UI.init) has already run.
+  function mountHeader() {
+    document.body.insertBefore(Ailand.core.UI.header({
+      title: 'ぱたぱた！オセロっち',
+      soundOn: Ailand.games.othello.UI.isSoundOn(),
+      onBack: function () { location.href = '../../index.html'; },
+      onSound: function () { return Ailand.games.othello.UI.toggleSound(); },
+      onSettings: function () { Ailand.games.othello.UI.leave(); }
+    }), document.body.firstChild);
+  }
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', mountHeader); }
+  else { mountHeader(); }
+</script>
 </body>
 </html>
