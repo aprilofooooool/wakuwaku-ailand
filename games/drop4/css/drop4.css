@@ -113,3 +113,55 @@ body.d4-playing { overflow: hidden; }
 .d4-result-card { background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-l); box-shadow: var(--shadow-soft); padding: 20px; text-align: center; max-width: 420px; width: 100%; }
 .d4-result-text { margin: 0 0 16px; font-size: 1.6rem; font-weight: 900; }
 .d4-result-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+
+/* ---------- effects (games/drop4/js/fx.js; shared parts in css/effects.css) ---------- */
+.d4-cell { position: relative; }
+.d4-cell > .d4-piece { position: relative; }
+.d4-drop { z-index: 6; animation: d4-drop var(--d4-drop-dur, 700ms) linear both; }
+/* --fall = distance above the landing cell. Two small bounces at the end. */
+@keyframes d4-drop {
+  0% { transform: translateY(calc(-1 * var(--fall))); animation-timing-function: cubic-bezier(0.5, 0, 1, 0.6); }
+  55% { transform: translateY(0); animation-timing-function: cubic-bezier(0, 0.4, 0.5, 1); }
+  72% { transform: translateY(calc(var(--cell) * -0.22)); animation-timing-function: cubic-bezier(0.5, 0, 1, 0.6); }
+  86% { transform: translateY(0); animation-timing-function: cubic-bezier(0, 0.4, 0.5, 1); }
+  93% { transform: translateY(calc(var(--cell) * -0.08)); animation-timing-function: cubic-bezier(0.5, 0, 1, 0.6); }
+  100% { transform: translateY(0); }
+}
+.d4-banner { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 4px; transform: translate(-50%, -50%); font-size: 4.5rem; font-weight: 900; line-height: 1; text-shadow: 0 0 8px #fff, 0 0 16px var(--fx-gold); animation: d4-banner 1400ms ease-out both; }
+.d4-banner-text { font-size: 1.4rem; color: var(--ink); background: #fff; border: 3px solid var(--outline); border-radius: var(--radius-round); padding: 4px 16px; text-shadow: none; }
+@keyframes d4-banner {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+  20% { opacity: 1; transform: translate(-50%, -50%) scale(1.25); }
+  35% { transform: translate(-50%, -50%) scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* Ending display (win: big winners; lose / draw: gentle) */
+.d4-end { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.d4-end.is-lose, .d4-end.is-draw { background: var(--fx-dim); }
+.d4-end.is-win { background: rgba(255, 255, 255, 0.35); }
+.d4-heroes { position: relative; width: 60%; max-width: 70vh; display: flex; justify-content: center; align-items: flex-end; gap: 8px; }
+.d4-hero { flex: 1 1 0; min-width: 0; aspect-ratio: 1; border-radius: 50%; background: var(--surface); border: var(--border-w) solid var(--outline); box-shadow: var(--shadow-m); overflow: hidden; }
+.d4-hero .char-img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.is-win .d4-hero { animation: d4-hero 1100ms ease-in-out infinite; }
+.is-win .d4-hero:nth-child(2) { animation-delay: 220ms; }
+@keyframes d4-hero {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  30% { transform: translateY(-5%) rotate(-10deg); }
+  60% { transform: translateY(0) rotate(10deg); }
+}
+.is-win .d4-hero.spin { animation: d4-spin 900ms ease-in-out 1 both, d4-hero 1100ms ease-in-out 900ms infinite; }
+@keyframes d4-spin { from { transform: rotate(0) scale(0.4); } to { transform: rotate(360deg) scale(1); } }
+.is-lose .d4-heroes, .is-draw .d4-heroes { width: 40%; }
+.is-lose .d4-hero, .is-draw .d4-hero { animation: d4-gentle 500ms ease-out both; }
+@keyframes d4-gentle { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.d4-spark { position: absolute; font-size: 2.2rem; animation: d4-twinkle 900ms ease-in-out infinite; }
+.d4-spark.a { left: -6%; top: -8%; }
+.d4-spark.b { right: -6%; top: -4%; animation-delay: 300ms; }
+.d4-spark.c { left: 4%; bottom: -8%; animation-delay: 600ms; }
+.d4-spark.d { right: 2%; bottom: -10%; animation-delay: 150ms; }
+@keyframes d4-twinkle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.7); } }
+.d4-end-text { margin: 0; padding: 6px 18px; font-size: 1.6rem; font-weight: 900; color: var(--ink); background: #fff; border: 3px solid var(--outline); border-radius: var(--radius-round); }
+.d4-seat .fx-ring { inset: -8px; border-radius: 20px; }
+.d4-piece .fx-ring { inset: -4px; border-width: 4px; }

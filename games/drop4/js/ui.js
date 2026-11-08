@@ -1,10 +1,9 @@
 (function (G) {
   'use strict';
   // drop4 screens: settings (requirements 3.7) and game (3.8, design 6.6). DOM is touched only after init().
-  var C = Ailand.core, E = G.Engine, L = G.Layout;
+  var C = Ailand.core, E = G.Engine, L = G.Layout, Fx = G.Fx;
 
   var SYMBOLS = { 1: '♥', 2: '★', 3: '●', 4: '◆' };
-  var MARKS = { sweat: '💦', bang: '❗', sparkle: '✨', zzz: '💤', steam: '💢' };
   var PLAYER_MODES = [
     { players: 2, teams: false, label: '2にん' },
     { players: 3, teams: false, label: '3にん' },
@@ -215,9 +214,31 @@
       return controller.isBusy() || pending > 0 || !view.state || !view.humanTurn || view.over;
     }
 
-    // Task 15 replaces this body with the drop/pop animation. It runs before the board shows `after`.
+    // Drop / block: a piece falls into its landing cell (two bounces). Pop is shown without animation.
+    // Runs before the board shows `after`; input stays locked meanwhile (pending > 0).
     function animateMove(move) {
-      return Promise.resolve(move);
+      if (move.type === 'pop' || !view.state) { return Promise.resolve(); }
+      var st = view.state, r = 0;
+      while (r < st.rows && E.at(st, move.col, r) !== E.EMPTY) { r++; }
+      if (r >= st.rows) { return Promise.resolve(); }
+      var block = move.type === 'block';
+      var piece = el('div', 'd4-piece ' + (block ? 'is-block' : 's' + move.seat), block ? '' : SYMBOLS[move.seat]);
+      g.cells[move.col][r].appendChild(piece);
+      return Fx.drop(piece, st.rows - r).then(function () {
+        if (piece.parentNode) { piece.parentNode.removeChild(piece); }
+      });
+    }
+
+    // The winning discs (result.lines = [[c, r], ...] runs), for the ring.
+    function winEls(result) {
+      var out = [];
+      ((result && result.lines) || []).forEach(function (run) {
+        run.forEach(function (p) {
+          var piece = g.cells[p[0]][p[1]].querySelector('.d4-piece');
+          if (piece && out.indexOf(piece) < 0) { out.push(piece); }
+        });
+      });
+      return out;
     }
 
     // Every bus event is applied in order, after the previous one's animation finished.
@@ -337,7 +358,7 @@
       if (!v || v.emotion === emotion) { return; }
       v.emotion = emotion;
       faceInto(v.face, v.profile, emotion);
-      v.mark.textContent = MARKS[C.CharacterView.markOf(emotion)] || '';
+      C.Effects.mark(v.mark, C.CharacterView.markOf(emotion));
     }
     function setBubble(seat, text) {
       var v = g.seats[seat];
@@ -517,6 +538,7 @@
       queue(function () {
         var settings = controller.settings();
         draft = normalize(settings);
+        Fx.stop();
         view = { state: p.state, turnSeat: 0, humanTurn: false, over: false };
         mode = 'drop';
         sel = null;
@@ -563,6 +585,8 @@
         Object.keys(g.seats).forEach(function (s) { setFace(Number(s), 'normal'); setBubble(Number(s), ''); });
         events.forEach(function (e) { setFace(e.seat, e.emotion); });
         Object.keys(p.lines || {}).forEach(function (s) { setBubble(Number(s), p.lines[s]); });
+        var result = view.state && view.state.result;
+        Fx.play(p.picked, { seats: g.seats, boardEl: g.boardwrap, winEls: winEls(result), result: result, humans: g.humans });
       });
     });
     bus.on('gameover', function (p) {
@@ -576,6 +600,7 @@
     });
     bus.on('undo', function (p) {
       queue(function () {
+        Fx.stop();
         view.state = p.state;
         view.over = false;
         mode = 'drop';

@@ -1,0 +1,78 @@
+/* Shared effects (core/effects.js). transform / opacity animations only.
+   base.css turns every animation off in reduced motion, so the static look of each effect is its base style. */
+:root {
+  --fx-z: 100;
+  --fx-gold: #ffc83a;
+  --fx-gold-light: #fff1a8;
+  --fx-dim: rgba(58, 47, 90, 0.45);
+  --fx-fade: 300ms;
+  --fx-confetti-dur: 1700ms;
+  --fx-ring-dur: 900ms;
+  --fx-shake-dur: 500ms;
+  --fx-shake-amp: 6px;
+  --fx-bubble-bg: #ffffff;
+}
+
+#fx-layer { position: fixed; inset: 0; z-index: var(--fx-z); pointer-events: none; overflow: hidden; }
+#fx-layer * { pointer-events: none; }
+.fx-group { position: absolute; inset: 0; transition: opacity var(--fx-fade) ease; }
+.fx-group.fx-out { opacity: 0; }
+
+/* Particles: --x / --y start, --dx / --dy travel, --d delay */
+.fx-p { position: absolute; left: var(--x); top: var(--y); width: 12px; height: 16px; opacity: 0; animation: fx-travel var(--fx-confetti-dur) ease-out var(--d) both; }
+.fx-p.fx-confetti { border-radius: 3px; animation-name: fx-fall; }
+.fx-p.c0 { background: #ff6fa8; }
+.fx-p.c1 { background: #ffc93c; }
+.fx-p.c2 { background: #4cc3ff; }
+.fx-p.c3 { background: #4cd07a; }
+.fx-p.c4 { background: #a97bff; }
+.fx-p.fx-sparkle { width: 14px; height: 14px; border-radius: 50%; background: var(--fx-gold); box-shadow: 0 0 8px 3px var(--fx-gold-light); }
+.fx-p.fx-sparkle.alt { background: var(--fx-gold-light); }
+@keyframes fx-travel {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.4); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1); }
+}
+@keyframes fx-fall {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0); }
+  10% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(540deg); }
+}
+/* Reduced motion: a few particles stay still halfway along their path */
+.fx-p.fx-static { opacity: 1; transform: translate(calc(var(--dx) * 0.5), calc(var(--dy) * 0.5)); }
+
+/* Ring around an element */
+.fx-ring { position: absolute; inset: -6px; border: 5px solid var(--fx-gold); border-radius: 50%; opacity: 0.9; box-shadow: 0 0 10px 2px var(--fx-gold-light); animation: fx-ring var(--fx-ring-dur) ease-out 2 both; }
+@keyframes fx-ring {
+  0% { opacity: 0; transform: scale(0.7); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+
+/* Shake (vertical, small) */
+.fx-shake { animation: fx-shake var(--fx-shake-dur) linear both; }
+@keyframes fx-shake {
+  0%, 100% { transform: translateY(0); }
+  10%, 50%, 90% { transform: translateY(calc(-1 * var(--fx-shake-amp))); }
+  30%, 70% { transform: translateY(var(--fx-shake-amp)); }
+}
+
+/* Emotion mark */
+.fx-mark { display: inline-block; animation: fx-mark-pop 360ms ease-out both; }
+@keyframes fx-mark-pop {
+  0% { opacity: 0; transform: scale(0.3); }
+  60% { opacity: 1; transform: scale(1.3); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Speech bubble and thinking dots (inside a positioned slot) */
+.fx-bubble { position: relative; display: inline-flex; align-items: center; justify-content: center; padding: 6px 10px; background: var(--fx-bubble-bg); border: 2px solid var(--outline, #3a2f5a); border-radius: 12px; font-size: 18px; font-weight: 800; line-height: 1.3; color: var(--ink, #3a2f5a); animation: fx-bubble-in 180ms ease-out both; transition: opacity 250ms ease; }
+.fx-bubble.fx-out { opacity: 0; }
+@keyframes fx-bubble-in { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+.fx-bubble-text { display: block; text-align: center; overflow-wrap: anywhere; }
+.fx-dots { display: flex; gap: 6px; }
+.fx-dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--ink, #3a2f5a); animation: fx-dot 900ms ease-in-out infinite; }
+.fx-dots span:nth-child(2) { animation-delay: 150ms; }
+.fx-dots span:nth-child(3) { animation-delay: 300ms; }
+@keyframes fx-dot { 0%, 60%, 100% { opacity: 0.3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-4px); } }
