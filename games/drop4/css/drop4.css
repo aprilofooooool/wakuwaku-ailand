@@ -1,0 +1,177 @@
+/* drop4 (ぽとん4). Light-blue page, blue board (design 6.6). Sizes in the game screen come from Layout via CSS variables. */
+:root {
+  --page-bg: #e8f6ff;
+  --page-dot: #cdeaff;
+  --d4-board: #5b8cff;
+  --d4-hole: #ffffff;
+  --d4-block: #9a9a9a;
+  --d4-p1: #ff6fa8;   /* pink */
+  --d4-p2: #ffc93c;   /* yellow */
+  --d4-p3: #4cc3ff;   /* light blue */
+  --d4-p4: #4cd07a;   /* green */
+  --d4-a2: #ffb3d1;   /* team A second seat: light pink */
+  --d4-b2: #a6e1ff;   /* team B second seat: pale light blue */
+  --d4-turn: #ffcc00;
+  --d4-on-bg: #ffe3ef;
+}
+
+/* ---------- pieces (shared by settings chips, board, ghost) ---------- */
+.d4-piece { --pc: var(--d4-p1); background: var(--pc); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; line-height: 1; text-shadow: 0 0 2px var(--outline), 0 0 2px var(--outline); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18); }
+.d4-piece.s1 { --pc: var(--d4-p1); }
+.d4-piece.s2 { --pc: var(--d4-p2); }
+.d4-piece.s3 { --pc: var(--d4-p3); }
+.d4-piece.s4 { --pc: var(--d4-p4); }
+.is-teams .d4-piece.s1 { --pc: var(--d4-p1); }
+.is-teams .d4-piece.s3 { --pc: var(--d4-a2); }
+.is-teams .d4-piece.s2 { --pc: var(--d4-p3); }
+.is-teams .d4-piece.s4 { --pc: var(--d4-b2); }
+.d4-piece.is-block { --pc: var(--d4-block); border-radius: 22%; }
+.d4-chip { width: 32px; height: 32px; flex: none; font-size: 18px; border: 2px solid var(--outline); }
+
+/* ---------- settings screen ---------- */
+.d4-settings-screen { max-width: var(--content-max); margin: 0 auto; padding: 12px 16px calc(32px + env(safe-area-inset-bottom)); }
+.d4-panel { background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-l); box-shadow: var(--shadow-m); padding: 14px 16px 16px; margin: 0 0 18px; }
+.d4-panel h2 { margin: 0 0 10px; font-size: 1.2rem; font-weight: 900; }
+.d4-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.d4-choice { font: inherit; font-weight: 800; color: var(--ink); min-width: 64px; min-height: 64px; padding: 6px 16px; background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-round); box-shadow: var(--shadow-s); cursor: pointer; touch-action: manipulation; }
+.d4-choice[aria-pressed="true"] { background: var(--accent-yellow); }
+.d4-choice:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--outline); }
+.d4-choice:focus-visible, .d4-charbtn:focus-visible, .d4-tool:focus-visible { outline: 4px solid var(--accent-blue); outline-offset: 2px; }
+.d4-seatrow { padding: 10px 0; border-top: 2px dashed var(--page-dot); }
+.d4-seatrow:first-of-type { border-top: 0; padding-top: 0; }
+.d4-seathead { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.d4-seatlabel { font-weight: 900; flex: 1; min-width: 0; }
+.d4-who { min-width: 96px; }
+.d4-charlist { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.d4-charbtn { font: inherit; color: var(--ink); min-height: 72px; padding: 4px 2px; display: flex; align-items: center; justify-content: center; background: var(--surface); border: var(--border-w) solid var(--disabled-bg); border-radius: var(--radius-m); cursor: pointer; touch-action: manipulation; }
+.d4-charbtn[aria-pressed="true"] { border-color: var(--outline); background: var(--d4-on-bg); box-shadow: var(--shadow-s); }
+.d4-charface { display: block; width: 56px; height: 56px; }
+.d4-rule { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0; }
+.d4-rulename { font-weight: 900; min-width: 9em; }
+.d4-startpanel { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
+
+/* ---------- game screen ---------- */
+body.d4-playing { overflow: hidden; }
+.d4-game-screen { position: relative; overflow: hidden; }
+.d4-game {
+  position: relative; height: 100%;
+  padding: var(--vpad) var(--side);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: var(--chars-h) minmax(0, 1fr) var(--tools-h);
+  grid-template-areas: "left right" "center center" "tools tools";
+}
+.d4-game.is-landscape {
+  grid-template-columns: var(--side-w) minmax(0, 1fr) var(--side-w) var(--tools-w);
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "left center right tools";
+}
+.d4-side { display: flex; justify-content: space-evenly; align-items: flex-start; gap: 4px; min-width: 0; }
+.d4-side-left { grid-area: left; }
+.d4-side-right { grid-area: right; }
+.is-landscape .d4-side { flex-direction: column; justify-content: center; align-items: center; gap: var(--seat-gap, 2px); }
+.d4-center { grid-area: center; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-height: 0; }
+.is-landscape .d4-center { justify-content: center; }
+
+.d4-seat { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.d4-face { position: relative; flex: none; width: 64px; height: 64px; border-radius: 50%; background: var(--surface); border: var(--border-w) solid var(--outline); overflow: hidden; }
+.is-landscape .d4-face { width: var(--face, 96px); height: var(--face, 96px); }
+.d4-seat.is-turn .d4-face { box-shadow: 0 0 0 5px var(--d4-turn); }
+.d4-mark { position: absolute; top: -4px; right: -6px; font-size: 1.2rem; }
+.d4-seat.is-thinking .d4-face::after { content: "…"; position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); font-weight: 900; }
+.d4-name { display: flex; align-items: center; gap: 4px; margin-top: 4px; font-weight: 800; white-space: nowrap; }
+.d4-name .d4-chip { width: 24px; height: 24px; font-size: 14px; }
+/* Speech bubble. Portrait: floats over the board so it never changes the board size.
+   Landscape: in normal flow inside a fixed-height seat (Layout.seatH), so it never covers the seat below. */
+.d4-bubble { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); z-index: 5; width: max-content; max-width: 180px; margin-top: 4px; padding: 6px 10px; background: var(--surface); border: 2px solid var(--outline); border-radius: var(--radius-s); box-shadow: var(--shadow-soft); font-size: 18px; font-weight: 800; line-height: 1.3; text-align: center; pointer-events: none; }
+.d4-bubble:empty { display: none; }
+/* Landscape heights must match layout.js: name 2 + 22 = NAME_H_L, bubble 2 + 4 + 4 + 3 x 21 = BUBBLE_H_L. */
+.is-landscape .d4-seat { flex: none; height: var(--seat-h); justify-content: flex-start; }
+.is-landscape .d4-name { margin-top: 2px; height: 22px; line-height: 22px; }
+.is-landscape .d4-name .d4-chip { width: 20px; height: 20px; font-size: 12px; }
+.is-landscape .d4-bubble { position: static; left: auto; top: auto; transform: none; width: auto; max-width: var(--side-w); max-height: 71px; overflow: hidden; margin-top: 2px; padding: 2px 6px; line-height: 21px; }
+
+.d4-boardwrap { width: var(--board-w); touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; }
+.d4-ghostrow { display: grid; grid-template-columns: repeat(var(--cols), var(--cell)); column-gap: var(--gap); padding: 0 var(--pad); height: var(--cell); }
+.d4-slot { width: var(--cell); height: var(--cell); }
+.d4-ghost { width: 100%; height: 100%; opacity: 0.55; font-size: calc(var(--cell) * 0.5); }
+.d4-board { display: grid; grid-template-columns: repeat(var(--cols), var(--cell)); grid-auto-rows: var(--cell); gap: var(--gap); padding: var(--pad); background: var(--d4-board); border-radius: var(--radius-s); box-shadow: 0 0 0 3px var(--outline), 0 6px 0 3px var(--outline); }
+.d4-cell { width: var(--cell); height: var(--cell); border-radius: 50%; background: var(--d4-hole); box-shadow: inset 0 3px 0 rgba(58, 47, 90, 0.18); }
+.d4-cell > .d4-piece { width: 100%; height: 100%; font-size: calc(var(--cell) * 0.5); }
+.d4-cell.can-pop { box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--d4-turn); }
+.d4-cell.is-picked { box-shadow: 0 0 0 4px #fff, 0 0 0 9px var(--accent-pink-strong); }
+
+.d4-tools { grid-area: tools; display: flex; align-items: flex-end; justify-content: center; gap: 6px; padding-top: 16px; min-width: 0; touch-action: none; }
+.is-landscape .d4-tools { flex-direction: column; align-items: stretch; justify-content: center; padding: 0 0 0 8px; }
+.d4-tool { font: inherit; font-size: 18px; font-weight: 800; color: var(--ink); min-width: 64px; min-height: 64px; padding: 2px 6px; line-height: 1.1; white-space: pre-line; background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-m); box-shadow: var(--shadow-s); cursor: pointer; touch-action: none; }
+.d4-tool[aria-pressed="true"] { background: var(--d4-on-bg); border-color: var(--accent-pink-strong); }
+.d4-tool:disabled { background: var(--disabled-bg); color: var(--disabled-ink); border-color: var(--disabled-ink); box-shadow: none; cursor: not-allowed; }
+.d4-viewresult { background: var(--accent-green); }
+.d4-undo { background: var(--accent-green); }
+.d4-undo[aria-disabled="true"] { background: var(--disabled-bg); color: var(--disabled-ink); border-color: var(--disabled-ink); box-shadow: none; cursor: not-allowed; }
+
+/* Phone landscape: compact header (buttons stay 64px) so the board gets the height. */
+@media (orientation: landscape) and (max-height: 500px) {
+  :root { --header-h: 67px; }
+}
+
+.d4-result { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--overlay); }
+.d4-result-card { background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-l); box-shadow: var(--shadow-soft); padding: 20px; text-align: center; max-width: 420px; width: 100%; }
+.d4-result-text { margin: 0 0 16px; font-size: 1.6rem; font-weight: 900; }
+.d4-result-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+
+/* ---------- effects (games/drop4/js/fx.js; shared parts in css/effects.css) ---------- */
+.d4-cell { position: relative; }
+.d4-cell > .d4-piece { position: relative; }
+.d4-drop { z-index: 6; animation: d4-drop var(--d4-drop-dur, 700ms) linear both; }
+/* --fall = distance above the landing cell. Two small bounces at the end. */
+@keyframes d4-drop {
+  0% { transform: translateY(calc(-1 * var(--fall))); animation-timing-function: cubic-bezier(0.5, 0, 1, 0.6); }
+  55% { transform: translateY(0); animation-timing-function: cubic-bezier(0, 0.4, 0.5, 1); }
+  72% { transform: translateY(calc(var(--cell) * -0.22)); animation-timing-function: cubic-bezier(0.5, 0, 1, 0.6); }
+  86% { transform: translateY(0); animation-timing-function: cubic-bezier(0, 0.4, 0.5, 1); }
+  93% { transform: translateY(calc(var(--cell) * -0.08)); animation-timing-function: cubic-bezier(0.5, 0, 1, 0.6); }
+  100% { transform: translateY(0); }
+}
+.d4-banner { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 4px; transform: translate(-50%, -50%); font-size: 4.5rem; font-weight: 900; line-height: 1; text-shadow: 0 0 8px #fff, 0 0 16px var(--fx-gold); animation: d4-banner 1400ms ease-out both; }
+.d4-banner-text { font-size: 1.4rem; color: var(--ink); background: #fff; border: 3px solid var(--outline); border-radius: var(--radius-round); padding: 4px 16px; text-shadow: none; }
+@keyframes d4-banner {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+  20% { opacity: 1; transform: translate(-50%, -50%) scale(1.25); }
+  35% { transform: translate(-50%, -50%) scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* Ending display (win: big winners; lose / draw: gentle) */
+.d4-end { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.d4-end.is-lose, .d4-end.is-draw { background: var(--fx-dim); }
+#fx-layer .d4-end { pointer-events: auto; }
+.d4-end.at-top { justify-content: flex-start; }
+.d4-heroes { position: relative; width: 60vw; max-width: 70vh; flex-wrap: wrap; display: flex; justify-content: center; align-items: flex-end; gap: 8px; }
+.d4-hero { flex: 1 1 100%; min-width: 0; aspect-ratio: 1; border-radius: 50%; background: var(--surface); border: var(--border-w) solid var(--outline); box-shadow: var(--shadow-m); overflow: hidden; }
+.d4-hero .char-img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.is-win .d4-hero { animation: d4-hero 1100ms ease-in-out infinite; }
+.is-win .d4-hero:nth-child(2) { animation-delay: 220ms; }
+@keyframes d4-hero {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  30% { transform: translateY(-5%) rotate(-10deg); }
+  60% { transform: translateY(0) rotate(10deg); }
+}
+.is-win .d4-hero.spin { animation: d4-spin 900ms ease-in-out 1 both, d4-hero 1100ms ease-in-out 900ms infinite; }
+@keyframes d4-spin { from { transform: rotate(0) scale(0.4); } to { transform: rotate(360deg) scale(1); } }
+.is-lose .d4-heroes, .is-draw .d4-heroes { width: 40%; }
+.is-lose .d4-hero, .is-draw .d4-hero { animation: d4-gentle 500ms ease-out both; }
+@keyframes d4-gentle { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.d4-spark { position: absolute; font-size: 2.2rem; animation: d4-twinkle 900ms ease-in-out infinite; }
+.d4-spark.a { left: -6%; top: -8%; }
+.d4-spark.b { right: -6%; top: -4%; animation-delay: 300ms; }
+.d4-spark.c { left: 4%; bottom: -8%; animation-delay: 600ms; }
+.d4-spark.d { right: 2%; bottom: -10%; animation-delay: 150ms; }
+@keyframes d4-twinkle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.7); } }
+.d4-end-text { margin: 0; padding: 6px 18px; font-size: 1.6rem; font-weight: 900; color: var(--ink); background: #fff; border: 3px solid var(--outline); border-radius: var(--radius-round); }
+.d4-seat .fx-ring { inset: -8px; border-radius: 20px; }
+.d4-piece .fx-ring { inset: -4px; border-width: 4px; }
+.d4-heroes.multi { width: 100%; max-width: none; }
+.d4-heroes.multi .d4-hero { flex: 0 0 var(--d4-hero-s, min(36vw, 40vh)); }
+.d4-menu { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }

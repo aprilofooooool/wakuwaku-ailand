@@ -19,7 +19,7 @@ assets/characters/<キャラid>/<感情>.png
 
 ## 画像の仕様
 
-- 正方形、推奨 512x512、透過 PNG、顔が中央。
+- 表示用は 512x512 の透過 PNG（顔が中央）。元の大きい画像は `assets-src/characters/<キャラid>/` に置き、`scripts\run.bat resize-images` で `assets/` に縮小コピーを作ります（`assets-src/` は画面からは読みません）。
 - WebP を使うときは、`characters.js` の `image.ext` を `'webp'` に変えます（そのキャラの全画像を同じ形式にそろえます）。
 
 ## 画像をさしかえる

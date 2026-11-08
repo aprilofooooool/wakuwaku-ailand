@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <title>tests</title>
+<link rel="stylesheet" href="../css/theme.css">
+<link rel="stylesheet" href="../css/header.css">
 <style>
   body { font-family: sans-serif; margin: 16px; }
   #summary { padding: 8px 12px; color: #fff; font-weight: bold; }
@@ -14,34 +16,88 @@
 <body>
 <div id="summary">running...</div>
 <ul id="failures"></ul>
-<script src="../js/core/namespace.js"></script>
+<script src="../core/namespace.js"></script>
+<script src="../games/othello/js/core/namespace.js"></script>
 <script src="test-runner.js"></script>
-<script src="../js/core/event-bus.js"></script>
-<script src="../js/core/storage.js"></script>
-<script src="../js/config/version.js"></script>
-<script src="../js/config/constants.js"></script>
-<script src="../js/data/characters.js"></script>
-<script src="../js/data/rulesets.js"></script>
-<script src="../js/engine/reversi-engine.js"></script>
-<script src="../js/engine/reversi-ai.js"></script>
-<script src="../js/engine/four-engine.js"></script>
-<script src="../js/engine/four-ai.js"></script>
-<script src="../js/game/reaction-engine.js"></script>
-<script src="../js/game/line-picker.js"></script>
-<script src="../js/game/game-controller.js"></script>
-<script src="../js/audio/sound-synthesizer.js"></script>
-<script src="../js/ui/character-manager.js"></script>
-<script src="core.test.js"></script>
-<script src="engine.test.js"></script>
-<script src="four.test.js"></script>
-<script src="ai.test.js"></script>
-<script src="reaction.test.js"></script>
-<script src="characters.test.js"></script>
-<script src="controller.test.js"></script>
-<script src="sound.test.js"></script>
-<script src="character-dom.test.js" data-browser-only></script>
+<script src="../games/othello/js/core/event-bus.js"></script>
+<script src="../games/othello/js/core/storage.js"></script>
+<script src="../games/othello/js/config/version.js"></script>
+<script src="../games/othello/js/config/constants.js"></script>
+<script src="../games/othello/js/data/characters.js"></script>
+<script src="../games/othello/js/data/rulesets.js"></script>
+<script src="../games/othello/js/engine/reversi-engine.js"></script>
+<script src="../games/othello/js/engine/reversi-ai.js"></script>
+<script src="../games/othello/js/engine/four-engine.js"></script>
+<script src="../games/othello/js/engine/four-ai.js"></script>
+<script src="../games/othello/js/game/reaction-engine.js"></script>
+<script src="../games/othello/js/game/line-picker.js"></script>
+<script src="../games/othello/js/game/game-controller.js"></script>
+<script src="../games/othello/js/audio/sound-synthesizer.js"></script>
+<script src="../games/othello/js/ui/character-manager.js"></script>
+<script src="../core/event-bus.js"></script>
+<script src="../core/storage.js"></script>
+<script src="../core/rng.js"></script>
+<script src="../core/characters.js"></script>
+<script src="../core/common-lines.js"></script>
+<script src="../core/line-picker.js"></script>
+<script src="../core/emotion-map.js"></script>
+<script src="../core/character-view.js"></script>
+<script src="../core/ui-common.js"></script>
+<script src="../core/pointer.js"></script>
+<script src="../core/effects.js"></script>
+<script src="../core/sound.js"></script>
+<script src="../core/bgm.js"></script>
+<script src="../js/top-bgm.js"></script>
+<script src="../games/othello/js/audio/othello-bgm.js"></script>
+<script src="../core/games.js"></script>
+<script src="../games/drop4/js/namespace.js"></script>
+<script src="../games/drop4/js/constants.js"></script>
+<script src="../games/drop4/js/engine.js"></script>
+<script src="../games/drop4/js/ai.js"></script>
+<script src="../core/reaction.js"></script>
+<script src="../games/drop4/js/reactions.js"></script>
+<script src="../games/drop4/js/lines.js"></script>
+<script src="../games/drop4/js/controller.js"></script>
+<script src="../games/drop4/js/layout.js"></script>
+<script src="../games/drop4/js/fx.js"></script>
+<script src="../games/drop4/js/sounds.js"></script>
+<script src="../games/drop4/js/ui.js"></script>
+<script src="othello/core.test.js"></script>
+<script src="othello/engine.test.js"></script>
+<script src="othello/four.test.js"></script>
+<script src="othello/ai.test.js"></script>
+<script src="othello/reaction.test.js"></script>
+<script src="othello/characters.test.js"></script>
+<script src="othello/controller.test.js"></script>
+<script src="othello/sound.test.js"></script>
+<script src="othello/character-dom.test.js" data-browser-only></script>
+<script src="core/event-bus.test.js"></script>
+<script src="core/storage.test.js"></script>
+<script src="core/games.test.js"></script>
+<script src="core/rng.test.js"></script>
+<script src="core/characters.test.js"></script>
+<script src="core/common-lines.test.js"></script>
+<script src="core/line-picker.test.js"></script>
+<script src="core/emotion-map.test.js"></script>
+<script src="core/character-view.test.js"></script>
+<script src="core/reaction.test.js"></script>
+<script src="core/pointer.test.js"></script>
+<script src="core/effects.test.js"></script>
+<script src="core/sound.test.js"></script>
+<script src="core/bgm.test.js"></script>
+<script src="core/bgm-scores.test.js"></script>
+<script src="core/ui-common.dom.test.js" data-browser-only></script>
+<script src="drop4/engine.test.js"></script>
+<script src="drop4/engine-options.test.js"></script>
+<script src="drop4/ai.test.js"></script>
+<script src="drop4/reactions.test.js"></script>
+<script src="drop4/lines.test.js"></script>
+<script src="drop4/controller.test.js"></script>
+<script src="drop4/layout.test.js"></script>
+<script src="drop4/fx.test.js"></script>
+<script src="drop4/ui.test.js"></script>
 <script>
-  Otc.Test.run().then(function (r) {
+  Ailand.Test.run().then(function (r) {
     var s = document.getElementById('summary');
     s.className = r.failed === 0 ? 'ok' : 'ng';
     s.textContent = 'passed ' + r.passed + ' / failed ' + r.failed;

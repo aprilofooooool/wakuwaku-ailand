@@ -45,9 +45,13 @@ function checkExact(target, from) {
 function isExternal(u) { return /^([a-z][a-z0-9+.-]*:|\/\/|#)/i.test(u); }
 
 // 1. References
-const htmlFiles = [path.join(root, 'index.html'), path.join(root, 'tests', 'test.html')];
-const cssFiles = listFiles(path.join(root, 'css'), ['.css']);
-const jsFiles = listFiles(path.join(root, 'js'), ['.js']);
+const gameDirs = exists(path.join(root, 'games'))
+  ? fs.readdirSync(path.join(root, 'games'), { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name)
+  : [];
+const pageFiles = [path.join(root, 'index.html'), ...gameDirs.map((g) => path.join(root, 'games', g, 'index.html'))];
+const htmlFiles = [...pageFiles, path.join(root, 'tests', 'test.html')];
+const cssFiles = [...listFiles(path.join(root, 'css'), ['.css']), ...listFiles(path.join(root, 'games'), ['.css'])];
+const jsFiles = [...listFiles(path.join(root, 'core'), ['.js']), ...listFiles(path.join(root, 'games'), ['.js'])];
 
 for (const f of htmlFiles) {
   if (!exists(f)) { warnings.push(rel(f) + ' not found (skipped)'); continue; }
@@ -68,7 +72,8 @@ for (const f of jsFiles) {
   let m;
   while ((m = re.exec(text)) !== null) { if (!isExternal(m[1])) { checkExact(m[1], f); } }
 }
-const charsFile = path.join(root, 'js', 'data', 'characters.js');
+const gameRoot = path.join(root, 'games', 'othello');
+const charsFile = path.join(gameRoot, 'js', 'data', 'characters.js');
 if (exists(charsFile)) {
   const sandbox = {};
   sandbox.window = sandbox;
@@ -76,9 +81,10 @@ if (exists(charsFile)) {
   let chars;
   let loaded = false;
   try {
-    vm.runInContext(read(path.join(root, 'js', 'core', 'namespace.js')), ctx);
+    vm.runInContext(read(path.join(root, 'core', 'namespace.js')), ctx);
+    vm.runInContext(read(path.join(gameRoot, 'js', 'core', 'namespace.js')), ctx);
     vm.runInContext(read(charsFile), ctx, { filename: charsFile });
-    chars = vm.runInContext('Otc.Characters', ctx);
+    chars = vm.runInContext('Ailand.games.othello.Characters', ctx);
     loaded = true;
   } catch (e) {
     problems.push(rel(charsFile) + ': failed to load: ' + e.message);
@@ -86,7 +92,7 @@ if (exists(charsFile)) {
   if (loaded) {
     const list = Array.isArray(chars) ? chars : (chars && typeof chars === 'object' ? Object.values(chars) : []);
     if (list.length === 0) {
-      problems.push(rel(charsFile) + ': Otc.Characters is missing or empty');
+      problems.push(rel(charsFile) + ': Ailand.games.othello.Characters is missing or empty');
     }
     const emotions = ['normal', 'joy', 'anger', 'sadness', 'panic', 'thinking'];
     for (const c of list) {
@@ -98,11 +104,11 @@ if (exists(charsFile)) {
       const dir = img.dir.endsWith('/') ? img.dir : img.dir + '/';
       const names = emotions.map((emo) => emo + '.' + img.ext);
       if (img.hasDisc) { names.push('disc.' + img.ext); }
-      for (const n of names) { checkExact(path.join(root, dir + n), charsFile); }
+      for (const n of names) { checkExact(path.join(gameRoot, dir + n), charsFile); }
     }
   }
 } else {
-  warnings.push('js/data/characters.js not found (skipped)');
+  warnings.push('games/othello/js/data/characters.js not found (skipped)');
 }
 
 // 2. Forbidden patterns
@@ -114,10 +120,11 @@ const forbidden = [
   [/XMLHttpRequest/, 'XMLHttpRequest'],
   [/new\s+Worker\s*\(/, 'new Worker('],
   [/(?:src|href)\s*=\s*["']https?:\/\//i, 'external src/href'],
-  [/url\(\s*["']?https?:\/\//i, 'external url()']
+  [/url\(\s*["']?https?:\/\//i, 'external url()'],
+  [/getImageData/, 'getImageData']
 ];
 const appFiles = [
-  ...(exists(htmlFiles[0]) ? [htmlFiles[0]] : []),
+  ...pageFiles.filter(exists),
   ...cssFiles,
   ...jsFiles
 ];
@@ -128,6 +135,66 @@ for (const f of appFiles) {
       if (re.test(line)) { problems.push(rel(f) + ':' + (i + 1) + ': forbidden pattern ' + label); }
     }
   });
+}
+
+// 2b. localStorage only through the two storage modules (comments are ignored).
+const storageModules = new Set(['core/storage.js', 'games/othello/js/core/storage.js']);
+function stripComments(text) {
+  return text.replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, ' ')).replace(/(^|[^:\\])\/\/.*$/gm, '$1');
+}
+for (const f of appFiles) {
+  if (storageModules.has(rel(f))) { continue; }
+  stripComments(read(f)).split('\n').forEach((line, i) => {
+    if (/\blocalStorage\b/.test(line)) { problems.push(rel(f) + ':' + (i + 1) + ': localStorage outside the storage modules'); }
+  });
+}
+
+// 2c. data-base: must point at the repo root; pages that load core/character-view.js need it,
+// and every core character image (base + dir + emotion image) must resolve from that page.
+const coreSandbox = {};
+coreSandbox.window = coreSandbox;
+const coreCtx = vm.createContext(coreSandbox);
+let coreProfiles = [];
+let coreImages = [];
+try {
+  for (const f of ['namespace.js', 'emotion-map.js', 'characters.js']) {
+    vm.runInContext(read(path.join(root, 'core', f)), coreCtx, { filename: f });
+  }
+  coreProfiles = vm.runInContext('Ailand.core.Characters.list()', coreCtx);
+  coreImages = [...new Set(vm.runInContext('Ailand.core.EmotionMap.LOGICAL.map(function (k) { return Ailand.core.EmotionMap.resolve(k).image; })', coreCtx))];
+} catch (e) {
+  problems.push('core/characters.js: failed to load: ' + e.message);
+}
+for (const f of pageFiles.filter(exists)) {
+  const text = read(f);
+  const m = /<html\b[^>]*\bdata-base\s*=\s*"([^"]*)"/i.exec(text);
+  const usesView = /core\/character-view\.js/.test(text);
+  if (!m) {
+    if (usesView) { problems.push(rel(f) + ': loads core/character-view.js but has no data-base on <html>'); }
+    continue;
+  }
+  const base = m[1];
+  if (path.resolve(path.dirname(f), base || '.') !== root) {
+    problems.push(rel(f) + ': data-base "' + base + '" does not point at the repo root');
+    continue;
+  }
+  if (!usesView) { continue; }
+  for (const pf of coreProfiles) {
+    for (const img of coreImages) { checkExact(base + pf.image.dir + img + '.' + pf.image.ext, f); }
+  }
+}
+
+// 2d. Every tests/**/*.test.js must be listed in tests/test.html (the single test list).
+const testHtml = path.join(root, 'tests', 'test.html');
+if (exists(testHtml)) {
+  const listed = new Set();
+  const re = /<script\b[^>]*\bsrc\s*=\s*"([^"]+)"/gi;
+  let m;
+  const html = read(testHtml);
+  while ((m = re.exec(html)) !== null) { listed.add(path.resolve(path.dirname(testHtml), m[1])); }
+  for (const f of listFiles(path.join(root, 'tests'), ['.test.js'])) {
+    if (!listed.has(f)) { problems.push(rel(f) + ': not listed in tests/test.html'); }
+  }
 }
 
 // 3. File and folder names
@@ -144,15 +211,31 @@ function walkNames(dir) {
 walkNames(root);
 
 // 4. Disc keyframes: animating opacity flattens the preserve-3d disc, and the back face then shows the front mirrored.
-const gameCss = path.join(root, 'css', 'game.css');
+const gameCss = path.join(gameRoot, 'css', 'game.css');
 if (exists(gameCss)) {
   const css = read(gameCss);
   const used = new Set();
   for (const m of css.matchAll(/\.disc[^{]*\{[^}]*animation:\s*([\w-]+)/g)) { used.add(m[1]); }
   for (const name of used) {
     const kf = css.match(new RegExp('@keyframes\\s+' + name + '\\s*\\{([\\s\\S]*?)\\n\\}'));
-    if (kf && /opacity/.test(kf[1])) { problems.push('css/game.css: @keyframes ' + name + ' animates opacity on .disc'); }
+    if (kf && /opacity/.test(kf[1])) { problems.push('games/othello/css/game.css: @keyframes ' + name + ' animates opacity on .disc'); }
   }
+}
+
+// 5. Display images: 512x512 RGBA PNG. assets-src (full-size originals) must not be referenced by the app.
+const { readPngInfo } = require('./tools/png-info.js');
+for (const f of listFiles(path.join(root, 'assets', 'characters'), ['.png'])) {
+  try {
+    const info = readPngInfo(fs.readFileSync(f));
+    if (info.width !== 512 || info.height !== 512 || info.colorType !== 6) {
+      problems.push(rel(f) + ': expected 512x512 colorType 6, got ' + info.width + 'x' + info.height + ' colorType ' + info.colorType);
+    }
+  } catch (e) {
+    problems.push(rel(f) + ': ' + e.message);
+  }
+}
+for (const f of [...appFiles, ...htmlFiles.filter(exists)]) {
+  if (read(f).includes('assets-src')) { problems.push(rel(f) + ': references assets-src'); }
 }
 
 warnings.forEach((w) => console.log('WARN ' + w));

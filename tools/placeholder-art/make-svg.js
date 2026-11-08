@@ -8,10 +8,10 @@ const root = path.resolve(__dirname, '..', '..');
 const ctx = { console };
 ctx.window = ctx;
 vm.createContext(ctx);
-for (const f of ['js/core/namespace.js', 'js/data/characters.js']) {
+for (const f of ['core/namespace.js', 'games/othello/js/core/namespace.js', 'games/othello/js/data/characters.js']) {
   vm.runInContext(fs.readFileSync(path.join(root, f), 'utf-8'), ctx, { filename: f });
 }
-const characters = ctx.Otc.Characters;
+const characters = ctx.Ailand.games.othello.Characters;
 
 const INK = '#222233';
 const CX = 256;

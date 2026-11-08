@@ -1,15 +1,13 @@
-/* Theme variables. Every other CSS file uses only these (change the look here). */
+/* Shared theme variables. Pages override --page-bg and --page-dot. */
 :root {
-  /* Pastel base */
-  --bg: #fff7e8;
-  --bg-dot: #ffe3b8;
+  --page-bg: #fff7e8;
+  --page-dot: #ffe3b8;
   --surface: #ffffff;
   --surface-sub: #fff0f6;
   --ink: #3a2f5a;
   --ink-sub: #5d5280;
   --outline: #3a2f5a;
 
-  /* Vivid accents */
   --accent-pink: #ff5c9a;
   --accent-blue: #3aa0ff;
   --accent-yellow: #ffc83a;
@@ -19,109 +17,27 @@
   --on-accent-strong: #ffffff;
   --accent-pink-strong: #c2185b;
 
-  /* Selection / state */
-  --selected: #c2185b;
-  --selected-bg: #ffe0ec;
   --disabled-bg: #e4e0ee;
   --disabled-ink: #6c6580;
 
-  /* Board (used by the game screen) */
-  --board: #8fe3c0;
-  --board-line: #ffffff;
-  --disc-black: #3a2f5a;
-  --disc-white: #ffffff;
-  /* Four-player disc colours (white gets a dark outline on the board) */
-  --c-black: #2b2b2b;
-  --c-white: #ffffff;
-  --c-red: #e53935;
-  --c-blue: #1e63d6;
-
-  --board-edge: #5fc9a0;
-  --legal-dot: rgba(58, 47, 90, 0.4);
-  --assist-ring: #ffc83a;
-  --last-mark: #ff5c9a;
-  --glow: rgba(255, 200, 58, 0.75);
-  --glow-shadow: inset 0 0 18px 6px var(--glow);
-  --turn-bg: #fff6d6;
-  --turn-ring: 5px;
-
-  /* Shape */
   --radius-s: 12px;
   --radius-m: 20px;
   --radius-l: 28px;
   --radius-round: 999px;
   --border-w: 3px;
 
-  /* Shadow */
   --shadow-s: 0 3px 0 var(--outline);
   --shadow-m: 0 5px 0 var(--outline);
   --overlay: rgba(58, 47, 90, 0.55);
   --shadow-soft: 0 8px 20px rgba(58, 47, 90, 0.18);
 
-  /* Animation times */
   --t-press: 90ms;
   --t-ui: 180ms;
-  --t-pop: 600ms;
-  --t-flip: 400ms;
-  --t-place: 260ms;
-  --t-glow: 1.6s;
-  --t-sparkle: 1.2s;
-  --logo-bob-dur: 2.4s;
-  --logo-bob-delay: 1s;
-  --logo-pop-stagger: 60ms;
-  --logo-bob-stagger: 120ms;
 
-  /* Font */
   --font: "Hiragino Maru Gothic ProN", "M PLUS Rounded 1c", "Yu Gothic UI", system-ui, sans-serif;
 
-  /* Sizes */
-  --tap-min: 48px;
+  --tap-min: 64px;
   --content-max: 560px;
   --modal-max-w: 420px;
   --modal-max-h: 90dvh;
-  --logo-max-h: 120px;
-  --gap: 8px;
-  --panel-h: 88px;
-  --controls-h: 64px;
-  --board-gap: 2px;
-  --board-max: 760px;
-  --panel-w-max: 280px;
-  --panel-w-min: 150px;
-  --avatar-size: 64px;
-  --disc-inset: 8%;
-  --disc-ring: 3px;
-  --disc-ring-four: 4px;
-  --avatar-four: 52px;
-  --flip-perspective: 500px;
-  --pass-banner-w: 80%;
-
-  /* Emotion effects */
-  --fx-gold: #ffc83a;
-  --fx-gold-light: #fff2b0;
-  --fx-anger: #ff3b3b;
-  --fx-flash: rgba(255, 40, 40, 0.45);
-  --fx-flash-reduced: rgba(255, 40, 40, 0.15);
-  --fx-dim: rgba(30, 30, 70, 0.5);
-  --fx-rain: #8fc8ff;
-  --fx-sweat: #7fd0ff;
-  --fx-bubble-bg: #ffffff;
-  --fx-z: 50;
-  --fx-fade: 300ms;
-  --fx-flash-dur: 900ms;
-  --fx-flash-dur-reduced: 1800ms;
-  --fx-shake-dur: 1200ms;
-  --fx-shake-amp: 6px;
-  --fx-burst: 1400ms;
-  --fx-rain-dur: 900ms;
-  --fx-sweat-dur: 1400ms;
-  --fx-bounce-dur: 700ms;
-  --fx-dots-dur: 1.2s;
-  --fx-particle-size: 10px;
-  --fx-spark-size: 16px;
-  --fx-burst-flash-size: 70px;
-  --fx-burst-flash-dur: 500ms;
-  --fx-anger-dur: 1600ms;
-  --help-reserve: 44px;
-  --fx-anger-size: 44px;
-  --fx-bubble-fade: 250ms;
 }
