@@ -24,7 +24,9 @@
       var wins = byKind(events, 'win');
       var humanWins = wins.filter(function (e) { return isHuman(e.seat); }).sort(bySeat);
       if (humanWins.length > 0) { return { event: humanWins[0], perspective: 'win' }; }
-      return { event: (wins.length ? wins : same).slice().sort(bySeat)[0], perspective: 'lose' };
+      // No human at all (CPU vs CPU): watch from the winner's side so the winner celebrates.
+      var perspective = opts.humans.length === 0 && wins.length > 0 ? 'win' : 'lose';
+      return { event: (wins.length ? wins : same).slice().sort(bySeat)[0], perspective: perspective };
     }
 
     // In-game: a human mover is the viewpoint; for a CPU mover, the first human (by seat) who is not on the mover's side.

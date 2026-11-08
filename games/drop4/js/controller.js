@@ -22,7 +22,15 @@
 
   function validSettings(s) {
     if (!s || typeof s !== 'object' || !Array.isArray(s.seats) || s.seats.length !== s.players) { return false; }
-    return s.seats.every(function (x, i) { return x && x.seat === i + 1 && typeof x.charId === 'string'; });
+    if (s.players !== 2 && s.players !== 3 && s.players !== 4) { return false; }
+    if (!Object.prototype.hasOwnProperty.call(G.Constants.AI, s.level)) { return false; }
+    var used = {};
+    return s.seats.every(function (x, i) {
+      if (!x || x.seat !== i + 1 || typeof x.charId !== 'string' || typeof x.human !== 'boolean') { return false; }
+      if (used[x.charId] || !Ailand.core.Characters.get(x.charId)) { return false; }
+      used[x.charId] = true;
+      return true;
+    });
   }
 
   function engineSettings(s) {
@@ -117,12 +125,14 @@
       } catch (e) {
         p = Promise.reject(e);
       }
-      p.catch(function () {
-        // Fall back to a random legal move so the game never stalls.
+      function randomMove() {
         var ms = E.legalMoves(snapshot);
         return ms[Math.floor(deps.rng() * ms.length)];
-      }).then(function (move) {
+      }
+      // Fall back to a random legal move so the game never stalls (AI error or illegal answer).
+      p.catch(randomMove).then(function (move) {
         if (myGen !== gen) { return; }
+        if (!move || !E.legalMoves(snapshot).some(function (m) { return sameMove(m, move); })) { move = randomMove(); }
         var wait = Math.max(0, CPU_MIN_WAIT_MS - (deps.now() - t0));
         deps.scheduler(function () {
           if (myGen !== gen) { return; }
@@ -186,6 +196,14 @@
         if (!E.legalMoves(state).some(function (m) { return sameMove(m, move); })) { return false; }
         commit(move);
         return true;
+      },
+      // Leaves the game (e.g. to the settings screen): drops any pending CPU move. The save stays as is.
+      stop: function () {
+        gen++;
+        if (thinking) {
+          thinking = false;
+          bus.emit('thinking', { seat: state ? E.currentSeat(state) : null, on: false });
+        }
       },
       canUndo: function () { return lastHumanIndex() >= 0; },
       undo: function () {

@@ -65,13 +65,13 @@
     return lines;
   }
 
+  // In team mode every seat of the winning team wins, even one with no piece on the line.
   function winResult(state, cells, lines, seat) {
-    var seen = {};
-    lines.forEach(function (ln) {
-      ln.forEach(function (p) { seen[cells[p[0] * state.rows + p[1]]] = true; });
-    });
-    var seats = Object.keys(seen).map(Number).sort(function (a, b) { return a - b; });
-    return { type: 'win', seats: seats, team: teamOf(state, seat), lines: lines };
+    var team = teamOf(state, seat), seats = [];
+    for (var s = 1; s <= state.players; s++) {
+      if (state.teams ? teamOf(state, s) === team : s === seat) { seats.push(s); }
+    }
+    return { type: 'win', seats: seats, team: team, lines: lines };
   }
 
   function legalMoves(state) {

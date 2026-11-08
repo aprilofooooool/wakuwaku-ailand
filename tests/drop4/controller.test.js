@@ -27,7 +27,7 @@
     ['started', 'turn', 'thinking', 'moved', 'reaction', 'gameover', 'undo'].forEach(function (n) {
       bus.on(n, function (p) { log.push({ name: n, p: p }); });
     });
-    var ai = {
+    var ai = opts.ai || {
       search: function (state) {
         var c = script.length ? script.shift() : null;
         var ms = E.legalMoves(state);
@@ -190,7 +190,12 @@
         JSON.stringify({ version: 1, history: [], undoLeft: 3 }),
         JSON.stringify({ version: 1, settings: good, history: 'x', undoLeft: 3 }),
         JSON.stringify({ version: 1, settings: good, history: [], undoLeft: 9 }),
-        'null'
+        'null',
+        JSON.stringify({ version: 1, settings: settings({ seats: [{ seat: 1, charId: 'nobody', human: true }, { seat: 2, charId: 'kuchipatchi', human: false }] }), history: [], undoLeft: 3 }),
+        JSON.stringify({ version: 1, settings: settings({ seats: [{ seat: 1, charId: 'mametchi', human: true }, { seat: 2, charId: 'mametchi', human: false }] }), history: [], undoLeft: 3 }),
+        JSON.stringify({ version: 1, settings: settings({ level: 'godlike' }), history: [], undoLeft: 3 }),
+        JSON.stringify({ version: 1, settings: settings({ players: 5, seats: [] }), history: [], undoLeft: 3 }),
+        JSON.stringify({ version: 1, settings: settings({ seats: [{ seat: 1, charId: 'mametchi', human: 'yes' }, { seat: 2, charId: 'kuchipatchi', human: false }] }), history: [], undoLeft: 3 })
       ];
       cases.forEach(function (raw) {
         var b = memBackend(); b.m[key] = raw;
@@ -270,6 +275,42 @@
       h.ctl.start(settings());
       h.ctl.settings().level = 'strong';
       expect(h.ctl.settings().level).toBe('normal');
+    });
+  });
+
+  describe('drop4 controller: stop and AI legality', function () {
+    it('stop(): a pending CPU move is not applied and the save is unchanged', async function () {
+      var h = make({ script: [3] });
+      h.ctl.start(settings());
+      h.ctl.input(drop(0));
+      var saved = h.backend.m['ailand:drop4:save.v1'];
+      expect(typeof saved).toBe('string');
+      h.ctl.stop();
+      expect(h.ctl.isBusy()).toBe(false);
+      var th = names(h, 'thinking');
+      expect(th[th.length - 1].p.on).toBe(false);
+      await cpuMove(h);
+      expect(h.ctl.state().moveCount).toBe(1);
+      expect(names(h, 'moved').length).toBe(1);
+      expect(h.backend.m['ailand:drop4:save.v1']).toBe(saved);
+    });
+    it('an illegal AI move is replaced by a random legal move', async function () {
+      var h = make({ ai: { search: function () { return Promise.resolve({ type: 'drop', col: 99, seat: 2 }); } } });
+      h.ctl.start(settings());
+      h.ctl.input(drop(0));
+      await cpuMove(h);
+      expect(h.ctl.state().moveCount).toBe(2);
+      var mv = names(h, 'moved')[1].p.move;
+      expect(mv.seat).toBe(2);
+      expect(mv.col >= 0 && mv.col < 7).toBeTruthy();
+    });
+    it('an AI move for the wrong seat is replaced too', async function () {
+      var h = make({ ai: { search: function () { return Promise.resolve({ type: 'drop', col: 3, seat: 1 }); } } });
+      h.ctl.start(settings());
+      h.ctl.input(drop(0));
+      await cpuMove(h);
+      expect(h.ctl.state().moveCount).toBe(2);
+      expect(names(h, 'moved')[1].p.move.seat).toBe(2);
     });
   });
 

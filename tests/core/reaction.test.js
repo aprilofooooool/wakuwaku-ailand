@@ -24,6 +24,13 @@
       expect(r.perspective).toBe('win');
       expect(r.event.seat).toBe(1);
     });
+    it('all-CPU game: the winner side is the perspective (win, not lose)', function () {
+      var r = P.pick([ev('win', 2, 'excited', 2), ev('lose', 1, 'sadness', 2)], opts([], 2));
+      expect(r.perspective).toBe('win');
+      expect(r.event.kind).toBe('win');
+      expect(r.event.seat).toBe(2);
+      expect(P.pick([ev('draw', 1, 'joy', 2), ev('draw', 2, 'joy', 2)], opts([], 2)).perspective).toBe('draw');
+    });
     it('draw perspective', function () {
       var r = P.pick([ev('draw', 1, 'joy', 2), ev('draw', 2, 'joy', 2)], opts([1], 2));
       expect(r.perspective).toBe('draw');

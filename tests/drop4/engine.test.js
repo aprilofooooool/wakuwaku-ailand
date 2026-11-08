@@ -122,6 +122,13 @@
       expect(s.result.team).toBe(0);
       expect(s.result.seats).toEqual([1, 3]);
     });
+    it('team win by A1 alone still lists both teammates', function () {
+      var s = play(mk({ players: 4, teams: true }), [0, 5, 6, 7, 0, 5, 6, 7, 0, 5, 6, 7, 0]);
+      expect(s.result.type).toBe('win');
+      expect(s.result.team).toBe(0);
+      expect(s.result.seats).toEqual([1, 3]);
+      expect(s.result.lines.length).toBe(1);
+    });
   });
 
   describe('drop4 engine: draw and immediateWins', function () {

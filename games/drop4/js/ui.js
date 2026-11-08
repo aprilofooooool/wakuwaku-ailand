@@ -73,8 +73,10 @@
   // Settings for Controller.start: resolves "どっちが さき？" (2 players) or a random first seat (3+).
   function withFirstSeat(s, rng) {
     var out = JSON.parse(JSON.stringify(s));
-    if (s.players === 2 && s.firstChoice === 'me') { out.firstSeat = 1; }
-    else if (s.players === 2 && s.firstChoice === 'them') { out.firstSeat = 2; }
+    // じぶん = the first human seat (seat 1 when both are CPU); あいて = the other seat.
+    var humanSeat = s.players === 2 ? (s.seats.filter(function (x) { return x.human; })[0] || { seat: 1 }).seat : 1;
+    if (s.players === 2 && s.firstChoice === 'me') { out.firstSeat = humanSeat; }
+    else if (s.players === 2 && s.firstChoice === 'them') { out.firstSeat = 3 - humanSeat; }
     else { out.firstSeat = 1 + Math.min(s.players - 1, Math.floor(rng() * s.players)); }
     return out;
   }
@@ -209,6 +211,8 @@
     }
 
     function showSettings() {
+      controller.stop();
+      Fx.stop();
       Bgm.stop();
       gameScreen.hidden = true;
       settingsScreen.hidden = false;
@@ -254,6 +258,7 @@
         var acts = el('div', 'd4-menu');
         acts.appendChild(button('btn btn-main', 'はじめから', function () {
           m.close();
+          Fx.stop();
           controller.start(withFirstSeat(normalize(controller.settings()), rng));
         }));
         acts.appendChild(button('btn btn-sub', 'せっていに もどる', function () { m.close(); showSettings(); }));
@@ -713,5 +718,5 @@
     showSettings();
   }
 
-  G.UI = { init: init };
+  G.UI = { init: init, withFirstSeat: withFirstSeat };
 })(Ailand.games.drop4);

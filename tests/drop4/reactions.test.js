@@ -144,6 +144,20 @@
       expect(emo(r.events, 'lose', 2)).toBe('sadness');
       expect(of(r.events, 'reach').length).toBe(0);
     });
+    it('team win by A1 alone: teammate A2 wins too, the other team loses', function () {
+      var s = play(mk({ players: 4, teams: true }), [0, 5, 6, 7, 0, 5, 6, 7, 0, 5, 6, 7]);
+      var r = step(s, drop(s, 0));
+      expect(emo(r.events, 'win', 1)).toBe('excited');
+      expect(emo(r.events, 'win', 3)).toBe('excited');
+      expect(emo(r.events, 'lose', 3)).toBe(null);
+      expect(emo(r.events, 'lose', 2)).toBe('sadness');
+      expect(emo(r.events, 'lose', 4)).toBe('sadness');
+      var picked = A.core.Reaction.pick(r.events, {
+        humans: [3], mover: 1, priority: R.PRIORITY, teamOf: function (seat) { return E.teamOf(s, seat); }
+      });
+      expect(picked.perspective).toBe('win');
+      expect(picked.event.seat).toBe(3);
+    });
     it('draw: everyone joy', function () {
       var rng = A.core.Rng.mulberry32(7), found = null;
       for (var tries = 0; !found && tries < 20000; tries++) {
