@@ -1,0 +1,89 @@
+(function (Otc) {
+  'use strict';
+
+  // All tunable values live here. Later tasks add entries.
+  Otc.Const = {
+    // Handicap stone corners in order: top-left, bottom-right, top-right, bottom-left.
+    HANDICAP_CORNER_ORDER: ['tl', 'br', 'tr', 'bl'],
+
+    // AI scale: one disc of difference is about DISC_SCALE points.
+    DISC_SCALE: 10,
+    // Finished game: +/-(WIN_SCORE + disc difference) for the winner / loser, 0 for a draw.
+    WIN_SCORE: 100000,
+    // Check the deadline once every this many search nodes.
+    NODE_CHECK_INTERVAL: 2048,
+    // Evaluation weights per game phase. The first entry with empties >= minEmpties applies.
+    // position: per position-weight point, mobility: per legal-move difference,
+    // stable: per corner-anchored stable disc difference, disc: per disc difference.
+    EVAL_PHASES: [
+      { name: 'opening', minEmpties: 41, position: 3, mobility: 40, stable: 60, disc: 0 },
+      { name: 'midgame', minEmpties: 15, position: 3, mobility: 30, stable: 80, disc: 0 },
+      { name: 'endgame', minEmpties: 0, position: 2, mobility: 15, stable: 100, disc: 10 }
+    ],
+    // Reaction judgement: search depth for the evaluation change, flipped-disc count for sadness,
+    // and the evaluation-change thresholds for joy / panic. JOY_DELTA comes from the 2026-11-05 spec
+    // (.claude/docs/specs/2026-11-05-emotion-tuning-design.md section 4) and report (.claude/docs/reports/2026-11-05-emotion-tuning-measure.md);
+    // PANIC_DELTA comes from .claude/docs/reports/2026-10-29-delta-threshold.md.
+    REACTION_SEARCH_DEPTH: 2,
+    SADNESS_FLIPS: 5,
+    // JOY_DELTA 120: top 10% of the easy seat's moves (design 2026-11-05 section 4).
+    JOY_DELTA: 120,
+    PANIC_DELTA: 331,
+    // Weights of the emotion picked for a hurt reason (weighted random, see Otc.Reaction.emotionOf).
+    HURT_WEIGHTS: {
+      cornerLost: { anger: 50, sadness: 25, panic: 25 },
+      manyFlipped: { anger: 25, sadness: 50, panic: 25 }
+    },
+    // How long a forced pass stays on screen before the turn changes (ms).
+    PASS_DISPLAY_MS: 1500,
+    // Speech bubble: maximum characters per line (counted with Array.from).
+    BUBBLE_MAX_CHARS: 20,
+    // CPU turn: minimum wait range [min, max] in ms before the CPU moves (picked with rng).
+    CPU_MIN_WAIT_MS: [800, 1500],
+    // Human turn: show Thinking after this long without any operation (ms).
+    IDLE_THINK_MS: 5000,
+    // Game-in-progress save (localStorage key via Otc.Storage) and its format version.
+    SAVE_KEY: 'otc.save.v1',
+    SAVE_VERSION: 1,
+    // Four-player saves use the same key with this version (two-player saves stay at SAVE_VERSION).
+    FOUR_SAVE_VERSION: 2,
+    // Flip animation: delay per Chebyshev distance step from the placed disc (ms).
+    FLIP_STAGGER_MS: 70,
+    // Wait before the result modal opens so the last flips can finish (ms).
+    RESULT_DELAY_MS: 1000,
+    // Top screen settings (localStorage key via Otc.Storage).
+    SETTINGS_KEY: 'otc.settings.v1',
+    // Path to a logo image shown instead of the CSS logo. null = CSS logo.
+    LOGO_IMAGE: null,
+    // Chance of a turnStart line at a human turn start when the move gave no emotion line.
+    TURN_LINE_RATE: 0.3,
+    // winning / losing line: AI.scoreFor(state, color, 1) above +ADVANTAGE_EVAL / below -ADVANTAGE_EVAL.
+    // 197 = the former JOY_DELTA value (kept on purpose). At most once per player every ADVANTAGE_COOLDOWN_MOVES moves.
+    ADVANTAGE_EVAL: 197,
+    ADVANTAGE_COOLDOWN_MOVES: 6,
+    // Emotion effects: effect length, how long the emotion image stays after it, speech bubble length (ms),
+    // and the particle cap for the whole fx layer.
+    EFFECT_MS: 2500,
+    EMOTION_HOLD_MS: 3000,
+    BUBBLE_MS: 2500,
+    MAX_PARTICLES: 40,
+    // Effect sizes: joy bursts x particles per burst, rain drops, sweat drops (each capped by MAX_PARTICLES in total).
+    JOY_BURSTS: 3,
+    JOY_PER_BURST: 10,
+    RAIN_COUNT: 30,
+    SWEAT_COUNT: 12,
+    AI_LEVELS: {
+      easy: { depth: 1, timeMs: 300, endgameEmpties: 0, randomRate: 0.3 },
+      normal: { depth: 3, timeMs: 1000, endgameEmpties: 8, randomRate: 0 },
+      strong: { depth: 6, timeMs: 1500, endgameEmpties: 12, randomRate: 0 },
+      assist: { depth: 3, timeMs: 600, endgameEmpties: 0, randomRate: 0 }
+    },
+    // 4-player CPU (max^n search). No endgame solver: the game tree has four players.
+    FOUR_AI_LEVELS: {
+      easy: { depth: 1, timeMs: 300, randomRate: 0.3 },
+      normal: { depth: 4, timeMs: 1000, randomRate: 0 },
+      strong: { depth: 8, timeMs: 1500, randomRate: 0 },
+      assist: { depth: 4, timeMs: 600, randomRate: 0 }
+    }
+  };
+})(window.Otc);

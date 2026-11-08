@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>tests</title>
+<style>
+  body { font-family: sans-serif; margin: 16px; }
+  #summary { padding: 8px 12px; color: #fff; font-weight: bold; }
+  #summary.ok { background: #2e9e4f; }
+  #summary.ng { background: #d33; }
+  li { color: #b00; margin: 4px 0; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<div id="summary">running...</div>
+<ul id="failures"></ul>
+<script src="../js/core/namespace.js"></script>
+<script src="test-runner.js"></script>
+<script src="../js/core/event-bus.js"></script>
+<script src="../js/core/storage.js"></script>
+<script src="../js/config/version.js"></script>
+<script src="../js/config/constants.js"></script>
+<script src="../js/data/characters.js"></script>
+<script src="../js/data/rulesets.js"></script>
+<script src="../js/engine/reversi-engine.js"></script>
+<script src="../js/engine/reversi-ai.js"></script>
+<script src="../js/engine/four-engine.js"></script>
+<script src="../js/engine/four-ai.js"></script>
+<script src="../js/game/reaction-engine.js"></script>
+<script src="../js/game/line-picker.js"></script>
+<script src="../js/game/game-controller.js"></script>
+<script src="../js/audio/sound-synthesizer.js"></script>
+<script src="../js/ui/character-manager.js"></script>
+<script src="core.test.js"></script>
+<script src="engine.test.js"></script>
+<script src="four.test.js"></script>
+<script src="ai.test.js"></script>
+<script src="reaction.test.js"></script>
+<script src="characters.test.js"></script>
+<script src="controller.test.js"></script>
+<script src="sound.test.js"></script>
+<script src="character-dom.test.js" data-browser-only></script>
+<script>
+  Otc.Test.run().then(function (r) {
+    var s = document.getElementById('summary');
+    s.className = r.failed === 0 ? 'ok' : 'ng';
+    s.textContent = 'passed ' + r.passed + ' / failed ' + r.failed;
+    var ul = document.getElementById('failures');
+    r.failures.forEach(function (f) {
+      var li = document.createElement('li');
+      li.textContent = f.name + ': ' + f.message;
+      ul.appendChild(li);
+    });
+  });
+</script>
+</body>
+</html>
