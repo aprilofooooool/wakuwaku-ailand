@@ -74,7 +74,10 @@
         if (!ctrl.restore()) { O.UI.leave(); return; } // the save was unusable: back to the top, no stale board
         ctrl.notifyActivity();
       },
-      onSoundToggle: function (on) { O.Sound.setEnabled(on); }
+      onSoundToggle: function (on) {
+        O.Sound.setEnabled(on);
+        if (O.BgmLink) { O.BgmLink.sync(); } // BGM follows the toggle at once (games/othello/js/audio/othello-bgm.js)
+      }
     });
     O.Sound.setEnabled(O.UI.isSoundOn());
   }

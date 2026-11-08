@@ -86,6 +86,38 @@
         expect(Sound.isEnabled()).toBe(true);
       });
     });
+    it('isBgmOn defaults to ON (no settings, unreadable settings, missing field)', function () {
+      memStorage(function () {
+        var st = A.core.Storage.create('core');
+        expect(Sound.isBgmOn()).toBe(true);
+        st.set('settings.v1', 'broken');
+        expect(Sound.isBgmOn()).toBe(true);
+        st.set('settings.v1', { sound: false });
+        expect(Sound.isBgmOn()).toBe(true);
+      });
+    });
+    it('setBgmOn writes only the bgm field, keeping the others', function () {
+      memStorage(function () {
+        var st = A.core.Storage.create('core');
+        st.set('settings.v1', { sound: false, other: 1 });
+        Sound.setBgmOn(false);
+        expect(Sound.isBgmOn()).toBe(false);
+        expect(st.get('settings.v1', null)).toEqual({ sound: false, other: 1, bgm: false });
+        Sound.setBgmOn(true);
+        expect(Sound.isBgmOn()).toBe(true);
+        expect(st.get('settings.v1', null)).toEqual({ sound: false, other: 1, bgm: true });
+      });
+    });
+    it('setBgmOn on empty or broken settings creates { bgm }', function () {
+      memStorage(function () {
+        var st = A.core.Storage.create('core');
+        Sound.setBgmOn(false);
+        expect(st.get('settings.v1', null)).toEqual({ bgm: false });
+        st.set('settings.v1', 'broken');
+        Sound.setBgmOn(true);
+        expect(st.get('settings.v1', null)).toEqual({ bgm: true });
+      });
+    });
   });
 
   describe('core/Sound with a fake AudioContext', function () {

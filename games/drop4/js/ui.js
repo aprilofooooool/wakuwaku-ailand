@@ -16,19 +16,9 @@
   var ENDGAME_BPM = 150;   // requirements 3.9: endgame raises the BGM tempo
   var GREETING_MS = 2000;  // the start greeting stays this long before thinking / reactions may replace it
   var FIRST_LANDING = 0.55; // fx.js d4-drop: the disc first touches down at 55% of dropMs
-  var coreStore = C.Storage.create('core');
-
-  // BGM ON/OFF lives next to Sound's `sound` flag in ailand:core:settings.v1 (default ON).
-  function bgmOn() {
-    var s = coreStore.get('settings.v1', null);
-    return !(s && s.bgm === false);
-  }
-  function setBgmOn(on) {
-    var s = coreStore.get('settings.v1', null);
-    s = (s && typeof s === 'object') ? s : {};
-    s.bgm = !!on;
-    coreStore.set('settings.v1', s);
-  }
+  // BGM ON/OFF: shared core setting (core/sound.js).
+  function bgmOn() { return Sound.isBgmOn(); }
+  function setBgmOn(on) { Sound.setBgmOn(on); }
   var NL = '\n';  // tool labels use white-space: pre-line
 
   function el(tag, cls, text) {

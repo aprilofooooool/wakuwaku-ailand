@@ -86,6 +86,17 @@
       try { if (master && ctx) { master.gain.setTargetAtTime(enabled ? MASTER_VOLUME : 0, ctx.currentTime, 0.02); } } catch (e) { /* ignore */ }
     },
     isEnabled: function () { return enabled; },
+    // BGM ON/OFF lives next to `sound` in ailand:core:settings.v1 (default ON). Shared by every page.
+    isBgmOn: function () {
+      var s = store.get('settings.v1', null);
+      return !(s && typeof s === 'object' && s.bgm === false);
+    },
+    setBgmOn: function (on) {
+      var s = store.get('settings.v1', null);
+      s = (s && typeof s === 'object') ? s : {};
+      s.bgm = !!on;
+      store.set('settings.v1', s);
+    },
     register: function (name, fn) { registry[name] = fn; },
     // fn(ctx, dest, t, opts): dest is the effects bus, t is the current audio time.
     play: function (name, opts) {

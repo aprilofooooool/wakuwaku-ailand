@@ -18,6 +18,9 @@
 <div id="modal-root"></div>
 <script src="../../core/namespace.js"></script>
 <script src="../../core/ui-common.js"></script>
+<script src="../../core/storage.js"></script>
+<script src="../../core/sound.js"></script>
+<script src="../../core/bgm.js"></script>
 <script src="js/core/namespace.js"></script>
 <script src="js/core/event-bus.js"></script>
 <script src="js/core/storage.js"></script>
@@ -33,6 +36,7 @@
 <script src="js/game/line-picker.js"></script>
 <script src="js/game/game-controller.js"></script>
 <script src="js/audio/sound-synthesizer.js"></script>
+<script src="js/audio/othello-bgm.js"></script>
 <script src="js/ui/character-manager.js"></script>
 <script src="js/ui/effects.js"></script>
 <script src="js/ui/ui-manager.js"></script>
@@ -43,13 +47,19 @@
     document.body.insertBefore(Ailand.core.UI.header({
       title: 'ぱたぱた！オセロっち',
       soundOn: Ailand.games.othello.UI.isSoundOn(),
-      onBack: function () { location.href = '../../index.html'; },
+      onBack: function () { Ailand.games.othello.BgmLink.stop(); location.href = '../../index.html'; },
       onSound: function () { return Ailand.games.othello.UI.toggleSound(); },
       onSettings: function () { Ailand.games.othello.UI.leave(); }
     }), document.body.firstChild);
   }
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', mountHeader); }
   else { mountHeader(); }
+  // BGM: core AudioContext unlocks on a user gesture (each one: iOS can re-suspend); the loop starts on the first.
+  // Sound toggles reach BgmLink.sync through main.js onSoundToggle.
+  ['pointerdown', 'touchend', 'click'].forEach(function (type) {
+    document.addEventListener(type, function () { Ailand.core.Sound.unlock(); Ailand.games.othello.BgmLink.sync(); }, true);
+  });
+  window.addEventListener('pagehide', function () { Ailand.games.othello.BgmLink.stop(); });
 </script>
 </body>
 </html>

@@ -7,10 +7,14 @@
 <title>わくわく！あいランド</title>
 <link rel="stylesheet" href="css/theme.css">
 <link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/header.css">
 <link rel="stylesheet" href="css/top.css">
 </head>
 <body class="top-page">
 <main class="top">
+  <div class="top-bar">
+    <button type="button" id="top-sound" class="hdr-btn hdr-sound top-sound" aria-label="おと：ON" aria-pressed="true"><span class="hdr-ico" aria-hidden="true">♪</span><span class="hdr-label" aria-hidden="true">おと</span></button>
+  </div>
   <h1 class="logo" aria-label="わくわく！あいランド">
     <span class="row" aria-hidden="true">
       <span class="ch small c0" style="--i:0">わ</span><span class="ch small c1" style="--i:1">く</span><span class="ch small c2" style="--i:2">わ</span><span class="ch small c3" style="--i:3">く</span><span class="ch small c4" style="--i:4">！</span>
@@ -33,6 +37,9 @@
 <script src="core/namespace.js"></script>
 <script src="core/storage.js"></script>
 <script src="core/games.js"></script>
+<script src="core/sound.js"></script>
+<script src="core/bgm.js"></script>
+<script src="js/top-bgm.js"></script>
 <script>
 (function () {
   'use strict';
@@ -112,6 +119,33 @@
 
   var list = document.getElementById('cards');
   Games.LIST.forEach(function (g) { list.appendChild(makeCard(g)); });
+
+  // BGM "ようこそ": starts on the first user gesture when sound and BGM are both ON (shared core settings).
+  var Sound = Ailand.core.Sound, Bgm = Ailand.core.Bgm;
+  var playing = false;
+  var soundBtn = document.getElementById('top-sound');
+  function syncBgm() {
+    var want = Sound.isEnabled() && Sound.isBgmOn();
+    if (want && !playing) { Bgm.start(Ailand.top.BGM_SCORE); playing = true; }
+    else if (!want && playing) { Bgm.stop(); playing = false; }
+  }
+  function paintSound() {
+    var on = Sound.isEnabled();
+    soundBtn.querySelector('.hdr-ico').textContent = on ? '♪' : '×';
+    soundBtn.setAttribute('aria-pressed', String(on));
+    soundBtn.setAttribute('aria-label', on ? 'おと：ON' : 'おと：OFF');
+  }
+  // iOS counts only some gesture events as unlocking and can re-suspend, so unlock on each (unlock is idempotent).
+  ['pointerdown', 'touchend', 'click'].forEach(function (type) {
+    document.addEventListener(type, function () { Sound.unlock(); syncBgm(); }, true);
+  });
+  soundBtn.addEventListener('click', function () {
+    Sound.setEnabled(!Sound.isEnabled());
+    paintSound();
+    syncBgm();
+  });
+  window.addEventListener('pagehide', function () { Bgm.stop(); playing = false; });
+  paintSound();
 })();
 </script>
 </body>

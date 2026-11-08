@@ -4,6 +4,9 @@
   --page-dot: #e0d2fb;
 }
 .top-page { min-height: 100dvh; }
+/* おと ON/OFF (same look as the game header's sound button, css/header.css .hdr-btn). */
+.top-bar { display: flex; justify-content: flex-end; margin: 0 0 4px; }
+.top-sound { touch-action: manipulation; }
 .top {
   max-width: var(--content-max);
   margin: 0 auto;
