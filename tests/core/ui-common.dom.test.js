@@ -37,6 +37,23 @@
         expect(b.getAttribute('aria-pressed')).toBe('true');
       } finally { S.setEnabled(true); document.body.removeChild(h); }
     });
+    it('header shows the tap hint on the sound button only while audio is locked', function () {
+      var S = Ailand.core.Sound;
+      var locked = true;
+      var orig = S.isLocked;
+      var h = null;
+      try {
+        S.isLocked = function () { return locked; };
+        h = U.header({ title: 't', soundOn: true });
+        document.body.appendChild(h);
+        var tip = h.querySelector('.hdr-sound .hdr-hint');
+        expect(!!tip).toBe(true);
+        expect(tip.hidden).toBe(false);
+        locked = false;
+        S._notifyLock();
+        expect(tip.hidden).toBe(true);
+      } finally { S.isLocked = orig; if (h) { document.body.removeChild(h); } }
+    });
     it('modal closes and toast appears', function () {
       var m = U.modal('t', [document.createElement('p')]);
       expect(document.querySelectorAll('.modal-back').length > 0).toBe(true);

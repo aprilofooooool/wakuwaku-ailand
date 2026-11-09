@@ -340,4 +340,84 @@
       });
     });
   });
+
+  // Browsers keep audio silent until the first tap. That tap on the おと button must start the sound,
+  // not turn it OFF, even when resume() already finished before the click arrives.
+  describe('core/Sound locked state and toggleFromTap', function () {
+    // The browser has not allowed audio yet: the context is created suspended and resume() works at once.
+    function lockedPage(fn) {
+      var made = [];
+      window.AudioContext = function () { var c = new FakeCtx(); c.state = 'suspended'; made.push(c); return c; };
+      Sound._reset();
+      var doc = { on: {}, addEventListener: function (t, f) { doc.on[t] = f; } };
+      var win = { addEventListener: function () {} };
+      try {
+        memStorage(function () {
+          Sound.setEnabled(true);
+          var seen = [];
+          Sound.onLockChange(function (v) { seen.push(v); });
+          Sound.wireUnlock(null, { doc: doc, win: win });
+          made[0].state = 'suspended'; // the page-load try did not get permission
+          fn(doc, made[0], seen);
+        });
+      } finally { delete window.AudioContext; Sound._reset(); }
+    }
+    it('isLocked is true while sound is ON and the context is not running', function () {
+      lockedPage(function (doc, ctx) {
+        expect(Sound.isLocked()).toBe(true);
+        ctx.state = 'running';
+        expect(Sound.isLocked()).toBe(false);
+        ctx.state = 'suspended';
+        Sound.setEnabled(false);
+        expect(Sound.isLocked()).toBe(false);
+      });
+    });
+    it('isLocked is false without Web Audio', function () {
+      Sound._reset();
+      memStorage(function () {
+        Sound.setEnabled(true);
+        expect(Sound.isLocked()).toBe(false);
+      });
+    });
+    it('the first tap on the button keeps sound ON (pointer: resume finished before the click)', function () {
+      lockedPage(function (doc, ctx) {
+        doc.on.pointerdown({ type: 'pointerdown' }); // fake resume() sets running at once
+        expect(ctx.state).toBe('running');
+        doc.on.click({ type: 'click' });
+        expect(Sound.toggleFromTap()).toBe(true);
+        expect(Sound.isEnabled()).toBe(true);
+      });
+    });
+    it('the first Enter on the button keeps sound ON too', function () {
+      lockedPage(function (doc) {
+        doc.on.keydown({ type: 'keydown' });
+        doc.on.click({ type: 'click' });
+        expect(Sound.toggleFromTap()).toBe(true);
+      });
+    });
+    it('a tap after sound was already playing turns it OFF', function () {
+      lockedPage(function (doc, ctx) {
+        ctx.state = 'running';
+        doc.on.pointerdown({ type: 'pointerdown' });
+        doc.on.click({ type: 'click' });
+        expect(Sound.toggleFromTap()).toBe(false);
+        expect(Sound.isEnabled()).toBe(false);
+      });
+    });
+    it('a tap while sound is OFF turns it ON', function () {
+      lockedPage(function (doc) {
+        Sound.setEnabled(false);
+        doc.on.pointerdown({ type: 'pointerdown' });
+        doc.on.click({ type: 'click' });
+        expect(Sound.toggleFromTap()).toBe(true);
+      });
+    });
+    it('onLockChange reports when the context starts running', function () {
+      lockedPage(function (doc, ctx, seen) {
+        ctx.state = 'running';
+        ctx.onstatechange();
+        expect(seen[seen.length - 1]).toBe(false);
+      });
+    });
+  });
 })(Ailand);
