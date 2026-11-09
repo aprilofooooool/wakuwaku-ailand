@@ -11,17 +11,19 @@ const FILES = [
   'core/namespace.js',
   'core/event-bus.js',
   'core/storage.js',
+  'core/characters.js',
+  'core/common-lines.js',
+  'core/line-picker.js',
   'games/othello/js/core/namespace.js',
   'games/othello/js/config/version.js',
   'games/othello/js/config/constants.js',
-  'games/othello/js/data/characters.js',
+  'games/othello/js/data/lines.js',
   'games/othello/js/data/rulesets.js',
   'games/othello/js/engine/reversi-engine.js',
   'games/othello/js/engine/reversi-ai.js',
   'games/othello/js/engine/four-engine.js',
   'games/othello/js/engine/four-ai.js',
   'games/othello/js/game/reaction-engine.js',
-  'games/othello/js/game/line-picker.js',
   'games/othello/js/game/game-controller.js'
 ];
 // Namespace object of the app inside the vm, as a dotted path.

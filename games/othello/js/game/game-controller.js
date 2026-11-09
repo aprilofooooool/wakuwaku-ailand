@@ -20,7 +20,8 @@
     var bus = d.bus || O.bus;
     var scheduler = d.scheduler || realScheduler();
     var rng = d.rng || Math.random;
-    var linePicker = d.linePicker || O.LinePicker.create(O.Characters, rng);
+    var linePicker = d.linePicker ||
+      Ailand.core.LinePicker.create({ gameLines: O.Lines, commonLines: Ailand.core.CommonLines, rng: rng });
     var storage = d.storage || O.store;
 
     var settings = null;
@@ -181,7 +182,7 @@
     function readFourHistory(data) {
       if (data.settings.mode !== 'four') { return null; }
       if ([1, 2, 3, 4].indexOf(data.settings.humans) < 0) { return null; }
-      var ids = O.Characters.map(function (c) { return c.id; });
+      var ids = Ailand.core.Characters.list().map(function (c) { return c.id; });
       for (var p = 0; p < FOUR_SEATS.length; p++) {
         if (ids.indexOf(data.settings[FOUR_SEATS[p]]) < 0) { return null; }
       }

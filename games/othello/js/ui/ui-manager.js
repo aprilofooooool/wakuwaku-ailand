@@ -93,7 +93,7 @@
   }
 
   function buildCards(slot, container) {
-    O.Characters.forEach(function (c) {
+    O.CharacterManager.list().forEach(function (c) {
       var b = el('button', 'card');
       b.type = 'button';
       b.setAttribute('role', 'radio');
@@ -119,7 +119,7 @@
     if (!state.p1) { return; }
     var next = O.CharacterManager.pickCpu(state.p1);
     // Try to show a different character than the current one when the roster allows it.
-    if (next.id === state.cpu && O.Characters.length > 2) {
+    if (next.id === state.cpu && O.CharacterManager.list().length > 2) {
       next = O.CharacterManager.pickCpu(state.p1);
     }
     state.cpu = next.id;
@@ -176,7 +176,7 @@
         var otherSlot = slot === 'p1' ? 'p2' : 'p1';
         if (slot === 'p1' || slot === 'p2') { blockers.push(state[otherSlot]); }
       }
-      O.Characters.forEach(function (c) {
+      O.CharacterManager.list().forEach(function (c) {
         var b = cards[slot][c.id];
         var blocked = !O.CharacterManager.isSelectable(c.id, null) || blockers.indexOf(c.id) >= 0;
         b.disabled = blocked;

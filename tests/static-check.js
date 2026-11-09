@@ -73,43 +73,7 @@ for (const f of jsFiles) {
   while ((m = re.exec(text)) !== null) { if (!isExternal(m[1])) { checkExact(m[1], f); } }
 }
 const gameRoot = path.join(root, 'games', 'othello');
-const charsFile = path.join(gameRoot, 'js', 'data', 'characters.js');
-if (exists(charsFile)) {
-  const sandbox = {};
-  sandbox.window = sandbox;
-  const ctx = vm.createContext(sandbox);
-  let chars;
-  let loaded = false;
-  try {
-    for (const f of ['namespace.js', 'event-bus.js', 'storage.js']) { vm.runInContext(read(path.join(root, 'core', f)), ctx); }
-    vm.runInContext(read(path.join(gameRoot, 'js', 'core', 'namespace.js')), ctx);
-    vm.runInContext(read(charsFile), ctx, { filename: charsFile });
-    chars = vm.runInContext('Ailand.games.othello.Characters', ctx);
-    loaded = true;
-  } catch (e) {
-    problems.push(rel(charsFile) + ': failed to load: ' + e.message);
-  }
-  if (loaded) {
-    const list = Array.isArray(chars) ? chars : (chars && typeof chars === 'object' ? Object.values(chars) : []);
-    if (list.length === 0) {
-      problems.push(rel(charsFile) + ': Ailand.games.othello.Characters is missing or empty');
-    }
-    const emotions = ['normal', 'joy', 'anger', 'sadness', 'panic', 'thinking'];
-    for (const c of list) {
-      const img = c && c.image;
-      if (!img || typeof img.dir !== 'string' || typeof img.ext !== 'string') {
-        problems.push(rel(charsFile) + ': character without image.dir/image.ext: ' + (c && c.id));
-        continue;
-      }
-      const dir = img.dir.endsWith('/') ? img.dir : img.dir + '/';
-      const names = emotions.map((emo) => emo + '.' + img.ext);
-      if (img.hasDisc) { names.push('disc.' + img.ext); }
-      for (const n of names) { checkExact(path.join(gameRoot, dir + n), charsFile); }
-    }
-  }
-} else {
-  warnings.push('games/othello/js/data/characters.js not found (skipped)');
-}
+// Othello character images: the page loads core/character-view.js, so 2c checks them from core/characters.js.
 
 // 2. Forbidden patterns
 const forbidden = [

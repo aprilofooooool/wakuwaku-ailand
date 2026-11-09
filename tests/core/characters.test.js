@@ -23,15 +23,6 @@
         expect('ending' in c.voice).toBe(true);
       });
     });
-    it('profile values match the othello source', function () {
-      Ailand.games.othello.Characters.forEach(function (o) {
-        var c = Ch.get(o.id);
-        expect(c.name).toBe(o.name);
-        expect(c.colors).toEqual(o.colors);
-        expect(c.face).toEqual(o.face);
-        expect(c.voice).toEqual(o.voice);
-      });
-    });
     it('get returns null for unknown ids', function () {
       expect(Ch.get('nobody')).toBe(null);
       expect(Ch.get('mametchi').name).toBe('まめっち');

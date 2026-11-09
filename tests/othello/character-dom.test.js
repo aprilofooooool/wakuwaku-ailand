@@ -30,7 +30,7 @@
   describe('CharacterManager.applyImage (browser)', function () {
     it('all images missing: falls back to the CSS disc', async function () {
       var el = host();
-      var c = cloneWithDir(O.Characters[0], 'no-such-dir/');
+      var c = cloneWithDir(CM.list()[0], 'no-such-dir/');
       CM.applyImage(el, c, 'joy', 'avatar');
       await waitFor(function () { return el.querySelector('.css-disc'); }, 3000);
       expect(el.querySelector('img')).toBe(null);
@@ -40,7 +40,7 @@
     it('emotion image missing but normal exists: the normal <img> stays', async function () {
       var el = host();
       // tests/ is one level below the app root, so point the dir at the real assets.
-      var c = cloneWithDir(O.Characters[0], '../assets/characters/mametchi/');
+      var c = cloneWithDir(CM.list()[0], '../assets/characters/mametchi/');
       CM.applyImage(el, c, 'no-such-emotion', 'avatar');
       await waitFor(function () {
         var img = el.querySelector('img');
