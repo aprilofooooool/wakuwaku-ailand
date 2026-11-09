@@ -55,14 +55,16 @@
   box-shadow: var(--shadow-s);
   padding: 12px 14px 14px;
 }
-.panel-title { margin: 0 0 8px; font-size: 1rem; font-weight: 800; color: var(--ink); }
-.panel-note { margin: 8px 0 0; font-size: 0.9rem; color: var(--ink-sub); }
+.panel-title { margin: 0 0 8px; font-size: 1.125rem; font-weight: 800; color: var(--ink); }
+.panel-note { margin: 8px 0 0; font-size: 1.125rem; color: var(--ink-sub); }
 
 /* Choice buttons (radio-like) */
 .choices { display: flex; flex-wrap: wrap; gap: 8px; }
 .choice {
-  flex: 1 1 0;
-  min-width: 0;
+  /* 18px labels stay on one line; a choice that does not fit moves to the next row. */
+  flex: 1 1 auto;
+  min-width: var(--tap-min);
+  white-space: nowrap;
   min-height: var(--tap-min);
   font: inherit;
   font-weight: 800;
@@ -72,7 +74,7 @@
   border-radius: var(--radius-round);
   padding: 6px 6px;
   cursor: pointer;
-  touch-action: manipulation;
+  touch-action: none;
   transition: transform var(--t-press) ease;
 }
 .choice:active:not(:disabled) { transform: scale(0.94, 0.88); }
@@ -99,7 +101,7 @@
   border: var(--border-w) solid var(--outline);
   border-radius: var(--radius-m);
   cursor: pointer;
-  touch-action: manipulation;
+  touch-action: none;
   transition: transform var(--t-press) ease;
 }
 .card:active:not(:disabled) { transform: scale(0.94, 0.9); }
@@ -131,7 +133,7 @@
   gap: 8px;
   z-index: 5;
 }
-.reason { margin: 0; min-height: 1.3em; text-align: center; font-weight: 800; color: var(--accent-pink-strong); font-size: 0.95rem; }
+.reason { margin: 0; min-height: 1.3em; text-align: center; font-weight: 800; color: var(--accent-pink-strong); font-size: 1.125rem; }
 .actions-row { display: flex; gap: 10px; }
 .actions-row .btn { flex: 1; }
 

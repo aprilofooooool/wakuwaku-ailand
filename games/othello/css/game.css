@@ -65,7 +65,7 @@
 .avatar .char-img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .panel-info { flex: none; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
 .panel-tag { font-size: 0.75rem; font-weight: 800; color: var(--ink-sub); }
-.panel-name { font-size: 1.05rem; font-weight: 800; white-space: nowrap; }
+.panel-name { font-size: 1.125rem; font-weight: 800; white-space: nowrap; }
 .panel-count { font-size: 1.5rem; font-weight: 900; line-height: 1.1; }
 .panel-count small { font-size: 0.75rem; font-weight: 800; margin-left: 2px; }
 .turn-mark {
@@ -85,8 +85,8 @@
   position: absolute;
   top: 2px;
   right: 2px;
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
   padding: 0;
   font-size: 1.2rem;
   box-shadow: var(--shadow-s);
@@ -109,7 +109,7 @@
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
-  touch-action: manipulation;
+  touch-action: none; /* taps are read by core/pointer.js; no scroll or zoom on the board */
 }
 .cell {
   position: relative;
@@ -125,7 +125,7 @@
   cursor: pointer;
   perspective: var(--flip-perspective);
   -webkit-touch-callout: none;
-  touch-action: manipulation;
+  touch-action: none;
 }
 .board.is-busy .cell { cursor: progress; }
 .cell:focus-visible { outline: 3px solid var(--accent-blue); outline-offset: -3px; z-index: 2; }
@@ -209,10 +209,11 @@
   cursor: pointer;
   z-index: 5;
 }
-.pass-banner small { display: block; font-size: 0.8rem; font-weight: 700; }
+.pass-banner small { display: block; font-size: 1.125rem; font-weight: 700; }
 
 /* Controls */
-.controls { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+/* Portrait: two rows of 3 (64px each does not fit 6 in one row at 390px). */
+.controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .ctl-group { display: contents; }
 .ctl {
   display: flex;
@@ -223,7 +224,7 @@
   min-width: var(--tap-min);
   min-height: var(--tap-min);
   padding: 2px;
-  font-size: 0.7rem;
+  font-size: 1.125rem;
   line-height: 1.15;
   box-shadow: var(--shadow-s);
   border-radius: var(--radius-m);
@@ -235,7 +236,7 @@
 .modal .result-title { font-size: 2rem; margin: 4px 0; }
 .modal .result-score { text-align: center; font-size: 1.2rem; font-weight: 800; margin: 0 0 16px; }
 .modal .modal-actions { flex-wrap: wrap; }
-.modal p.confirm-msg { text-align: center; font-size: 1.1rem; font-weight: 800; margin: 0 0 16px; }
+.modal p.confirm-msg { text-align: center; font-size: 1.125rem; font-weight: 800; margin: 0 0 16px; }
 
 @keyframes glow-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
 @keyframes sparkle { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
@@ -247,7 +248,7 @@
 /* Landscape and desktop: left = 1P, center = board, right = 2P, buttons under each panel (3 + 3) */
 @media (orientation: landscape) {
   .game {
-    --controls-h: 56px;
+    --controls-h: var(--tap-min);
     --avatar-size: clamp(56px, 22vmin, 160px);
     --board-size: min(
       calc(100dvh - 2 * var(--gap) - env(safe-area-inset-top) - env(safe-area-inset-bottom)),
@@ -271,7 +272,7 @@
   .help-btn { top: 2px; right: 2px; }
 }
 
-.modal .result-rule { text-align: center; font-size: 1rem; font-weight: 800; color: var(--ink-sub); margin: -8px 0 16px; }
+.modal .result-rule { text-align: center; font-size: 1.125rem; font-weight: 800; color: var(--ink-sub); margin: -8px 0 16px; }
 
 /* ---------------------------------------------------------------- four-player mode (.game.four)
    Places in turn order, clockwise: RED = tl, WHITE = tr, BLACK = br, BLUE = bl.
@@ -311,9 +312,7 @@
 .game.four .bubble-think::before { display: none; }
 .game.four .bubble-dots { gap: 3px; }
 .game.four .bubble-dots span { width: 6px; height: 6px; }
-.game.four .controls { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
-/* 7 controls must fit a 375px board: 7 x 44px + 6 x 4px gaps; still above the 44px tap minimum. */
-.game.four .ctl { min-width: 44px; min-height: 44px; }
+.game.four .controls { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; } /* 7 controls in 2 rows */
 .game.four .help-btn {
   position: static;
   min-width: var(--tap-min);
@@ -359,7 +358,7 @@
 }
 
 /* Colour announcement on the pass banner */
-.pass-banner.announce .announce-line { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 1.1rem; line-height: 1.6; }
+.pass-banner.announce .announce-line { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 1.125rem; line-height: 1.6; }
 
 /* Four-player result list */
 .modal .result-list { list-style: none; margin: 0 0 16px; padding: 0; }
@@ -373,7 +372,7 @@
   font-weight: 800;
 }
 .result-row.first { background: var(--turn-bg); }
-.result-rank { font-size: 1.1rem; font-weight: 900; }
+.result-rank { font-size: 1.125rem; font-weight: 900; }
 .result-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .result-color { color: var(--ink-sub); }
 
@@ -401,7 +400,7 @@
     position: relative;
     z-index: 3;
     margin: 4px;
-    min-width: 44px;
-    min-height: 44px;
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
   }
 }

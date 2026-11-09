@@ -22,38 +22,33 @@
       return s && s.mode === 'four' ? ['p1', 'p2', 'p3', 'p4'].slice(0, s.humans) : undefined;
     }
 
+    // One full-screen effect and one reaction sound per move (games/othello/js/game/move-reaction.js).
+    var reaction = O.MoveReaction.create({
+      context: function () {
+        var s = ctrl.getSettings();
+        return { mode: s ? s.mode : null, humans: humanSeats(s) };
+      },
+      onPick: function (pick) {
+        O.Effects.play(pick.emotion, O.UI.panelEl(pick.player));
+        O.Sound.play('reaction', { emotion: pick.emotion });
+      }
+    });
+
     bus.on('moved', function (e) {
-      batch.mover = e.mover;
+      reaction.mover(e.mover);
       O.Sound.play('place');
       O.Sound.play('flip', { count: e.flipped.length });
     });
-    // One full-screen effect and one reaction sound per move: the emotion events of a move are
-    // emitted synchronously, so they are collected and the single winner is picked on a 0 ms timer.
-    var batch = { emotions: [], mover: null, over: null, timer: null };
-    function queueFlush() {
-      if (batch.timer === null) { batch.timer = setTimeout(flushEmotions, 0); }
-    }
-    function flushEmotions() {
-      var b = batch;
-      batch = { emotions: [], mover: null, over: null, timer: null };
-      var emotions = b.emotions.filter(function (x) { return x.emotion !== 'normal'; });
-      var s = ctrl.getSettings();
-      var pick = O.Reaction.pickEffect(emotions, b.mover, b.over, s ? s.mode : null, humanSeats(s));
-      if (!pick) { return; }
-      O.Effects.play(pick.emotion, O.UI.panelEl(pick.player));
-      O.Sound.play('reaction', { emotion: pick.emotion });
-    }
     bus.on('pass', function (e) {
-      batch.mover = e.player;
+      reaction.mover(e.player);
       if (!e.replay) { O.Sound.play('pass'); }
     });
-    bus.on('emotion', function (e) { batch.emotions.push(e); queueFlush(); });
+    bus.on('emotion', function (e) { reaction.emotion(e); });
     bus.on('gameover', function (e) {
       if (e.replay) { return; } // undo / redo / restore re-emit gameover silently
       var s = ctrl.getSettings();
       var four = !!s && s.mode === 'four';
-      batch.over = four ? { winners: e.winners } : e;
-      queueFlush();
+      reaction.over(four ? { winners: e.winners } : e);
       var name;
       if (four) {
         name = humanSeats(s).some(function (p) { return e.winners.indexOf(p) >= 0; }) ? 'win' : 'lose';
@@ -73,13 +68,10 @@
         O.UI.bindGame(ctrl);
         if (!ctrl.restore()) { O.UI.leave(); return; } // the save was unusable: back to the top, no stale board
         ctrl.notifyActivity();
-      },
-      onSoundToggle: function (on) {
-        O.Sound.setEnabled(on);
-        if (O.BgmLink) { O.BgmLink.sync(); } // BGM follows the toggle at once (games/othello/js/audio/othello-bgm.js)
       }
     });
-    O.Sound.setEnabled(O.UI.isSoundOn());
+    // BGM follows the shared sound flag at once, wherever it was flipped (games/othello/js/audio/othello-bgm.js).
+    Ailand.core.Sound.onChange(function () { O.BgmLink.sync(); });
   }
 
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', start); }

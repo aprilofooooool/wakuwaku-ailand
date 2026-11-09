@@ -34,6 +34,8 @@
       sound.setAttribute('aria-label', on ? 'おと：ON' : 'おと：OFF');
     }
     paintSound();
+    // Follow sound changes made anywhere else on the page (in-game buttons etc.).
+    if (C.Sound && C.Sound.onChange) { C.Sound.onChange(function (v) { on = v; paintSound(); }); }
 
     back.addEventListener('click', function () { if (o.onBack) { o.onBack(); } });
     sound.addEventListener('click', function () {

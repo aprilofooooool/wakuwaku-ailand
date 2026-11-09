@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-base="../../">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -18,23 +18,29 @@
 <div id="modal-root"></div>
 <script src="../../core/namespace.js"></script>
 <script src="../../core/ui-common.js"></script>
+<script src="../../core/event-bus.js"></script>
 <script src="../../core/storage.js"></script>
+<script src="../../core/characters.js"></script>
+<script src="../../core/common-lines.js"></script>
+<script src="../../core/line-picker.js"></script>
+<script src="../../core/emotion-map.js"></script>
+<script src="../../core/character-view.js"></script>
+<script src="../../core/reaction.js"></script>
+<script src="../../core/pointer.js"></script>
 <script src="../../core/sound.js"></script>
 <script src="../../core/bgm.js"></script>
 <script src="js/core/namespace.js"></script>
-<script src="js/core/event-bus.js"></script>
-<script src="js/core/storage.js"></script>
 <script src="js/config/version.js"></script>
 <script src="js/config/constants.js"></script>
-<script src="js/data/characters.js"></script>
+<script src="js/data/lines.js"></script>
 <script src="js/data/rulesets.js"></script>
 <script src="js/engine/reversi-engine.js"></script>
 <script src="js/engine/reversi-ai.js"></script>
 <script src="js/engine/four-engine.js"></script>
 <script src="js/engine/four-ai.js"></script>
 <script src="js/game/reaction-engine.js"></script>
-<script src="js/game/line-picker.js"></script>
 <script src="js/game/game-controller.js"></script>
+<script src="js/game/move-reaction.js"></script>
 <script src="js/audio/sound-synthesizer.js"></script>
 <script src="js/audio/othello-bgm.js"></script>
 <script src="js/ui/character-manager.js"></script>
@@ -46,16 +52,16 @@
   function mountHeader() {
     document.body.insertBefore(Ailand.core.UI.header({
       title: 'ぱたぱた！オセロっち',
-      soundOn: Ailand.games.othello.UI.isSoundOn(),
+      soundOn: Ailand.core.Sound.isEnabled(),
       onBack: function () { Ailand.games.othello.BgmLink.stop(); location.href = '../../index.html'; },
       onSound: function () { return Ailand.games.othello.UI.toggleSound(); },
-      onSettings: function () { Ailand.games.othello.UI.leave(); }
+      onSettings: function () { Ailand.games.othello.UI.openSettings(); }
     }), document.body.firstChild);
   }
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', mountHeader); }
   else { mountHeader(); }
   // BGM: core AudioContext unlocks on a user gesture (each one: iOS can re-suspend); the loop starts on the first.
-  // Sound toggles reach BgmLink.sync through main.js onSoundToggle.
+  // Sound toggles reach BgmLink.sync through Ailand.core.Sound.onChange (main.js).
   ['pointerdown', 'touchend', 'click'].forEach(function (type) {
     document.addEventListener(type, function () { Ailand.core.Sound.unlock(); Ailand.games.othello.BgmLink.sync(); }, true);
   });

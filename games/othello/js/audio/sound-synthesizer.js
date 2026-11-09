@@ -6,7 +6,8 @@
 
   var ctx = null;
   var master = null;
-  var enabled = true;
+  // ON/OFF is the shared core setting (ailand:core:settings.v1 sound): one flag for every page.
+  function enabled() { return Ailand.core.Sound.isEnabled(); }
 
   // note(freq, start, dur, type, peak, endFreq): one oscillator with a gain envelope.
   function note(freq, start, dur, type, peak, endFreq) {
@@ -75,10 +76,9 @@
         }
       } catch (e) { /* audio unavailable: stay silent */ }
     },
-    setEnabled: function (on) { enabled = !!on; },
-    isEnabled: function () { return enabled; },
+    isEnabled: enabled,
     play: function (name, opts) {
-      if (!enabled || !ctx || ctx.state !== 'running' || !sounds[name]) { return; }
+      if (!enabled() || !ctx || ctx.state !== 'running' || !sounds[name]) { return; }
       try { sounds[name](opts || {}); } catch (e) { /* never throw */ }
     }
   };

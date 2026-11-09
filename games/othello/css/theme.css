@@ -75,14 +75,14 @@
   --font: "Hiragino Maru Gothic ProN", "M PLUS Rounded 1c", "Yu Gothic UI", system-ui, sans-serif;
 
   /* Sizes */
-  --tap-min: 48px;
+  --tap-min: 64px; /* requirements 1.2: every tap target but the board cells */
   --content-max: 560px;
   --modal-max-w: 420px;
   --modal-max-h: 90dvh;
   --logo-max-h: 120px;
   --gap: 8px;
   --panel-h: 88px;
-  --controls-h: 64px;
+  --controls-h: calc(2 * var(--tap-min) + 6px); /* portrait: 2 rows of controls */
   --board-gap: 2px;
   --board-max: 760px;
   --panel-w-max: 280px;
@@ -121,7 +121,7 @@
   --fx-burst-flash-size: 70px;
   --fx-burst-flash-dur: 500ms;
   --fx-anger-dur: 1600ms;
-  --help-reserve: 44px;
+  --help-reserve: 64px;
   --fx-anger-size: 44px;
   --fx-bubble-fade: 250ms;
 }

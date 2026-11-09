@@ -15,6 +15,7 @@
   var volumes = { se: SE_VOLUME, bgm: BGM_VOLUME };
   var registry = {};
   var enabled = readEnabled();
+  var listeners = [];
 
   function readEnabled() {
     var s = store.get('settings.v1', null);
@@ -77,6 +78,7 @@
       } catch (e) { /* audio unavailable: stay silent */ }
     },
     setEnabled: function (on) {
+      var changed = enabled !== !!on;
       enabled = !!on;
       var s = store.get('settings.v1', null);
       s = (s && typeof s === 'object') ? s : {};
@@ -84,6 +86,15 @@
       store.set('settings.v1', s);
       // Silence (or restore) notes that are already scheduled.
       try { if (master && ctx) { master.gain.setTargetAtTime(enabled ? MASTER_VOLUME : 0, ctx.currentTime, 0.02); } } catch (e) { /* ignore */ }
+      if (changed) { listeners.slice().forEach(function (fn) { fn(enabled); }); }
+    },
+    // fn(on) runs after every real ON/OFF change, from any page part. Returns off().
+    onChange: function (fn) {
+      listeners.push(fn);
+      return function off() {
+        var i = listeners.indexOf(fn);
+        if (i !== -1) { listeners.splice(i, 1); }
+      };
     },
     isEnabled: function () { return enabled; },
     // BGM ON/OFF lives next to `sound` in ailand:core:settings.v1 (default ON). Shared by every page.
@@ -120,7 +131,7 @@
     context: function () { return playable() ? ctx : null; },
     // Test hook: forget the AudioContext so a fake one can be created by unlock().
     _reset: function () {
-      ctx = null; enabled = true; master = null; seGain = null; bgmGain = null;
+      ctx = null; enabled = true; listeners = []; master = null; seGain = null; bgmGain = null;
       volumes = { se: SE_VOLUME, bgm: BGM_VOLUME };
     }
   };

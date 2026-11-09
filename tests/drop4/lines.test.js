@@ -8,9 +8,10 @@
 
   function othelloLines() {
     var set = {};
-    A.games.othello.Characters.forEach(function (c) {
-      Object.keys(c.lines).forEach(function (k) {
-        c.lines[k].forEach(function (s) { set[s] = true; });
+    var L = A.games.othello.Lines;
+    Object.keys(L).forEach(function (id) {
+      Object.keys(L[id]).forEach(function (k) {
+        L[id][k].forEach(function (s) { set[s] = true; });
       });
     });
     return set;

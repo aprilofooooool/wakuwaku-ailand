@@ -1,17 +1,24 @@
 (function (O) {
   'use strict';
   // Pure functions are used from Node, so DOM access stays inside applyImage / renderCssDisc.
+  // The roster is core/characters.js (array order = select screen order); speech lines are O.Lines.
+  var roster = null;
+  function list() {
+    if (!roster) { roster = Ailand.core.Characters.list(); }
+    return roster;
+  }
 
   function get(id) {
-    var list = O.Characters;
-    for (var i = 0; i < list.length; i += 1) {
-      if (list[i].id === id) { return list[i]; }
+    var list_ = list();
+    for (var i = 0; i < list_.length; i += 1) {
+      if (list_[i].id === id) { return list_[i]; }
     }
     return null;
   }
 
+  // image.dir is relative to the repo root; data-base on <html> points the page there.
   function imagePath(char, name) {
-    return char.image.dir + name + '.' + char.image.ext;
+    return Ailand.core.CharacterView.basePath() + char.image.dir + name + '.' + char.image.ext;
   }
 
   function imageCandidates(char, emotion) {
@@ -19,9 +26,9 @@
     return names.map(function (n) { return imagePath(char, n); });
   }
 
+  // Discs show the normal image.
   function discCandidates(char) {
-    var names = char.image.hasDisc ? ['disc', 'normal'] : ['normal'];
-    return names.map(function (n) { return imagePath(char, n); });
+    return [imagePath(char, 'normal')];
   }
 
   function isSelectable(id, otherSelectedId) {
@@ -30,7 +37,7 @@
 
   function pickCpu(excludeId, rng) {
     var random = rng || Math.random;
-    var pool = O.Characters.filter(function (c) { return c.id !== excludeId; });
+    var pool = list().filter(function (c) { return c.id !== excludeId; });
     var idx = Math.min(Math.floor(random() * pool.length), pool.length - 1);
     return pool[idx];
   }
@@ -49,7 +56,7 @@
         seats.push(null);
       }
     }
-    var free = O.Characters.map(function (c) { return c.id; }).filter(function (cid) { return !used[cid]; });
+    var free = list().map(function (c) { return c.id; }).filter(function (cid) { return !used[cid]; });
     for (i = humans; i < 4; i += 1) { seats[i] = free.shift() || null; }
     return seats;
   }
@@ -97,6 +104,7 @@
   }
 
   O.CharacterManager = {
+    list: list,
     get: get,
     imagePath: imagePath,
     imageCandidates: imageCandidates,

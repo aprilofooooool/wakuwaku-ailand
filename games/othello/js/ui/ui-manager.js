@@ -7,7 +7,7 @@
   var RECEIVERS = [['p1', '1P'], ['p2', '2P']];
   var DEFAULT_STATE = {
     mode: 'solo', humans: 2, p1: null, p2: null, p3: null, p4: null, cpu: null, first: 'random', level: 'normal',
-    handicapLevel: 0, handicapReceiver: 'p1', boardSize: 8, winRule: 'normal', assist: false, sound: true
+    handicapLevel: 0, handicapReceiver: 'p1', boardSize: 8, winRule: 'normal', assist: false
   };
 
   var callbacks = {};
@@ -28,7 +28,11 @@
   function oneOf(v, list, fallback) { return list.indexOf(v) >= 0 ? v : fallback; }
 
   function loadState() {
-    var saved = O.Storage.get(O.Const.SETTINGS_KEY, {}) || {};
+    return normalizeSettings(O.store.get(O.Const.SETTINGS_KEY, {}) || {});
+  }
+
+  // Saved top-screen settings -> valid state. An old `sound` field is ignored (sound is the shared core setting).
+  function normalizeSettings(saved) {
     var s = {};
     Object.keys(DEFAULT_STATE).forEach(function (k) { s[k] = DEFAULT_STATE[k]; });
     s.mode = oneOf(saved.mode, ['solo', 'duo', 'four'], s.mode);
@@ -45,7 +49,6 @@
     s.boardSize = oneOf(saved.boardSize, [8, 6], 8);
     s.winRule = oneOf(saved.winRule, ['normal', 'anti'], 'normal');
     s.assist = saved.assist === true;
-    s.sound = saved.sound !== false;
     if (s.p1 && s.p1 === s.p2) { s.p2 = null; }
     if (s.p3 && (s.p3 === s.p1 || s.p3 === s.p2)) { s.p3 = null; }
     if (s.p4 && (s.p4 === s.p1 || s.p4 === s.p2 || s.p4 === s.p3)) { s.p4 = null; }
@@ -54,7 +57,7 @@
     return s;
   }
 
-  function saveState() { O.Storage.set(O.Const.SETTINGS_KEY, state); }
+  function saveState() { O.store.set(O.Const.SETTINGS_KEY, state); }
 
   // Builds a row of radio-like buttons. getLabel lets a label depend on the mode.
   function makeChoices(container, label, items, key, onPick) {
@@ -90,7 +93,7 @@
   }
 
   function buildCards(slot, container) {
-    O.Characters.forEach(function (c) {
+    O.CharacterManager.list().forEach(function (c) {
       var b = el('button', 'card');
       b.type = 'button';
       b.setAttribute('role', 'radio');
@@ -116,7 +119,7 @@
     if (!state.p1) { return; }
     var next = O.CharacterManager.pickCpu(state.p1);
     // Try to show a different character than the current one when the roster allows it.
-    if (next.id === state.cpu && O.Characters.length > 2) {
+    if (next.id === state.cpu && O.CharacterManager.list().length > 2) {
       next = O.CharacterManager.pickCpu(state.p1);
     }
     state.cpu = next.id;
@@ -173,7 +176,7 @@
         var otherSlot = slot === 'p1' ? 'p2' : 'p1';
         if (slot === 'p1' || slot === 'p2') { blockers.push(state[otherSlot]); }
       }
-      O.Characters.forEach(function (c) {
+      O.CharacterManager.list().forEach(function (c) {
         var b = cards[slot][c.id];
         var blocked = !O.CharacterManager.isSelectable(c.id, null) || blockers.indexOf(c.id) >= 0;
         b.disabled = blocked;
@@ -202,16 +205,16 @@
     els.start.disabled = reason !== '';
     els.reason.textContent = reason;
     els.resume.hidden = !O.GameController.hasSave();
-    els.sound.setAttribute('aria-pressed', String(state.sound));
-    els.sound.textContent = state.sound ? 'おと：ON' : 'おと：OFF';
+    var soundOn = Ailand.core.Sound.isEnabled();
+    els.sound.setAttribute('aria-pressed', String(soundOn));
+    els.sound.textContent = soundOn ? 'おと：ON' : 'おと：OFF';
   }
 
+  // Flips the shared sound flag; every view repaints through Sound.onChange (see init).
   function toggleSound() {
-    state.sound = !state.sound;
-    saveState();
-    render();
-    if (callbacks.onSoundToggle) { callbacks.onSoundToggle(state.sound); }
-    return state.sound;
+    var S = Ailand.core.Sound;
+    S.setEnabled(!S.isEnabled());
+    return S.isEnabled();
   }
 
   function openModal(title, bodyNodes) {
@@ -576,6 +579,55 @@
     pushed = false;
   }
 
+  function askRestart() {
+    confirmDialog('さいしょから やりなおす？').then(function (ok) { if (ok && G) { restartGame(); } });
+  }
+  function askTop() {
+    confirmDialog('トップへ もどる？').then(function (ok) { if (ok) { leaveGame(false); } });
+  }
+
+  // Header せってい (same shape as ぽとん4): in a game, restart / back to top; always BGM ON/OFF.
+  function openSettings() {
+    var nodes = [];
+    var m = null;
+    if (gameActive && G) {
+      var acts = el('div', 'settings-actions');
+      [['btn btn-main', 'はじめから', askRestart], ['btn btn-sub', 'トップに もどる', askTop]].forEach(function (a) {
+        var b = el('button', a[0], a[1]);
+        b.type = 'button';
+        b.addEventListener('click', function () { m.close(); if (G) { G.ctrl.notifyActivity(); } a[2](); });
+        acts.appendChild(b);
+      });
+      nodes.push(acts);
+    }
+    var row = el('div', 'settings-row');
+    row.appendChild(el('span', 'settings-label', 'BGM'));
+    var group = el('div', 'choices');
+    group.setAttribute('role', 'radiogroup');
+    group.setAttribute('aria-label', 'BGM');
+    var S = Ailand.core.Sound;
+    [[true, 'ON'], [false, 'OFF']].forEach(function (it) {
+      var b = el('button', 'choice', it[1]);
+      b.type = 'button';
+      b.setAttribute('role', 'radio');
+      b.addEventListener('click', function () {
+        S.setBgmOn(it[0]);
+        O.BgmLink.sync();
+        paint();
+      });
+      group.appendChild(b);
+    });
+    function paint() {
+      Array.prototype.forEach.call(group.children, function (b, i) {
+        b.setAttribute('aria-checked', String((i === 0) === S.isBgmOn()));
+      });
+    }
+    paint();
+    row.appendChild(group);
+    nodes.push(row);
+    m = Ailand.core.UI.modal('せってい', nodes);
+  }
+
   function restartGame() {
     if (!G) { return; }
     closeResult();
@@ -727,13 +779,13 @@
     board.style.setProperty('--n', String(size));
     board.setAttribute('aria-label', 'ばん');
     board.addEventListener('pointerdown', function () { G.ctrl.notifyActivity(); });
+    attachBoardInput(board, playCell);
     G.cells = [];
     for (var i = 0; i < size * size; i += 1) {
       var c = el('button', 'cell');
       c.type = 'button';
       c.setAttribute('aria-label', O.Engine.toName(i, size));
       c.dataset.index = String(i);
-      c.addEventListener('click', onCellClick);
       board.appendChild(c);
       G.cells.push({ el: c, disc: null, guard: null });
     }
@@ -760,13 +812,9 @@
         saveState();
         renderControls();
       }),
-      sound: makeControl('♪', 'おと', 'おとの オンオフ', function () { toggleSound(); renderControls(); }),
-      reset: makeControl('⟲', 'リセット', 'さいしょから やりなおす', function () {
-        confirmDialog('さいしょから やりなおす？').then(function (ok) { if (ok && G) { restartGame(); } });
-      }),
-      top: makeControl('⌂', 'トップ', 'トップへ もどる', function () {
-        confirmDialog('トップへ もどる？').then(function (ok) { if (ok) { leaveGame(false); } });
-      })
+      sound: makeControl('♪', 'おと', 'おとの オンオフ', toggleSound),
+      reset: makeControl('⟲', 'リセット', 'さいしょから やりなおす', askRestart),
+      top: makeControl('⌂', 'トップ', 'トップへ もどる', askTop)
     };
     // Two groups: portrait shows them as one row of 6, landscape puts one group under each panel.
     [['c1', ['undo', 'redo', 'assist']], ['c2', ['sound', 'reset', 'top']]].forEach(function (g) {
@@ -831,10 +879,39 @@
     });
   }
 
-  function onCellClick(e) {
+  function playCell(cell) {
     if (!G) { return; }
     G.ctrl.notifyActivity();
-    G.ctrl.play(Number(e.currentTarget.dataset.index));
+    G.ctrl.play(Number(cell.dataset.index));
+  }
+
+  // Board input (requirements 1.2): finger / mouse go through core/pointer.js (a small slip is still a tap),
+  // and a cell's own click is used only for the keyboard (detail 0), so a tap never places twice.
+  // The tapped cell is the one the finger went down on.
+  function attachBoardInput(board, onCell) {
+    function cellOf(e) {
+      var cell = e.target && e.target.closest ? e.target.closest('.cell') : null;
+      return cell && board.contains(cell) ? cell : null;
+    }
+    // Per finger (pointerId), so a second finger on the board never redirects the first one's tap.
+    var pressed = {};
+    var lifting = null;
+    board.addEventListener('pointerdown', function (e) { pressed[e.pointerId] = cellOf(e); });
+    board.addEventListener('pointerup', function (e) { lifting = e.pointerId; }); // runs before Pointer's onTap
+    Ailand.core.Pointer.attach(board, {
+      onTap: function () {
+        var cell = pressed[lifting];
+        if (cell) { onCell(cell); }
+      }
+    });
+    function forget(e) { delete pressed[e.pointerId]; }
+    board.addEventListener('pointerup', forget); // after onTap
+    board.addEventListener('pointercancel', forget);
+    board.addEventListener('click', function (e) {
+      if (e.detail !== 0) { return; }
+      var cell = cellOf(e);
+      if (cell) { onCell(cell); }
+    });
   }
 
   // Front face = the black-disc player, back face = the white-disc player (rotateY(180deg) shows the back).
@@ -989,7 +1066,7 @@
 
   function renderControls() {
     if (!G || !G.btn) { return; }
-    var soundOn = state ? state.sound : true;
+    var soundOn = Ailand.core.Sound.isEnabled();
     G.btn.undo.disabled = !G.ctrl.canUndo();
     G.btn.redo.disabled = !G.ctrl.canRedo();
     G.btn.assist.setAttribute('aria-pressed', String(G.assistOn));
@@ -1061,6 +1138,7 @@
   function init(cb) {
     callbacks = cb || {};
     state = loadState();
+    Ailand.core.Sound.onChange(function () { render(); renderControls(); });
     buildTop();
     render();
     showScreen('top');
@@ -1070,7 +1148,7 @@
     init: init,
     showScreen: showScreen,
     readSettings: readSettings,
-    isSoundOn: function () { return state.sound; },
+    isSoundOn: function () { return Ailand.core.Sound.isEnabled(); },
     bindGame: bindGame,
     leave: function () { leaveGame(false); },
     toggleSound: toggleSound,
@@ -1078,6 +1156,9 @@
     confirm: confirmDialog,
     showResult: showResult,
     showHelp: showHelp,
-    announceColors: announceColors
+    announceColors: announceColors,
+    openSettings: openSettings,
+    _normalizeSettings: normalizeSettings,
+    _attachBoardInput: attachBoardInput
   };
 })(Ailand.games.othello);

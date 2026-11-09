@@ -20,8 +20,9 @@
     var bus = d.bus || O.bus;
     var scheduler = d.scheduler || realScheduler();
     var rng = d.rng || Math.random;
-    var linePicker = d.linePicker || O.LinePicker.create(O.Characters, rng);
-    var storage = d.storage || O.Storage;
+    var linePicker = d.linePicker ||
+      Ailand.core.LinePicker.create({ gameLines: O.Lines, commonLines: Ailand.core.CommonLines, rng: rng });
+    var storage = d.storage || O.store;
 
     var settings = null;
     var colors = { p1: BLACK, p2: WHITE };
@@ -181,7 +182,7 @@
     function readFourHistory(data) {
       if (data.settings.mode !== 'four') { return null; }
       if ([1, 2, 3, 4].indexOf(data.settings.humans) < 0) { return null; }
-      var ids = O.Characters.map(function (c) { return c.id; });
+      var ids = Ailand.core.Characters.list().map(function (c) { return c.id; });
       for (var p = 0; p < FOUR_SEATS.length; p++) {
         if (ids.indexOf(data.settings[FOUR_SEATS[p]]) < 0) { return null; }
       }
@@ -663,13 +664,13 @@
   }
 
   function hasSave(storage) {
-    var data = (storage || O.Storage).get(O.Const.SAVE_KEY, null);
+    var data = (storage || O.store).get(O.Const.SAVE_KEY, null);
     return !!data && (data.version === O.Const.SAVE_VERSION ||
       (data.version === O.Const.FOUR_SAVE_VERSION && !!data.settings && data.settings.mode === 'four'));
   }
 
   function clearSave(storage) {
-    (storage || O.Storage).remove(O.Const.SAVE_KEY);
+    (storage || O.store).remove(O.Const.SAVE_KEY);
   }
 
   O.GameController = { create: create, hasSave: hasSave, clearSave: clearSave };

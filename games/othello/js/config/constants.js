@@ -42,8 +42,8 @@
     CPU_MIN_WAIT_MS: [800, 1500],
     // Human turn: show Thinking after this long without any operation (ms).
     IDLE_THINK_MS: 5000,
-    // Game-in-progress save (localStorage key via O.Storage) and its format version.
-    SAVE_KEY: 'ailand:othello:save.v1',
+    // Game-in-progress save (O.store key; stored as ailand:othello:<key>) and its format version.
+    SAVE_KEY: 'save.v1',
     SAVE_VERSION: 1,
     // Four-player saves use the same key with this version (two-player saves stay at SAVE_VERSION).
     FOUR_SAVE_VERSION: 2,
@@ -51,8 +51,8 @@
     FLIP_STAGGER_MS: 70,
     // Wait before the result modal opens so the last flips can finish (ms).
     RESULT_DELAY_MS: 1000,
-    // Top screen settings (localStorage key via O.Storage).
-    SETTINGS_KEY: 'ailand:othello:settings.v1',
+    // Top screen settings (O.store key; stored as ailand:othello:<key>).
+    SETTINGS_KEY: 'settings.v1',
     // Path to a logo image shown instead of the CSS logo. null = CSS logo.
     LOGO_IMAGE: null,
     // Chance of a turnStart line at a human turn start when the move gave no emotion line.
