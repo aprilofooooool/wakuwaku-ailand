@@ -779,13 +779,13 @@
     board.style.setProperty('--n', String(size));
     board.setAttribute('aria-label', 'ばん');
     board.addEventListener('pointerdown', function () { G.ctrl.notifyActivity(); });
+    attachBoardInput(board, playCell);
     G.cells = [];
     for (var i = 0; i < size * size; i += 1) {
       var c = el('button', 'cell');
       c.type = 'button';
       c.setAttribute('aria-label', O.Engine.toName(i, size));
       c.dataset.index = String(i);
-      c.addEventListener('click', onCellClick);
       board.appendChild(c);
       G.cells.push({ el: c, disc: null, guard: null });
     }
@@ -879,10 +879,34 @@
     });
   }
 
-  function onCellClick(e) {
+  function playCell(cell) {
     if (!G) { return; }
     G.ctrl.notifyActivity();
-    G.ctrl.play(Number(e.currentTarget.dataset.index));
+    G.ctrl.play(Number(cell.dataset.index));
+  }
+
+  // Board input (requirements 1.2): finger / mouse go through core/pointer.js (a small slip is still a tap),
+  // and a cell's own click is used only for the keyboard (detail 0), so a tap never places twice.
+  // The tapped cell is the one the finger went down on.
+  function attachBoardInput(board, onCell) {
+    function cellOf(e) {
+      var cell = e.target && e.target.closest ? e.target.closest('.cell') : null;
+      return cell && board.contains(cell) ? cell : null;
+    }
+    var pressed = null;
+    board.addEventListener('pointerdown', function (e) { pressed = cellOf(e); });
+    Ailand.core.Pointer.attach(board, {
+      onTap: function () {
+        var cell = pressed;
+        pressed = null;
+        if (cell) { onCell(cell); }
+      }
+    });
+    board.addEventListener('click', function (e) {
+      if (e.detail !== 0) { return; }
+      var cell = cellOf(e);
+      if (cell) { onCell(cell); }
+    });
   }
 
   // Front face = the black-disc player, back face = the white-disc player (rotateY(180deg) shows the back).
@@ -1129,6 +1153,7 @@
     showHelp: showHelp,
     announceColors: announceColors,
     openSettings: openSettings,
-    _normalizeSettings: normalizeSettings
+    _normalizeSettings: normalizeSettings,
+    _attachBoardInput: attachBoardInput
   };
 })(Ailand.games.othello);

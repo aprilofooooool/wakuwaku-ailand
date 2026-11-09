@@ -147,7 +147,8 @@ html.fx-shaking, html.fx-shaking body { overflow: hidden; }
   background: var(--fx-bubble-bg);
   border: 2px solid var(--outline);
   border-radius: var(--radius-s);
-  font-size: 0.8rem;
+  /* Exempt from the 18px rule: a 20-char line must fit the panel (390px portrait, help button beside it). */
+  font-size: 0.875rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--ink);

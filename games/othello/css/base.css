@@ -5,6 +5,7 @@ html, body {
 }
 body {
   font-family: var(--font);
+  font-size: 18px; /* requirements 1.2: body text 18px+ (same as css/base.css) */
   color: var(--ink);
   background-color: var(--bg);
   background-image: radial-gradient(var(--bg-dot) 2px, transparent 2.5px);
@@ -37,7 +38,7 @@ body {
   min-height: var(--tap-min);
   padding: 8px 20px;
   cursor: pointer;
-  touch-action: manipulation;
+  touch-action: none;
   transition: transform var(--t-press) ease, box-shadow var(--t-press) ease;
 }
 .btn:active:not(:disabled) {
@@ -57,7 +58,7 @@ body {
 }
 .btn-main { background: var(--accent-pink-strong); color: var(--on-accent-strong); font-size: 1.3rem; padding: 10px 28px; }
 .btn-sub { background: var(--accent-green); }
-.btn-small { padding: 6px 14px; font-size: 0.9rem; box-shadow: var(--shadow-s); }
+.btn-small { padding: 6px 14px; font-size: 1.125rem; box-shadow: var(--shadow-s); }
 
 /* Modal */
 #modal-root:empty { display: none; }
