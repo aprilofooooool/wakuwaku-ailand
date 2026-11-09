@@ -7,11 +7,9 @@
     var bus = C.EventBus.create();
     var rng = Math.random;
     var linePicker = C.LinePicker.create({ gameLines: D.Lines, commonLines: C.CommonLines, rng: rng });
-    // Requirements 1.7: create / resume the AudioContext on a user gesture. BGM started earlier waits until then.
-    // iOS counts only some gesture events as unlocking and can re-suspend, so unlock on each (unlock is idempotent).
-    ['pointerdown', 'touchend', 'click'].forEach(function (type) {
-      document.addEventListener(type, function () { C.Sound.unlock(); }, true);
-    });
+    // Requirements 1.7: unlock at once when the browser allows audio, else on a gesture (core/sound.js wireUnlock).
+    // BGM started earlier stays silent until then.
+    C.Sound.wireUnlock();
     document.addEventListener('click', function (e) {
       if (e.target && e.target.closest && e.target.closest('button')) { C.Sound.play('button'); }
     }, true);

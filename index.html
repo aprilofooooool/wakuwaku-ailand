@@ -135,10 +135,8 @@
     soundBtn.setAttribute('aria-pressed', String(on));
     soundBtn.setAttribute('aria-label', on ? 'おと：ON' : 'おと：OFF');
   }
-  // iOS counts only some gesture events as unlocking and can re-suspend, so unlock on each (unlock is idempotent).
-  ['pointerdown', 'touchend', 'click'].forEach(function (type) {
-    document.addEventListener(type, function () { Sound.unlock(); syncBgm(); }, true);
-  });
+  // Starts at once when the browser allows audio, else on the first gesture (core/sound.js wireUnlock).
+  Sound.wireUnlock(syncBgm);
   soundBtn.addEventListener('click', function () {
     Sound.setEnabled(!Sound.isEnabled());
     paintSound();

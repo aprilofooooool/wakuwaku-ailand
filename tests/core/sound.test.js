@@ -297,4 +297,47 @@
       });
     });
   });
+
+  describe('core/Sound wireUnlock (start audio as soon as the browser allows)', function () {
+    function target() {
+      var t = { on: {} };
+      t.addEventListener = function (type, fn, capture) { t.on[type] = { fn: fn, capture: capture }; };
+      return t;
+    }
+    function wired(fn) {
+      var made = [];
+      window.AudioContext = function () { var c = new FakeCtx(); made.push(c); return c; };
+      Sound._reset();
+      var doc = target(), win = target(), calls = { n: 0 };
+      try {
+        memStorage(function () {
+          Sound.wireUnlock(function () { calls.n++; }, { doc: doc, win: win });
+          fn(doc, win, calls, made);
+        });
+      } finally { delete window.AudioContext; Sound._reset(); }
+    }
+    it('tries at once on page load (Chrome allows it after a click-through from the same site)', function () {
+      wired(function (doc, win, calls, made) {
+        expect(made.length).toBe(1);
+        expect(calls.n).toBe(1);
+      });
+    });
+    it('tries again on every gesture, in the capture phase', function () {
+      wired(function (doc, win, calls) {
+        ['pointerdown', 'touchend', 'click', 'keydown'].forEach(function (type) {
+          expect(doc.on[type].capture).toBe(true);
+          doc.on[type].fn({});
+        });
+        expect(calls.n).toBe(5);
+      });
+    });
+    it('tries again when the page comes back from the back/forward cache only', function () {
+      wired(function (doc, win, calls) {
+        win.on.pageshow.fn({ persisted: false });
+        expect(calls.n).toBe(1);
+        win.on.pageshow.fn({ persisted: true });
+        expect(calls.n).toBe(2);
+      });
+    });
+  });
 })(Ailand);
