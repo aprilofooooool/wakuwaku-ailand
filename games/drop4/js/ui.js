@@ -204,8 +204,8 @@
       controller.stop();
       Fx.stop();
       viewing = false;
-      Bgm.stop();
       gameScreen.hidden = true;
+      startBgm(); // the mode-select screen has the game's BGM too (normal tempo)
       settingsScreen.hidden = false;
       document.body.classList.remove('d4-playing');
       renderSettings();
@@ -226,8 +226,11 @@
 
     // Effects only while the game is on screen (a CPU move may still arrive after going back to settings).
     function sfx(name, opts2) { if (!gameScreen.hidden) { Sound.play(name, opts2); } }
+    // Settings screen: the BGM at normal tempo. Game screen: until game over, at the endgame tempo when fast.
     function startBgm() {
-      if (gameScreen.hidden || view.over || !bgmOn()) { return; }
+      if (!bgmOn()) { Bgm.stop(); return; }
+      if (gameScreen.hidden) { Bgm.start(G.Sounds.NORMAL); return; }
+      if (view.over) { return; }
       Bgm.start(G.Sounds.NORMAL);
       if (fast) { Bgm.setTempo(ENDGAME_BPM); }
     }

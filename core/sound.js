@@ -77,6 +77,19 @@
         }
       } catch (e) { /* audio unavailable: stay silent */ }
     },
+    // One wiring for every page: unlock at once (Chrome lets a page reached by a same-site click start
+    // audio without a new gesture), again on each gesture (iOS needs one and can re-suspend), and after a
+    // back/forward-cache restore. fn (e.g. a BGM sync) runs after each try. opts { doc, win } is for tests.
+    wireUnlock: function (fn, opts) {
+      var doc = (opts && opts.doc) || document;
+      var win = (opts && opts.win) || window;
+      function go() { C.Sound.unlock(); if (fn) { fn(); } }
+      ['pointerdown', 'touchend', 'click', 'keydown'].forEach(function (type) {
+        doc.addEventListener(type, go, true);
+      });
+      win.addEventListener('pageshow', function (e) { if (e && e.persisted) { go(); } });
+      go();
+    },
     setEnabled: function (on) {
       var changed = enabled !== !!on;
       enabled = !!on;

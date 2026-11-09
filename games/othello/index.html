@@ -60,11 +60,9 @@
   }
   if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', mountHeader); }
   else { mountHeader(); }
-  // BGM: core AudioContext unlocks on a user gesture (each one: iOS can re-suspend); the loop starts on the first.
+  // BGM: starts at once when the browser allows audio, else on the first gesture (core/sound.js wireUnlock).
   // Sound toggles reach BgmLink.sync through Ailand.core.Sound.onChange (main.js).
-  ['pointerdown', 'touchend', 'click'].forEach(function (type) {
-    document.addEventListener(type, function () { Ailand.core.Sound.unlock(); Ailand.games.othello.BgmLink.sync(); }, true);
-  });
+  Ailand.core.Sound.wireUnlock(function () { Ailand.games.othello.BgmLink.sync(); });
   window.addEventListener('pagehide', function () { Ailand.games.othello.BgmLink.stop(); });
 </script>
 </body>
