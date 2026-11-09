@@ -893,15 +893,20 @@
       var cell = e.target && e.target.closest ? e.target.closest('.cell') : null;
       return cell && board.contains(cell) ? cell : null;
     }
-    var pressed = null;
-    board.addEventListener('pointerdown', function (e) { pressed = cellOf(e); });
+    // Per finger (pointerId), so a second finger on the board never redirects the first one's tap.
+    var pressed = {};
+    var lifting = null;
+    board.addEventListener('pointerdown', function (e) { pressed[e.pointerId] = cellOf(e); });
+    board.addEventListener('pointerup', function (e) { lifting = e.pointerId; }); // runs before Pointer's onTap
     Ailand.core.Pointer.attach(board, {
       onTap: function () {
-        var cell = pressed;
-        pressed = null;
+        var cell = pressed[lifting];
         if (cell) { onCell(cell); }
       }
     });
+    function forget(e) { delete pressed[e.pointerId]; }
+    board.addEventListener('pointerup', forget); // after onTap
+    board.addEventListener('pointercancel', forget);
     board.addEventListener('click', function (e) {
       if (e.detail !== 0) { return; }
       var cell = cellOf(e);

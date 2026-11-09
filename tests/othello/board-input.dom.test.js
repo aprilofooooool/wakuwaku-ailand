@@ -14,9 +14,10 @@
     document.body.appendChild(board);
     return board;
   }
-  function pointer(el, type, x, y) {
-    el.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 1, pointerType: 'touch', clientX: x, clientY: y, isPrimary: true }));
+  function pointer(el, type, x, y, id) {
+    el.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: id || 1, pointerType: 'touch', clientX: x, clientY: y, isPrimary: !id || id === 1 }));
   }
+  function center(el) { var r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }
 
   describe('Othello board input (browser)', function () {
     it('cell tap places once', function () {
@@ -37,6 +38,21 @@
         pointer(cell, 'pointerdown', x, y);
         pointer(cell, 'pointerup', x + 30, y); // a drag is not a tap
         expect(got).toEqual(['3', '3']);
+      } finally { board.remove(); }
+    });
+    it('two fingers: each tap places on the cell that finger pressed', function () {
+      var board = makeBoard();
+      var got = [];
+      try {
+        O.UI._attachBoardInput(board, function (cell) { got.push(cell.dataset.index); });
+        var a = board.children[0], b = board.children[3];
+        var pa = center(a), pb = center(b);
+        pointer(a, 'pointerdown', pa[0], pa[1], 1);
+        pointer(b, 'pointerdown', pb[0], pb[1], 2); // a second finger lands before the first lifts
+        pointer(a, 'pointerup', pa[0], pa[1], 1);
+        expect(got).toEqual(['0']);
+        pointer(b, 'pointerup', pb[0], pb[1], 2);
+        expect(got).toEqual(['0', '3']);
       } finally { board.remove(); }
     });
   });
