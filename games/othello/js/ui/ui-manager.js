@@ -212,9 +212,7 @@
 
   // Flips the shared sound flag; every view repaints through Sound.onChange (see init).
   function toggleSound() {
-    var S = Ailand.core.Sound;
-    S.setEnabled(!S.isEnabled());
-    return S.isEnabled();
+    return Ailand.core.Sound.toggleFromTap();
   }
 
   function openModal(title, bodyNodes) {

@@ -16,6 +16,8 @@
   var registry = {};
   var enabled = readEnabled();
   var listeners = [];
+  var lockListeners = [];
+  var armed = null; // locked state when the current tap/key began; null = no gesture in progress
 
   function readEnabled() {
     var s = store.get('settings.v1', null);
@@ -52,6 +54,14 @@
 
   function playable() { return !!(enabled && ctx && ctx.state === 'running'); }
 
+  function hasAudio() { return typeof window !== 'undefined' && !!(window.AudioContext || window.webkitAudioContext); }
+  // Sound is wanted but the browser has not let it play yet (no tap so far, or iOS suspended it).
+  function isLocked() { return !!(enabled && hasAudio() && !(ctx && ctx.state === 'running')); }
+  function notifyLock() {
+    var v = isLocked();
+    lockListeners.slice().forEach(function (fn) { fn(v); });
+  }
+
   C.Sound = {
     note: note,
     seq: seq,
@@ -70,10 +80,12 @@
           bgmGain = ctx.createGain();
           bgmGain.connect(master);
           applyVolumes();
+          ctx.onstatechange = notifyLock;
+          notifyLock(); // a context the browser allowed is running from the start (no statechange)
         }
         if (ctx.state !== 'running') {
           var p = ctx.resume();
-          if (p && p.catch) { p.catch(function () {}); }
+          if (p && p.then) { p.then(notifyLock, function () {}); }
         }
       } catch (e) { /* audio unavailable: stay silent */ }
     },
@@ -83,7 +95,15 @@
     wireUnlock: function (fn, opts) {
       var doc = (opts && opts.doc) || document;
       var win = (opts && opts.win) || window;
-      function go() { C.Sound.unlock(); if (fn) { fn(); } }
+      function go(e) {
+        var type = e && e.type;
+        // Remember whether audio was locked when this gesture began: resume() may finish before the click.
+        if (type === 'pointerdown' || type === 'keydown') { armed = isLocked(); }
+        else if (type === 'click' && armed === null) { armed = isLocked(); }
+        C.Sound.unlock();
+        if (fn) { fn(); }
+        if (type === 'click') { setTimeout(function () { armed = null; }, 0); }
+      }
       ['pointerdown', 'touchend', 'click', 'keydown'].forEach(function (type) {
         doc.addEventListener(type, go, true);
       });
@@ -110,6 +130,23 @@
       };
     },
     isEnabled: function () { return enabled; },
+    isLocked: isLocked,
+    // fn(locked) after the browser lets audio play (or suspends it again). Returns off().
+    onLockChange: function (fn) {
+      lockListeners.push(fn);
+      return function off() {
+        var i = lockListeners.indexOf(fn);
+        if (i !== -1) { lockListeners.splice(i, 1); }
+      };
+    },
+    // For every おと button. The tap that only lets the browser play keeps sound ON; later taps flip it.
+    toggleFromTap: function () {
+      var locked = armed !== null ? armed : isLocked();
+      if (enabled && locked) { C.Sound.unlock(); return true; }
+      C.Sound.setEnabled(!enabled);
+      return enabled;
+    },
+    _notifyLock: notifyLock,
     // BGM ON/OFF lives next to `sound` in ailand:core:settings.v1 (default ON). Shared by every page.
     isBgmOn: function () {
       var s = store.get('settings.v1', null);
@@ -144,7 +181,7 @@
     context: function () { return playable() ? ctx : null; },
     // Test hook: forget the AudioContext so a fake one can be created by unlock().
     _reset: function () {
-      ctx = null; enabled = true; listeners = []; master = null; seGain = null; bgmGain = null;
+      ctx = null; enabled = true; listeners = []; lockListeners = []; armed = null; master = null; seGain = null; bgmGain = null;
       volumes = { se: SE_VOLUME, bgm: BGM_VOLUME };
     }
   };

@@ -38,6 +38,7 @@
 <script src="core/storage.js"></script>
 <script src="core/games.js"></script>
 <script src="core/sound.js"></script>
+<script src="core/ui-common.js"></script>
 <script src="core/bgm.js"></script>
 <script src="js/top-bgm.js"></script>
 <script>
@@ -138,12 +139,13 @@
   // Starts at once when the browser allows audio, else on the first gesture (core/sound.js wireUnlock).
   Sound.wireUnlock(syncBgm);
   soundBtn.addEventListener('click', function () {
-    Sound.setEnabled(!Sound.isEnabled());
+    Sound.toggleFromTap();
     paintSound();
     syncBgm();
   });
   window.addEventListener('pagehide', function () { Bgm.stop(); playing = false; });
   paintSound();
+  Ailand.core.UI.soundHint(soundBtn);
 })();
 </script>
 </body>

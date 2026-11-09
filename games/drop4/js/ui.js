@@ -93,7 +93,7 @@
       title: 'ぽとん4',
       soundOn: Sound.isEnabled(),
       onBack: function () { Bgm.stop(); location.href = C.CharacterView.basePath() + 'index.html'; },
-      onSound: function () { Sound.setEnabled(!Sound.isEnabled()); return Sound.isEnabled(); },
+      onSound: function () { return Sound.toggleFromTap(); },
       onSettings: openMenu
     }), document.body.firstChild);
 

@@ -18,6 +18,20 @@
     return b;
   }
 
+  // A small bubble under an おと button while the browser still blocks audio (until the first tap).
+  // It sits inside the button, so tapping the bubble is tapping the button.
+  function soundHint(btn) {
+    var S = C.Sound;
+    if (!S || !S.isLocked) { return; }
+    var tip = el('span', 'hdr-hint', 'タップで おとが でるよ');
+    tip.setAttribute('aria-hidden', 'true');
+    btn.appendChild(tip);
+    function paint() { tip.hidden = !S.isLocked(); }
+    S.onChange(paint);
+    S.onLockChange(paint);
+    paint();
+  }
+
   // opts: { title, onBack, onSound, onSettings, soundOn }. onSound may return the new on/off state.
   function header(opts) {
     var o = opts || {};
@@ -34,6 +48,7 @@
       sound.setAttribute('aria-label', on ? 'おと：ON' : 'おと：OFF');
     }
     paintSound();
+    soundHint(sound);
     // Follow sound changes made anywhere else on the page (in-game buttons etc.).
     if (C.Sound && C.Sound.onChange) { C.Sound.onChange(function (v) { on = v; paintSound(); }); }
 
@@ -93,5 +108,5 @@
     return t;
   }
 
-  C.UI = { header: header, modal: modal, toast: toast };
+  C.UI = { header: header, modal: modal, toast: toast, soundHint: soundHint };
 })(Ailand.core);

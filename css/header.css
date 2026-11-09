@@ -38,6 +38,36 @@
 .hdr-btn:focus-visible { outline: 4px solid var(--accent-blue); outline-offset: 2px; }
 .hdr-ico { font-size: 1.5rem; font-weight: 900; }
 .hdr-label { font-size: 0.7rem; font-weight: 800; }
+.hdr-sound { position: relative; }
+/* Tap hint under the おと button while the browser blocks audio (core/ui-common.js soundHint). */
+.hdr-hint {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 61;
+  padding: 6px 10px;
+  white-space: nowrap;
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--ink);
+  background: var(--surface);
+  border: var(--border-w) solid var(--outline);
+  border-radius: var(--radius-m);
+  box-shadow: var(--shadow-s);
+  animation: hdr-hint-bob 1.2s ease-in-out infinite;
+}
+.hdr-hint[hidden] { display: none; }
+.hdr-hint::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  right: 24px;
+  border: 8px solid transparent;
+  border-top: 0;
+  border-bottom-color: var(--outline);
+}
+@keyframes hdr-hint-bob { 50% { transform: translateY(3px); } }
+@media (prefers-reduced-motion: reduce) { .hdr-hint { animation: none; } }
 
 /* Push page content below the fixed header. */
 body.has-header { padding-top: calc(var(--header-h) + env(safe-area-inset-top)); }
