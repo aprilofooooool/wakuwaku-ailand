@@ -249,7 +249,9 @@
 
     it('past the deadline: timedOut true, a legal move from a completed depth, no throw', function () {
       var s = E.createInitialState(std());
-      var r = AI.searchSync(s, { depth: 6, deadline: performance.now() });
+      // Strictly in the past: a coarse browser clock can return the same value again, and the
+      // engine only stops when now() > deadline.
+      var r = AI.searchSync(s, { depth: 6, deadline: performance.now() - 1 });
       expect(r.timedOut).toBe(true);
       expect(r.depth).toBeLessThanOrEqual(1);
       expect(E.legalMoves(s)).toContain(r.move);

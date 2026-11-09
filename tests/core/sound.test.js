@@ -62,18 +62,27 @@
 
   describe('core/Sound without AudioContext (Node)', function () {
     it('every API is a safe no-op', function () {
-      Sound._reset();
-      Sound.unlock();
-      Sound.register('x', function () { throw new Error('should not run'); });
-      Sound.play('x');
-      Sound.play('nothing');
-      Sound.setVolumes({ se: 0.5, bgm: 0.2 });
-      expect(Sound.bgmDest()).toBe(null);
-      Bgm.start({ bpm: 120, wave: 'triangle', bass: [], steps: [[440, 1]] });
-      Bgm.setTempo(150);
-      Bgm._tick();
-      Bgm.stop();
-      expect(true).toBe(true);
+      // A browser has a real AudioContext: hide it here so the Node path is tested there too.
+      var saved = { AudioContext: window.AudioContext, webkitAudioContext: window.webkitAudioContext };
+      delete window.AudioContext;
+      delete window.webkitAudioContext;
+      try {
+        Sound._reset();
+        Sound.unlock();
+        Sound.register('x', function () { throw new Error('should not run'); });
+        Sound.play('x');
+        Sound.play('nothing');
+        Sound.setVolumes({ se: 0.5, bgm: 0.2 });
+        expect(Sound.bgmDest()).toBe(null);
+        Bgm.start({ bpm: 120, wave: 'triangle', bass: [], steps: [[440, 1]] });
+        Bgm.setTempo(150);
+        Bgm._tick();
+        Bgm.stop();
+      } finally {
+        Sound._reset();
+        if (saved.AudioContext) { window.AudioContext = saved.AudioContext; }
+        if (saved.webkitAudioContext) { window.webkitAudioContext = saved.webkitAudioContext; }
+      }
     });
     it('setEnabled / isEnabled round-trip, merging into settings.v1', function () {
       memStorage(function () {
