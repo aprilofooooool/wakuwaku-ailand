@@ -77,6 +77,9 @@
 | excited | joy | キラキラ多め | `excited.png` |
 | sleep | normal | Zzz | `sleep.png` |
 | angry-steam | anger | 湯気 | （予約） |
+| smug | joy | 😏（にやり） | `smug.png`（2026-11-11 キャラたたきで追加） |
+| cheer | joy | 🙌（ばんざい） | `cheer.png`（同上） |
+| love | joy | 💕（ハート） | `love.png`（同上） |
 
 - 論理表情名は英小文字（必要ならハイフン）で、追加画像のファイル名にそのまま使う。
 - 画像を追加したら、表情読み替え表のコード（`core/emotion-map.js`）の読み替え先を書き換えるだけで、その画像が使われる。

@@ -46,6 +46,8 @@
     });
     it('glyph knows smirk, note and heart', function () {
       expect(F.glyph('smirk')).toBe('😏');
+      expect(F.glyph('cheer')).toBe('🙌');
+      expect(F.glyph('love')).toBe('💕');
       expect(F.glyph('note')).toBe('🎵');
       expect(F.glyph('heart')).toBe('💖');
     });

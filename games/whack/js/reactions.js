@@ -1,8 +1,11 @@
 (function (G) {
   'use strict';
 
-  var EMOTIONS = ['joy', 'excited', 'surprised'];
+  // Happy faces only (surprised maps to the panic image, so it is not used).
+  var EMOTIONS = ['joy', 'excited', 'cheer', 'love'];
   var DECOS = ['note', 'heart', 'sparkle'];
+  // These carry their own mark from core/emotion-map.js until their images are added; no extra deco.
+  var OWN_MARK = { cheer: true, love: true };
 
   function pick(list, rng) {
     var i = Math.floor(rng() * list.length);
@@ -24,7 +27,7 @@
       var emotion = pick(pool, rng);
       h.push(emotion);
       if (h.length > 2) { h.shift(); }
-      return { emotion: emotion, deco: pick(DECOS, rng) };
+      return { emotion: emotion, deco: OWN_MARK[emotion] ? null : pick(DECOS, rng) };
     }
 
     return { forHit: forHit };

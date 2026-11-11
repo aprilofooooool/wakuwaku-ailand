@@ -10,6 +10,8 @@
       expect(E.resolve('sleep')).toEqual({ image: 'normal', mark: 'zzz' });
       expect(E.resolve('angry-steam')).toEqual({ image: 'anger', mark: 'steam' });
       expect(E.resolve('smug')).toEqual({ image: 'joy', mark: 'smirk' });
+      expect(E.resolve('cheer')).toEqual({ image: 'joy', mark: 'cheer' });
+      expect(E.resolve('love')).toEqual({ image: 'joy', mark: 'love' });
     });
     it('basic expressions map to themselves without a mark', function () {
       ['normal', 'joy', 'anger', 'sadness', 'panic', 'thinking'].forEach(function (n) {
@@ -21,8 +23,8 @@
       expect(E.resolve(undefined)).toEqual({ image: 'normal', mark: null });
       expect(E.resolve('toString')).toEqual({ image: 'normal', mark: null });
     });
-    it('LOGICAL lists all 12 names', function () {
-      expect(E.LOGICAL.length).toBe(12);
+    it('LOGICAL lists all 14 names', function () {
+      expect(E.LOGICAL.length).toBe(14);
       E.LOGICAL.forEach(function (n) { expect(/^[a-z]+(-[a-z]+)*$/.test(n)).toBe(true); });
     });
   });
