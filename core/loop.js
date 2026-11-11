@@ -18,6 +18,7 @@
     var acc = 0;
 
     function frame() {
+      rafId = null;
       if (!running) { return; }
       var t = now();
       acc += t - last;
@@ -25,7 +26,7 @@
       var n = Math.floor(acc / STEP_MS);
       if (n > MAX_STEPS) { n = MAX_STEPS; acc = 0; } else { acc -= n * STEP_MS; }
       for (var i = 0; i < n && running; i++) { o.onStep(STEP_MS); }
-      if (running) { rafId = raf(frame); }
+      if (running && rafId === null) { rafId = raf(frame); }
     }
 
     function start() {

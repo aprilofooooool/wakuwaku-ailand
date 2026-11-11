@@ -57,6 +57,20 @@
       f.frame(5017);
       expect(f.steps.length).toBe(1);
     });
+    it('stop then start inside onStep keeps a single pending raf', function () {
+      var f = setup();
+      var again = true;
+      f.loop = Loop.create({
+        onStep: function () { if (again) { again = false; f.loop.stop(); f.loop.start(); } },
+        raf: function (cb) { var id = f.nextId++; f.queue.push({ id: id, cb: cb }); return id; },
+        caf: function (id) { f.queue = f.queue.filter(function (q) { return q.id !== id; }); },
+        now: function () { return f.t; },
+        doc: f.doc
+      });
+      f.loop.start();
+      f.frame(17);
+      expect(f.queue.length).toBe(1);
+    });
     it('hidden document stops and calls onPause', function () {
       var f = setup();
       f.loop.start();
