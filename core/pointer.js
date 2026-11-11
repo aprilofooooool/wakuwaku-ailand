@@ -16,7 +16,8 @@
 
   function point(e) { return { pointerId: e.pointerId, x: e.clientX, y: e.clientY, t: e.timeStamp }; }
 
-  // handlers: { onHover(x, y, type), onTap(x, y, type), onLeave() }. x/y are client coordinates. Returns detach().
+  // handlers: { onPress(x, y, type, pointerId), onHover(x, y, type), onTap(x, y, type), onLeave() }.
+  // onPress fires on pointerdown (mouse: primary button only). x/y are client coordinates. Returns detach().
   function attach(el, handlers) {
     var h = handlers || {};
     var downs = {};
@@ -27,6 +28,7 @@
       pointerdown: function (e) {
         if (e.pointerType === 'mouse' && e.button !== 0) { return; }
         downs[e.pointerId] = point(e);
+        if (h.onPress) { h.onPress(e.clientX, e.clientY, e.pointerType, e.pointerId); }
       },
       pointerup: function (e) {
         var down = downs[e.pointerId];
