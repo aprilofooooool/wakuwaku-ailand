@@ -53,7 +53,22 @@
         Array.prototype.forEach.call(s.querySelectorAll('button'), function (b) {
           var r = b.getBoundingClientRect();
           expect(r.width >= 64 && r.height >= 64).toBe(true);
+          // The settings screen is taller than a phone: a drag on a button must still scroll it.
+          expect(getComputedStyle(b).touchAction).toBe('manipulation');
         });
+      } finally { t.done(); }
+    });
+
+    it('solo result with no record yet says so instead of ★0', function () {
+      var t = make();
+      try {
+        buttonByText(t.box, 'はじめる').click();
+        var ms = 0;
+        while (ms < 60000 && t.controller.phase() !== 'result') { t.controller.advance(STEP); ms += STEP; }
+        var best = t.box.querySelector('.wk-result .wk-best');
+        expect(best.textContent).toBe('まだ きろくは ないよ');
+        var area = t.box.querySelector('.wk-area');
+        expect(getComputedStyle(area).touchAction).toBe('none');
       } finally { t.done(); }
     });
 

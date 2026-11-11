@@ -36,6 +36,8 @@
     C.CharacterView.apply(img, profile, emotion);
   }
   function profileOf(id) { return C.Characters.get(id); }
+  // Best score line, same on the settings and result screens (0 = no record yet).
+  function bestText(best) { return best > 0 ? 'さいこうきろく ★' + best + 'てん' : 'まだ きろくは ないよ'; }
 
   function defaultEnv() {
     return {
@@ -118,8 +120,7 @@
       var p3 = panel('むずかしさ');
       choices(p3, LEVELS, function (id) { return id === draft.difficulty; }, function (id) { draft.difficulty = id; });
       if (draft.players === 1) {
-        var best = controller.bestOf(draft.difficulty);
-        p3.appendChild(el('p', 'wk-best', best > 0 ? 'さいこうきろく ★' + best + 'てん' : 'まだ きろくは ないよ'));
+        p3.appendChild(el('p', 'wk-best', bestText(controller.bestOf(draft.difficulty))));
       }
 
       var p4 = el('section', 'wk-panel wk-startpanel');
@@ -414,7 +415,7 @@
         h.appendChild(el('p', 'wk-line', line(me.id, r.newRecord ? 'record' : 'end')));
         nodes.push(h);
         nodes.push(el('p', 'wk-result-score', '★' + r.scores[0] + 'てん'));
-        if (!r.newRecord) { nodes.push(el('p', 'wk-best', 'さいこうきろく ★' + r.best + 'てん')); }
+        if (!r.newRecord) { nodes.push(el('p', 'wk-best', bestText(r.best))); }
         if (r.newRecord) { sound = 'whack-record'; }
       } else {
         var title = r.draw ? 'いいしょうぶ！' : profileOf(chars[r.winner]).name + ' の かち！';
