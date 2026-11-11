@@ -6,7 +6,7 @@
 
   // ---- schedule ----
 
-  // Builds the deterministic spawn table for one round. Rng call order is fixed: hole, kind, ngPick.
+  // Builds the deterministic spawn table for one round. Rng call order is fixed: hole, kind, ngPick per spawn, then one pick per rare.
   function buildSchedule(difficulty, seed) {
     var cfg = K.DIFFICULTY[difficulty];
     var rng = Ailand.core.Rng.mulberry32(seed);
@@ -25,12 +25,7 @@
       for (h = 0; h < K.HOLES; h++) { if (freeAt[h] <= t) { free.push(h); } }
       if (busy.length < max && free.length > 0) {
         var hole = free[Math.floor(rng() * free.length)];
-        var r = rng();
-        var rareOk = !busy.some(function (s) { return s.kind === 'rare'; }) &&
-          !out.some(function (s) { return s.kind === 'rare' && t - s.at < K.RARE_GAP_MS; });
-        var kind = 'self';
-        if (r < cfg.rareRate && rareOk) { kind = 'rare'; }
-        else if (r >= cfg.rareRate && r < cfg.rareRate + cfg.ngRate) { kind = 'ng'; }
+        var kind = rng() < cfg.ngRate ? 'ng' : 'self';
         var ngPick = rng();
         var busyUntil = t + upMs + K.REACT_MS;
         out.push({ at: t, hole: hole, kind: kind, ngPick: ngPick, upMs: upMs, busyUntil: busyUntil });
@@ -38,7 +33,28 @@
       }
       t += Math.round(interval);
     }
+    placeRares(out, cfg.rareCount, rng);
     return out;
+  }
+
+  // Turns exactly `count` self spawns into rares: one per equal time window, picked by rng, never
+  // overlapping the previous rare and at least RARE_GAP_MS after it. If a window has no candidate,
+  // the earliest valid self spawn after it is used, so the count stays fixed.
+  function placeRares(out, count, rng) {
+    var span = K.DURATION_MS / count;
+    var last = null;
+    function ok(s) {
+      return s.kind === 'self' && (!last || (s.at >= last.busyUntil && s.at - last.at >= K.RARE_GAP_MS));
+    }
+    for (var i = 0; i < count; i++) {
+      var lo = i * span, hi = (i + 1) * span;
+      var cands = out.filter(function (s) { return ok(s) && s.at >= lo && s.at < hi; });
+      var pick = cands.length > 0 ? cands[Math.floor(rng() * cands.length)] :
+        out.filter(function (s) { return ok(s) && s.at >= hi; })[0];
+      if (!pick) { return; }
+      pick.kind = 'rare';
+      last = pick;
+    }
   }
 
   // Character ids other than selfId, in Characters.list() order.

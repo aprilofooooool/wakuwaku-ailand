@@ -51,19 +51,27 @@
         last[s.hole] = s.busyUntil;
       });
     });
-    it('rare is single and spaced', function () {
-      var found = false, seed;
-      for (seed = 1; seed <= 20; seed++) {
-        var rares = E.buildSchedule('normal', seed).filter(function (s) { return s.kind === 'rare'; });
-        if (rares.length > 0) { found = true; }
-        rares.forEach(function (r, i) {
-          if (i > 0) {
-            expect(r.at - rares[i - 1].at >= 6000).toBe(true);
-            expect(r.at >= rares[i - 1].busyUntil).toBe(true);
-          }
-        });
-      }
-      expect(found).toBe(true);
+    it('rare appears a fixed number of times, single and spaced', function () {
+      var want = { easy: 2, normal: 3, hard: 5 };
+      Object.keys(want).forEach(function (d) {
+        for (var seed = 1; seed <= 100; seed++) {
+          var rares = E.buildSchedule(d, seed).filter(function (s) { return s.kind === 'rare'; });
+          expect(rares.length).toBe(want[d]);
+          rares.forEach(function (r, i) {
+            if (i > 0) {
+              expect(r.at - rares[i - 1].at >= 2000).toBe(true);
+              expect(r.at >= rares[i - 1].busyUntil).toBe(true);
+            }
+          });
+        }
+      });
+    });
+    it('rares are spread one per equal window', function () {
+      var rares = E.buildSchedule('hard', 5).filter(function (s) { return s.kind === 'rare'; });
+      rares.forEach(function (r, i) {
+        expect(r.at >= i * 10000).toBe(true);
+        expect(r.at < (i + 1) * 10000).toBe(true);
+      });
     });
     it('ng share is near the rate', function () {
       var ng = 0, all = 0, seed;

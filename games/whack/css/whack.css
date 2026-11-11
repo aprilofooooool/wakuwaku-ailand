@@ -74,12 +74,11 @@ body.wk-playing { overflow: hidden; }
 .wk-well { position: absolute; left: 0; right: 0; top: 0; bottom: 18%; overflow: hidden; }
 .wk-pop { position: absolute; left: 12%; right: 12%; top: 4%; bottom: 0; transform: translateY(105%); transition: transform 160ms ease-out; }
 .wk-hole.is-up .wk-pop { transform: translateY(0); }
-.wk-charbox { width: 100%; height: 100%; box-sizing: border-box; border-radius: 50% 50% 16% 16%; background: var(--surface); border: 3px solid var(--outline); overflow: hidden; }
-.wk-charbox .css-disc { border-radius: 50% 50% 16% 16%; }
+.wk-charbox { width: 100%; height: 100%; box-sizing: border-box; background: transparent; }  /* no frame: the transparent PNG shows on the grass */
 .wk-mark { position: absolute; top: 0; right: 0; font-size: calc(var(--hole, 96px) * 0.26); line-height: 1; }
 
-/* Rare card: gold / rainbow frame that glows (static in reduced motion). */
-.wk-hole.is-rare .wk-charbox { border-color: var(--fx-gold); border-width: 4px; background: linear-gradient(135deg, var(--wk-rare-a), var(--wk-rare-b), var(--wk-rare-c), var(--wk-rare-a)); box-shadow: 0 0 10px 3px var(--fx-gold-light); }
+/* Rare card: gold / rainbow glow along the character's outline (static in reduced motion). */
+.wk-hole.is-rare .wk-charbox { filter: drop-shadow(0 0 3px var(--fx-gold)) drop-shadow(0 0 6px var(--wk-rare-b)) drop-shadow(0 0 4px var(--wk-rare-c)); }
 .wk-hole.is-rare.is-up .wk-pop { animation: wk-glow 700ms ease-in-out infinite alternate; }
 @keyframes wk-glow { from { filter: drop-shadow(0 0 2px var(--fx-gold)); } to { filter: drop-shadow(0 0 10px var(--fx-gold)); } }
 
