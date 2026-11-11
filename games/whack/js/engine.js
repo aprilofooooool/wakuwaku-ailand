@@ -46,5 +46,59 @@
     return Ailand.core.Characters.list().map(function (c) { return c.id; }).filter(function (id) { return id !== selfId; });
   }
 
-  G.Engine = { buildSchedule: buildSchedule, ngIdsFor: ngIdsFor };
+  // ---- side state ----
+
+  function createSide(opts) {
+    return { schedule: opts.schedule, selfId: opts.selfId, ngIds: opts.ngIds,
+      score: 0, counts: { self: 0, rare: 0, ng: 0 }, active: {}, next: 0, ended: false };
+  }
+
+  function charIdFor(side, sp) {
+    if (sp.kind === 'ng') { return side.ngIds[Math.floor(sp.ngPick * side.ngIds.length)]; }
+    return side.selfId;
+  }
+
+  // Advances to nowMs. Event order: hides (hole order), shows (schedule order), then a single trailing 'end'.
+  function step(side, nowMs) {
+    var events = [], h, a;
+    if (side.ended) { return events; }
+    var over = nowMs >= K.DURATION_MS;
+    for (h = 0; h < K.HOLES; h++) {
+      a = side.active[h];
+      if (!a) { continue; }
+      if (over) {
+        events.push({ type: 'hide', hole: h, missed: false });
+        delete side.active[h];
+      } else if (a.hitAt !== null) {
+        if (nowMs >= a.hitAt + K.REACT_MS) { events.push({ type: 'hide', hole: h, missed: false }); delete side.active[h]; }
+      } else if (nowMs >= a.spawn.at + a.spawn.upMs) {
+        events.push({ type: 'hide', hole: h, missed: true });
+        delete side.active[h];
+      }
+    }
+    if (over) {
+      side.ended = true;
+      events.push({ type: 'end', score: side.score });
+      return events;
+    }
+    while (side.next < side.schedule.length && side.schedule[side.next].at <= nowMs) {
+      var sp = side.schedule[side.next++];
+      var charId = charIdFor(side, sp);
+      side.active[sp.hole] = { spawn: sp, charId: charId, hitAt: null };
+      events.push({ type: 'show', hole: sp.hole, kind: sp.kind, charId: charId, upMs: sp.upMs });
+    }
+    return events;
+  }
+
+  function press(side, hole, nowMs) {
+    var a = side.active[hole];
+    if (side.ended || !a || a.hitAt !== null || nowMs >= a.spawn.at + a.spawn.upMs) { return null; }
+    var kind = a.spawn.kind, points = K.POINTS[kind];
+    a.hitAt = nowMs;
+    side.score = Math.max(0, side.score + points);
+    side.counts[kind]++;
+    return { type: 'hit', hole: hole, kind: kind, charId: a.charId, points: points, score: side.score };
+  }
+
+  G.Engine = { buildSchedule: buildSchedule, ngIdsFor: ngIdsFor, createSide: createSide, step: step, press: press };
 })(Ailand.games.whack);
