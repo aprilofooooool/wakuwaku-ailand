@@ -2,7 +2,7 @@
   'use strict';
 
   // Requirements 1.5. When an image is added, rewrite the `image` of its row only.
-  // mark: null | 'sweat' | 'bang' | 'sparkle' | 'zzz' | 'steam'
+  // mark: null | 'sweat' | 'bang' | 'sparkle' | 'zzz' | 'steam' | 'smirk'
   var TABLE = {
     'normal': { image: 'normal', mark: null },
     'joy': { image: 'joy', mark: null },
@@ -14,7 +14,8 @@
     'surprised': { image: 'panic', mark: 'bang' },
     'excited': { image: 'joy', mark: 'sparkle' },
     'sleep': { image: 'normal', mark: 'zzz' },
-    'angry-steam': { image: 'anger', mark: 'steam' }
+    'angry-steam': { image: 'anger', mark: 'steam' },
+    'smug': { image: 'joy', mark: 'smirk' }
   };
 
   function resolve(logical) {

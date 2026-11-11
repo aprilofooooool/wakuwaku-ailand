@@ -6,7 +6,7 @@
 
   var MAX_PARTICLES = 40;                       // total .fx-p on one layer
   var WISH = { confetti: 40, sparkle: 12 };
-  var GLYPH = { sweat: '💦', bang: '❗', sparkle: '✨', zzz: '💤', steam: '💢', shield: '🛡️' };
+  var GLYPH = { sweat: '💦', bang: '❗', sparkle: '✨', zzz: '💤', steam: '💢', shield: '🛡️', smirk: '😏', note: '🎵', heart: '💖' };
   var PARTICLE_MS = 1700;
   var RING_MS = 900;
   var SHAKE_MS = 500;
