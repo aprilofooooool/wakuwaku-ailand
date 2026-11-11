@@ -44,6 +44,13 @@
         expect(F.glyph(k).length > 0).toBe(true);
       });
     });
+    it('glyph knows smirk, note and heart', function () {
+      expect(F.glyph('smirk')).toBe('😏');
+      expect(F.glyph('cheer')).toBe('🙌');
+      expect(F.glyph('love')).toBe('💕');
+      expect(F.glyph('note')).toBe('🎵');
+      expect(F.glyph('heart')).toBe('💖');
+    });
     it('unknown or null gives an empty string', function () {
       expect(F.glyph(null)).toBe('');
       expect(F.glyph('x')).toBe('');

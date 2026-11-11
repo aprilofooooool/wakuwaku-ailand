@@ -1,0 +1,142 @@
+/* whack (キャラたたき). Grass-green page, white panels with the navy outline (design 3.1).
+   The hole size comes from Layout.holeSize via --hole / --gap on each .wk-area. */
+:root {
+  --page-bg: #eafbe0;
+  --page-dot: #cdeebb;
+  --wk-grass: #bfe8a0;
+  --wk-dirt: #8a6a4a;
+  --wk-dirt-dark: #5e452f;
+  --wk-time: #36c486;
+  --wk-time-final: #ff5c9a;
+  --wk-plus: #1f8a45;
+  --wk-minus: #d0262f;
+  --wk-on-bg: #e3f7d6;
+  --wk-rare-a: #fff1a8;
+  --wk-rare-b: #ffd1f0;
+  --wk-rare-c: #c9f0ff;
+}
+
+/* Play area and buttons: no scroll, zoom, text selection or long-press menu (design 4). */
+.wk-area, .wk-settings-screen button, .wk-game button, #modal-root button {
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+/* The settings screen is taller than a phone and mostly buttons: a drag on them must still scroll (as drop4). */
+.wk-settings-screen button { touch-action: manipulation; }
+.wk-overlay[hidden] { display: none !important; }
+
+/* ---------- settings screen ---------- */
+.wk-settings-screen { max-width: var(--content-max); margin: 0 auto; padding: 12px 16px calc(32px + env(safe-area-inset-bottom)); }
+.wk-panel { background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-l); box-shadow: var(--shadow-m); padding: 14px 16px 16px; margin: 0 0 18px; }
+.wk-panel h2 { margin: 0 0 10px; font-size: 1.2rem; font-weight: 900; }
+.wk-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.wk-choice { font: inherit; font-size: 18px; font-weight: 800; color: var(--ink); min-width: 64px; min-height: 64px; padding: 6px 16px; background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-round); box-shadow: var(--shadow-s); cursor: pointer; }
+.wk-choice[aria-pressed="true"] { background: var(--accent-yellow); }
+.wk-choice:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--outline); }
+.wk-choice:focus-visible, .wk-charbtn:focus-visible { outline: 4px solid var(--accent-blue); outline-offset: 2px; }
+.wk-modehint, .wk-best { margin: 10px 0 0; font-size: 18px; font-weight: 800; }
+.wk-best { font-size: 18px; color: var(--ink); opacity: 0.8; }
+.wk-seatrow { padding: 10px 0; border-top: 2px dashed var(--page-dot); }
+.wk-seatrow:first-of-type { border-top: 0; padding-top: 0; }
+.wk-seatlabel { font-weight: 900; font-size: 18px; margin-bottom: 8px; }
+.wk-charlist { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.wk-charbtn { font: inherit; color: var(--ink); min-width: 64px; min-height: 72px; padding: 4px 2px; display: flex; align-items: center; justify-content: center; background: var(--surface); border: var(--border-w) solid var(--disabled-bg); border-radius: var(--radius-m); cursor: pointer; }
+.wk-charbtn[aria-pressed="true"] { border-color: var(--outline); background: var(--wk-on-bg); box-shadow: var(--shadow-s); }
+.wk-charface { display: block; width: 56px; height: 56px; }
+.wk-startpanel { display: flex; justify-content: center; }
+.wk-start, .wk-card .btn, .wk-menu .btn { min-width: 64px; min-height: 64px; }
+
+/* ---------- game screen ---------- */
+body.wk-playing { overflow: hidden; }
+.wk-game-screen { position: relative; overflow: hidden; height: 100%; }
+.wk-game { position: relative; height: 100%; box-sizing: border-box; display: flex; flex-direction: column; padding: 6px 12px calc(6px + env(safe-area-inset-bottom)); }
+.wk-top { flex: none; display: flex; align-items: center; gap: 10px; height: 40px; }
+.wk-timebar { flex: 1; height: 20px; background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-round); overflow: hidden; }
+.wk-timefill { height: 100%; background: var(--wk-time); transform-origin: left center; }
+.wk-top.is-final .wk-timefill { background: var(--wk-time-final); }
+.wk-secs { flex: none; min-width: 4.6em; font-size: 20px; font-weight: 900; text-align: right; }
+
+.wk-fields { flex: 1; min-height: 0; display: flex; }
+.wk-field { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; }
+/* Together: a clear line between the two players' sides (design 3.3). */
+.wk-fields.is-split .wk-field + .wk-field { border-left: 5px dashed var(--outline); }
+.wk-head { flex: none; height: 64px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.wk-facewrap { position: relative; flex: none; }
+.wk-face { width: 52px; height: 52px; border-radius: 50%; background: var(--surface); border: var(--border-w) solid var(--outline); overflow: hidden; }
+.wk-name { font-size: 18px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wk-score { min-width: 2.8em; font-size: 28px; font-weight: 900; }
+
+/* The 3x3 sits in the middle of its free area both ways (design 3.1). */
+.wk-area { position: relative; flex: 1; min-height: 0; cursor: pointer; }
+.wk-grid { position: absolute; inset: 0; display: grid; place-content: center; grid-template-columns: repeat(3, var(--hole, 96px)); grid-auto-rows: var(--hole, 96px); gap: var(--gap, 12px); }
+.wk-hole { position: relative; width: var(--hole, 96px); height: var(--hole, 96px); }
+.wk-hole::before { content: ""; position: absolute; left: 3%; right: 3%; bottom: 2%; height: 32%; background: radial-gradient(ellipse at 50% 40%, var(--wk-dirt-dark) 0 55%, var(--wk-dirt) 56%); border: 3px solid var(--outline); border-radius: 50%; box-sizing: border-box; }
+/* The character rises out of the hole: the well clips it at the hole's middle line. */
+.wk-well { position: absolute; left: 0; right: 0; top: 0; bottom: 18%; overflow: hidden; }
+.wk-pop { position: absolute; left: 12%; right: 12%; top: 4%; bottom: 0; transform: translateY(105%); transition: transform 160ms ease-out; }
+.wk-hole.is-up .wk-pop { transform: translateY(0); }
+.wk-charbox { width: 100%; height: 100%; box-sizing: border-box; background: transparent; }  /* no frame: the transparent PNG shows on the grass */
+.wk-mark { position: absolute; top: 0; right: 0; font-size: calc(var(--hole, 96px) * 0.26); line-height: 1; }
+
+/* Rare card: gold / rainbow glow along the character's outline (static in reduced motion). */
+.wk-hole.is-rare .wk-charbox { filter: drop-shadow(0 0 3px var(--fx-gold)) drop-shadow(0 0 6px var(--wk-rare-b)) drop-shadow(0 0 4px var(--wk-rare-c)); }
+.wk-hole.is-rare.is-up .wk-pop { animation: wk-glow 700ms ease-in-out infinite alternate; }
+@keyframes wk-glow { from { filter: drop-shadow(0 0 2px var(--fx-gold)); } to { filter: drop-shadow(0 0 10px var(--fx-gold)); } }
+
+/* Hit reactions stay inside the hole (design 5.3). */
+.wk-hole.is-hit .wk-pop { animation: wk-hop 360ms ease-out both; }
+.wk-hole.is-hit[data-kind="rare"] .wk-pop { animation: wk-bounce 600ms ease-out both; }
+.wk-hole.is-hit[data-kind="ng"] .wk-pop { animation: wk-tilt 500ms ease-in-out both; }
+@keyframes wk-hop { 0% { transform: translateY(0); } 40% { transform: translateY(-10%) scale(1.05); } 100% { transform: translateY(0); } }
+@keyframes wk-bounce { 0%, 100% { transform: translateY(0) scale(1); } 25% { transform: translateY(-16%) scale(1.1); } 55% { transform: translateY(0) scale(0.96); } 75% { transform: translateY(-6%) scale(1.04); } }
+@keyframes wk-tilt { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-8deg); } 65% { transform: rotate(6deg); } }
+
+.wk-pts { position: absolute; left: 50%; top: 0; z-index: 3; transform: translate(-50%, -20%); font-size: calc(var(--hole, 96px) * 0.32); font-weight: 900; color: var(--wk-plus); text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff; pointer-events: none; animation: wk-pts 700ms ease-out both; }
+.wk-pts.is-minus { color: var(--wk-minus); }
+@keyframes wk-pts { from { opacity: 0; transform: translate(-50%, 10%); } 25% { opacity: 1; } to { opacity: 0; transform: translate(-50%, -60%); } }
+
+/* Speech bubbles (core/effects.js) above a hole, and below the face in the head. */
+.wk-say { position: absolute; left: 50%; bottom: 92%; z-index: 4; transform: translateX(-50%); width: max-content; max-width: 11em; pointer-events: none; }
+/* Side columns: align the bubble to the hole's outer edge so it stays on screen. */
+.wk-hole:nth-child(3n+1) .wk-say { left: 0; transform: none; }
+.wk-hole:nth-child(3n) .wk-say { left: auto; right: 0; transform: none; }
+.wk-say-head { bottom: auto; top: 100%; left: 0; transform: none; }
+
+/* Phone landscape: compact header (buttons stay 64px), same as drop4. */
+@media (orientation: landscape) and (max-height: 500px) {
+  :root { --header-h: 67px; }
+  .wk-head { height: 56px; }
+}
+
+/* ---------- overlay cards: pause, handoff, result ---------- */
+.wk-overlay { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--overlay); }
+.wk-card { width: 100%; max-width: 520px; max-height: 100%; overflow-y: auto; box-sizing: border-box; background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-l); box-shadow: var(--shadow-soft); padding: 20px; text-align: center; }
+.wk-card-text { margin: 0 0 16px; font-size: 1.6rem; font-weight: 900; }
+.wk-card-text.wk-big { font-size: 2.2rem; margin: 0; }
+.wk-record { color: var(--accent-pink-strong); font-size: 2.4rem; }
+.wk-result-score { margin: 8px 0; font-size: 3rem; font-weight: 900; }
+.wk-heroes { display: flex; justify-content: center; align-items: flex-end; gap: 16px; margin-bottom: 12px; }
+.wk-hero { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.wk-heroface { width: min(40vw, 30vh, 220px); aspect-ratio: 1; border-radius: 50%; background: var(--surface); border: var(--border-w) solid var(--outline); box-shadow: var(--shadow-m); overflow: hidden; }
+.wk-hero.is-small .wk-heroface { width: min(26vw, 20vh, 150px); }
+.wk-hero.is-win .wk-heroface { animation: wk-hero 1100ms ease-in-out infinite; }
+@keyframes wk-hero { 0%, 100% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-5%) rotate(-8deg); } 60% { transform: translateY(0) rotate(8deg); } }
+.wk-hero-score { margin: 8px 0 0; font-size: 20px; font-weight: 900; }
+.wk-line { margin: 8px 0 0; padding: 6px 12px; font-size: 18px; font-weight: 800; background: var(--surface); border: 2px solid var(--outline); border-radius: var(--radius-s); }
+.wk-line:empty { display: none; }
+.wk-result-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 12px; }
+.wk-menu { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.wk-rule { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0; }
+.wk-rulename { font-weight: 900; min-width: 4em; }
+
+/* ---------- full-screen banners (games/whack/js/fx.js) ---------- */
+.wk-banner { display: flex; align-items: center; justify-content: center; }
+.wk-banner-text { font-size: 6rem; font-weight: 900; line-height: 1; color: var(--ink); text-shadow: 0 0 8px #fff, 0 0 16px #fff, 0 0 24px var(--fx-gold); animation: wk-banner 420ms ease-out both; }
+.wk-banner.is-go .wk-banner-text, .wk-banner.is-final .wk-banner-text { font-size: 2.6rem; padding: 8px 24px; background: #fff; border: 4px solid var(--outline); border-radius: var(--radius-round); text-shadow: none; }
+.wk-banner.is-final .wk-banner-text { color: var(--wk-time-final); }
+@keyframes wk-banner { 0% { opacity: 0; transform: scale(0.4); } 60% { opacity: 1; transform: scale(1.15); } 100% { transform: scale(1); } }
+
+/* Reduced motion (design 5.3): base.css stops every animation and transition; the rise / sink becomes a fade. */
+@media (prefers-reduced-motion: reduce) {
+  .wk-pop { transform: none !important; opacity: 0; transition: opacity 160ms ease !important; }
+  .wk-hole.is-up .wk-pop { opacity: 1; }
+}

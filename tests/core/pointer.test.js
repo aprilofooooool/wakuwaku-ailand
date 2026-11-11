@@ -76,6 +76,36 @@
       s.el.fire('pointerup', ev('mouse', 1, 0, 0, 20, { button: 2 }));
       expect(s.log).toEqual([]);
     });
+    function setupPress() {
+      var el = fakeEl(), log = [];
+      P.attach(el, {
+        onPress: function (x, y, type, id) { log.push(['press', x, y, type, id]); },
+        onTap: function (x, y, type) { log.push(['tap', x, y, type]); }
+      });
+      return { el: el, log: log };
+    }
+    it('press reports on pointerdown with pointerId', function () {
+      var s = setupPress();
+      s.el.fire('pointerdown', ev('touch', 7, 5, 6, 0));
+      expect(s.log).toEqual([['press', 5, 6, 'touch', 7]]);
+    });
+    it('two pointers pressing at once both report', function () {
+      var s = setupPress();
+      s.el.fire('pointerdown', ev('touch', 1, 5, 6, 0));
+      s.el.fire('pointerdown', ev('touch', 2, 50, 60, 5));
+      expect(s.log).toEqual([['press', 5, 6, 'touch', 1], ['press', 50, 60, 'touch', 2]]);
+    });
+    it('right mouse button does not press', function () {
+      var s = setupPress();
+      s.el.fire('pointerdown', ev('mouse', 1, 0, 0, 0, { button: 2 }));
+      expect(s.log).toEqual([]);
+    });
+    it('press does not change tap', function () {
+      var s = setupPress();
+      s.el.fire('pointerdown', ev('touch', 3, 5, 6, 0));
+      s.el.fire('pointerup', ev('touch', 3, 5, 6, 50));
+      expect(s.log).toEqual([['press', 5, 6, 'touch', 3], ['tap', 5, 6, 'touch']]);
+    });
     it('detach removes every listener', function () {
       var s = setup();
       expect(s.el.count() > 0).toBe(true);

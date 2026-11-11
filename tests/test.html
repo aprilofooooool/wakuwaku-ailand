@@ -5,6 +5,7 @@
 <title>tests</title>
 <link rel="stylesheet" href="../css/theme.css">
 <link rel="stylesheet" href="../css/header.css">
+<link rel="stylesheet" href="../games/whack/css/whack.css">
 <style>
   body { font-family: sans-serif; margin: 16px; }
   #summary { padding: 8px 12px; color: #fff; font-weight: bold; }
@@ -45,6 +46,7 @@
 <script src="../core/effects.js"></script>
 <script src="../core/sound.js"></script>
 <script src="../core/bgm.js"></script>
+<script src="../core/loop.js"></script>
 <script src="../js/top-bgm.js"></script>
 <script src="../games/othello/js/audio/othello-bgm.js"></script>
 <script src="../core/games.js"></script>
@@ -61,6 +63,16 @@
 <script src="../games/drop4/js/fx.js"></script>
 <script src="../games/drop4/js/sounds.js"></script>
 <script src="../games/drop4/js/ui.js"></script>
+<script src="../games/whack/js/namespace.js"></script>
+<script src="../games/whack/js/constants.js"></script>
+<script src="../games/whack/js/engine.js"></script>
+<script src="../games/whack/js/reactions.js"></script>
+<script src="../games/whack/js/lines.js"></script>
+<script src="../games/whack/js/controller.js"></script>
+<script src="../games/whack/js/layout.js"></script>
+<script src="../games/whack/js/fx.js"></script>
+<script src="../games/whack/js/sounds.js"></script>
+<script src="../games/whack/js/ui.js"></script>
 <script src="othello/core.test.js"></script>
 <script src="othello/engine.test.js"></script>
 <script src="othello/four.test.js"></script>
@@ -88,6 +100,7 @@
 <script src="core/sound.test.js"></script>
 <script src="core/bgm.test.js"></script>
 <script src="core/bgm-scores.test.js"></script>
+<script src="core/loop.test.js"></script>
 <script src="core/ui-common.dom.test.js" data-browser-only></script>
 <script src="drop4/engine.test.js"></script>
 <script src="drop4/engine-options.test.js"></script>
@@ -98,6 +111,13 @@
 <script src="drop4/layout.test.js"></script>
 <script src="drop4/fx.test.js"></script>
 <script src="drop4/ui.test.js"></script>
+<script src="whack/schedule.test.js"></script>
+<script src="whack/engine.test.js"></script>
+<script src="whack/reactions.test.js"></script>
+<script src="whack/lines.test.js"></script>
+<script src="whack/controller.test.js"></script>
+<script src="whack/layout.test.js"></script>
+<script src="whack/ui.dom.test.js" data-browser-only></script>
 <script>
   Ailand.Test.run().then(function (r) {
     var s = document.getElementById('summary');
