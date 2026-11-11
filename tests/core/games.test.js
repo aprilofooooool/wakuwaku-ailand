@@ -7,9 +7,15 @@
   }
 
   describe('core/Games', function () {
-    it('lists 7 games, 2 of them ready', function () {
+    it('lists 7 games, 3 of them ready', function () {
       expect(G.LIST.length).toBe(7);
-      expect(G.LIST.filter(function (g) { return g.ready; }).length).toBe(2);
+      expect(G.LIST.filter(function (g) { return g.ready; }).length).toBe(3);
+    });
+    it('whack is ready at games/whack/index.html without a save key', function () {
+      var w = G.LIST.filter(function (g) { return g.id === 'whack'; })[0];
+      expect(w.ready).toBe(true);
+      expect(w.href).toBe('games/whack/index.html');
+      expect(w.saveKey).toBe(null);
     });
     it('ids are lowercase alphanumeric with hyphens and unique', function () {
       var seen = {};
