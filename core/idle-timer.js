@@ -3,9 +3,11 @@
 
   // Tells when nobody has operated for `ms` (the "falls asleep while waiting" reaction).
   // States: off -> arm() -> counting -> (ms) -> asleep -> poke() -> done (sleeps once per turn).
-  // opts: { ms, onIdle(), onWake(), timers?: { setTimeout, clearTimeout } }
+  // opts: { ms, onIdle(), onWake(), timers?: { setTimeout, clearTimeout }, isHidden?: () => boolean }
+  // arm() on a hidden page starts paused, so nobody falls asleep while the tab is away.
   function create(opts) {
     var timers = opts.timers || { setTimeout: function (f, ms) { return setTimeout(f, ms); }, clearTimeout: function (id) { clearTimeout(id); } };
+    var isHidden = opts.isHidden || function () { return typeof document !== 'undefined' && !!document.hidden; };
     var st = 'off', id = null;
 
     function clear() { if (id !== null) { timers.clearTimeout(id); id = null; } }
@@ -16,7 +18,9 @@
     }
 
     return {
-      arm: function () { count(); },
+      arm: function () {
+        if (isHidden()) { clear(); st = 'paused'; } else { count(); }
+      },
       poke: function () {
         if (st === 'counting') { count(); }
         else if (st === 'asleep') { st = 'done'; opts.onWake(); }

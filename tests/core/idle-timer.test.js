@@ -84,6 +84,21 @@
       expect(c.wake).toBe(1);
       expect(c.t.state()).toBe('off');
     });
+    it('arm while the page is hidden waits until resume', function () {
+      var c = { idle: 0 }, timers = fakeTimers(), hidden = true;
+      var t = T.create({ ms: 20000, timers: timers, isHidden: function () { return hidden; },
+        onIdle: function () { c.idle++; }, onWake: function () {} });
+      t.arm();
+      expect(t.state()).toBe('paused');
+      timers.advance(30000);
+      expect(c.idle).toBe(0);
+      hidden = false;
+      t.resume();
+      timers.advance(19999);
+      expect(c.idle).toBe(0);
+      timers.advance(1);
+      expect(c.idle).toBe(1);
+    });
     it('stop while counting never fires', function () {
       var c = setup();
       c.t.arm();

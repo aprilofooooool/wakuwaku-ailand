@@ -921,6 +921,9 @@
       clearHold(G.panels[p]);
       setAvatar(G.panels[p], 'normal');
     });
+    // The undo / redo state already arrived (and armed the timer) before this ran: start again here.
+    var view = G.ctrl.getView();
+    if (G.idle && !view.gameOver && !view.isCpuTurn) { G.idle.arm(); }
   }
 
   function playCell(cell) {

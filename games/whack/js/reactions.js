@@ -35,7 +35,9 @@
       if (streak[sideIndex] % COMBO_EVERY === 0) {
         return { emotion: variety.pick(key, ['cheer']), deco: 'sparkle', combo: true };
       }
-      var emotion = variety.pick(key, EMOTIONS);
+      // The next hit is a combo (cheer): keep cheer out now so it never shows 3 times in a row.
+      var pool = (streak[sideIndex] + 1) % COMBO_EVERY === 0 ? EMOTIONS.filter(function (e) { return e !== 'cheer'; }) : EMOTIONS;
+      var emotion = variety.pick(key, pool);
       return { emotion: emotion, deco: pick(DECOS, rng) };
     }
 

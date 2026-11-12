@@ -55,6 +55,15 @@
       expect(out[9].combo).toBe(true);
       expect(out.filter(function (x) { return x.combo; }).length).toBe(2);
     });
+    it('cheer never shows 3 times in a row around a combo', function () {
+      [0, 0.3, 0.6, 0.99].forEach(function (v) {
+        var r = R.create(function () { return v; });
+        var seq = hits(r, 0, 'self', 20).map(function (x) { return x.emotion; });
+        for (var i = 2; i < seq.length; i++) {
+          expect(seq[i] === seq[i - 1] && seq[i] === seq[i - 2]).toBe(false);
+        }
+      });
+    });
     it('ng resets combo', function () {
       var r = mk();
       hits(r, 0, 'self', 4);
