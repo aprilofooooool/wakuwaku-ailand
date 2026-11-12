@@ -26,12 +26,11 @@
       expect(!!seen.surprised).toBe(false);
       expect(!!seen.cheer && !!seen.love).toBe(true);
     });
-    it('cheer and love show their own mark; joy and excited get a deco', function () {
+    it('every self emotion gets a deco', function () {
       [[0, 'joy'], [0.3, 'excited'], [0.6, 'cheer'], [0.99, 'love']].forEach(function (c) {
         var x = R.create(function () { return c[0]; }).forHit(0, 'self');
         expect(x.emotion).toBe(c[1]);
-        if (c[1] === 'cheer' || c[1] === 'love') { expect(x.deco).toBe(null); }
-        else { expect(['note', 'heart', 'sparkle'].indexOf(x.deco) >= 0).toBe(true); }
+        expect(['note', 'heart', 'sparkle'].indexOf(x.deco) >= 0).toBe(true);
       });
     });
     it('keeps history per side', function () {
