@@ -3,7 +3,7 @@
   var describe = A.Test.describe, it = A.Test.it, expect = A.Test.expect;
   var Lines = A.games.whack.Lines;
   var CHARS = ['mametchi', 'kuchipatchi', 'mimitchi', 'flowertchi'];
-  var MIN = { hit: 5, rare: 3, smug: 3, start: 3, record: 3, win: 3, lose: 3, draw: 3, end: 3 };
+  var MIN = { hit: 5, rare: 3, smug: 3, start: 3, record: 3, win: 3, lose: 3, draw: 3, end: 3, combo: 3 };
   var SITUATIONS = Object.keys(MIN);
 
   function collect(L) {
@@ -17,7 +17,7 @@
   }
 
   describe('whack/Lines', function () {
-    it('defines 4 characters x 9 situations with the minimum count', function () {
+    it('defines 4 characters x 10 situations with the minimum count', function () {
       CHARS.forEach(function (c) {
         expect(!!Lines[c]).toBe(true);
         SITUATIONS.forEach(function (s) {
