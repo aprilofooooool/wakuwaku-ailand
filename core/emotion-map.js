@@ -13,7 +13,7 @@
     'worried': { image: 'worried', mark: null },
     'surprised': { image: 'surprised', mark: null },
     'excited': { image: 'excited', mark: null },
-    'sleep': { image: 'sleep', mark: null },
+    'sleep': { image: 'sleep', mark: 'zzz' },
     'angry-steam': { image: 'anger', mark: 'steam' },
     'smug': { image: 'smug', mark: null },
     'cheer': { image: 'cheer', mark: null },
