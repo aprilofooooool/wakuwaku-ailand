@@ -189,7 +189,8 @@
           var notes = notesBetween(score, bpm, nextBeat, toBeat);
           for (var i = 0; i < notes.length; i++) {
             var n = notes[i];
-            live = live.concat(sound(S, ctx, dest, n, nextTime + (n.at - nextBeat) * 60 / bpm));
+            // One failing note is skipped; the window still advances, so earlier notes are never replayed.
+            try { live = live.concat(sound(S, ctx, dest, n, nextTime + (n.at - nextBeat) * 60 / bpm)); } catch (e) { /* skip */ }
           }
           live = live.filter(function (l) { return l.end > now; });
           nextTime += (toBeat - nextBeat) * 60 / bpm;

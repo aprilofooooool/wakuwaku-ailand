@@ -277,6 +277,16 @@
         expect(c.sources.length).toBe(0);
       }, true);
     });
+    it('a drum hit that throws does not replay the other notes on later ticks', function () {
+      withFake('running', function (c) {
+        c.createBuffer = function () { throw new Error('no buffer'); };
+        Bgm.start({ bpm: 120, wave: 'triangle', bass: [], steps: [[500, 0.5], [600, 0.5]], drums: [['s', 1]] });
+        run(c, 2);
+        var st = at(c, 500).concat(at(c, 600)).map(function (o) { return o.startT; }).sort(function (a, b) { return a - b; });
+        expect(st.length > 4).toBe(true);
+        for (var i = 1; i < st.length; i++) { expect(st[i] > st[i - 1]).toBe(true); }
+      });
+    });
     it('stop() also stops drum noise sources', function () {
       withFake('running', function (c) {
         Bgm.start({ bpm: 120, wave: 'triangle', bass: [], steps: [[0, 1]], drums: [['s', 0.5], ['h', 0.5]] });
