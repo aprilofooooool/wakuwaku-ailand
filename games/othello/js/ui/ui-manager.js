@@ -676,12 +676,14 @@
     }
     var bubble = el('div', 'bubble-slot');
     bubble.dataset.player = player;
-    // B-3: emotion mark (same core Effects.mark as drop4). A sibling of the avatar, since applyImage
-    // replaces the avatar's children and the avatar clips its overflow.
+    // B-3: emotion mark (same core Effects.mark as drop4). It sits beside the avatar in a wrapper,
+    // since applyImage replaces the avatar's children and the avatar clips its overflow.
+    var avatarWrap = el('div', 'avatar-wrap');
     var mark = el('span', 'panel-mark');
     mark.setAttribute('aria-hidden', 'true');
-    p.appendChild(avatar);
-    p.appendChild(mark);
+    avatarWrap.appendChild(avatar);
+    avatarWrap.appendChild(mark);
+    p.appendChild(avatarWrap);
     p.appendChild(info);
     p.appendChild(bubble);
     return { root: p, avatar: avatar, mark: mark, count: count, bubble: bubble, emotion: null, ch: ch };
