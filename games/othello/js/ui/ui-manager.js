@@ -759,6 +759,7 @@
     G.chars = {};
     G.seats.forEach(function (p) { G.chars[p] = O.CharacterManager.get(s[p]); });
     G.panels = {};
+    G.faces = O.FaceVariety.create(Math.random); // B-3: never the controller's rng (replay golden)
     if (four) {
       G.colorSeat = {};
       G.seats.forEach(function (p, k) {
@@ -1105,7 +1106,7 @@
     G.assistOn = !!(G.settings && G.settings.assist);
     G.offs.push(bus.on('state', onState));
     G.offs.push(bus.on('moved', function (e) { if (G) { G.moved = e; } }));
-    G.offs.push(bus.on('emotion', function (e) { if (G && G.panels) { showEmotion(G.panels[e.player], e.emotion); } }));
+    G.offs.push(bus.on('emotion', function (e) { if (G && G.panels) { showEmotion(G.panels[e.player], G.faces.during(e.player, e.emotion)); } }));
     G.offs.push(bus.on('line', function (e) { if (G && G.panels) { O.Effects.bubble(G.panels[e.player].root, e.text); } }));
     G.offs.push(bus.on('thinking', function (e) {
       if (!G || !G.panels) { return; }
@@ -1129,6 +1130,13 @@
       G.banner.hidden = false;
     }));
     G.offs.push(bus.on('gameover', function (e) {
+      // B-3: the controller's game-over emotions came just before this; re-pick the winners' and losers' faces.
+      var winners = e.winners || (e.winner ? [e.winner] : []);
+      if (!e.replay && winners.length && G && G.panels) {
+        Object.keys(G.panels).forEach(function (p) {
+          showEmotion(G.panels[p], G.faces.final(p, winners.indexOf(p) >= 0 ? 'win' : 'lose'));
+        });
+      }
       if (resultTimer) { clearTimeout(resultTimer); }
       resultTimer = setTimeout(function () {
         resultTimer = null;
