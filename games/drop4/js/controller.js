@@ -53,6 +53,7 @@
     var bus = deps.bus, storage = deps.storage;
     var settings = null, state = null, history = [], undoLeft = UNDO_MAX, endgameFired = false;
     var thinking = false, gen = 0;
+    var variety = Ailand.core.EmotionVariety.create(deps.rng || Math.random);
 
     function isHuman(seat) {
       return settings.seats.some(function (x) { return x.seat === seat && x.human; });
@@ -86,7 +87,7 @@
       var before = state;
       var after = E.apply(before, move);
       var ctx = { endgameFired: endgameFired };
-      var events = R.detect(before, move, after, ctx);
+      var events = R.vary(R.detect(before, move, after, ctx), variety);
       endgameFired = ctx.endgameFired || events.some(function (e) { return e.kind === 'endgame'; });
       state = after;
       history.push({ type: move.type, col: move.col, seat: move.seat });
@@ -146,6 +147,7 @@
     function begin(newSettings, newHistory, newUndo, replayed) {
       gen++;
       thinking = false;
+      variety.reset();
       settings = newSettings;
       state = replayed.state;
       endgameFired = replayed.endgameFired;

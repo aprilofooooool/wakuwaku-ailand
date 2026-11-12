@@ -201,6 +201,7 @@
     }
 
     function showSettings() {
+      idle.stop();
       controller.stop();
       Fx.stop();
       viewing = false;
@@ -449,6 +450,25 @@
       });
     }
 
+    // B-3: waiting characters fall asleep after SLEEP_AFTER_MS with no operation on a human turn.
+    var slept = [];
+    var idle = C.IdleTimer.create({
+      ms: G.Constants.SLEEP_AFTER_MS,
+      onIdle: function () {
+        if (!g) { return; }
+        slept = sleepers(Object.keys(g.seats).map(Number), view.turnSeat);
+        slept.forEach(function (s) { setFace(s, 'sleep'); setBubble(s, line(s, 'sleep')); });
+      },
+      onWake: function () {
+        slept.forEach(function (s) {
+          if (g && g.seats[s] && g.seats[s].emotion === 'sleep') { setFace(s, 'normal'); setBubble(s, ''); }
+        });
+        slept = [];
+      }
+    });
+    document.addEventListener('visibilitychange', function () { if (document.hidden) { idle.pause(); } else { idle.resume(); } });
+    document.addEventListener('keydown', function () { idle.poke(); });
+
     function renderBoard() {
       var state = view.state;
       for (var c = 0; c < state.cols; c++) {
@@ -550,6 +570,7 @@
     }
 
     function onHover(x) {
+      idle.poke();
       if (inputLocked() || mode === 'pop') { return; }
       var col = colFrom(x);
       var next = col >= 0 && legal({ type: mode, col: col, seat: seat() }) ? { type: mode, col: col } : null;
@@ -563,6 +584,7 @@
     // Mouse: one click drops. Touch/pen: first tap shows the ghost, a second tap on the same column drops.
     // Pop always takes two taps (pick, then confirm).
     function onTap(x, y, type) {
+      idle.poke();
       if (inputLocked()) { return; }
       var col = colFrom(x);
       if (col < 0) { return; }
@@ -637,6 +659,7 @@
       queue(function () {
         var settings = controller.settings();
         draft = normalize(settings);
+        idle.stop();
         Fx.stop();
         viewing = false;
         lastResult = null;
@@ -664,6 +687,7 @@
         if (p.seat !== view.turnSeat) { mode = 'drop'; sel = null; }
         view.turnSeat = p.seat;
         view.humanTurn = p.human;
+        if (p.human) { idle.arm(); } else { idle.stop(); }
         Object.keys(g.seats).forEach(function (s) { g.seats[s].box.classList.toggle('is-turn', Number(s) === p.seat); });
         renderMarks();
       });
@@ -678,6 +702,7 @@
     });
     bus.on('moved', function (p) {
       queue(function () {
+        idle.stop();
         sel = null;
         view.humanTurn = false;
         renderMarks();
@@ -707,11 +732,14 @@
           sfx(kind);
         }
         // The queue waits for the ending display, so the result card appears after it.
-        return Fx.play(p.picked, { seats: g.seats, boardEl: g.boardwrap, winEls: winEls(result), result: result, humans: g.humans });
+        var faces = {};
+        Object.keys(g.seats).forEach(function (s) { faces[s] = g.seats[s].emotion; });
+        return Fx.play(p.picked, { faces: faces, seats: g.seats, boardEl: g.boardwrap, winEls: winEls(result), result: result, humans: g.humans });
       });
     });
     bus.on('gameover', function (p) {
       queue(function () {
+        idle.stop();
         view.over = true;
         view.humanTurn = false;
         Bgm.stop();
@@ -722,6 +750,7 @@
     });
     bus.on('undo', function (p) {
       queue(function () {
+        idle.stop();
         Fx.stop();
         viewing = false;
         view.state = p.state;
@@ -744,11 +773,16 @@
     showSettings();
   }
 
+  // Seats that fall asleep while `current` thinks about a move: everyone else.
+  function sleepers(seats, current) {
+    return seats.filter(function (s) { return s !== current; });
+  }
+
   // What the bottom/side bar shows: 'tools' (mode/undo), 'result' (only the けっかを みる button) or 'none'.
   function toolsMode(over, viewing) {
     if (!over) { return 'tools'; }
     return viewing ? 'result' : 'none';
   }
 
-  G.UI = { init: init, withFirstSeat: withFirstSeat, toolsMode: toolsMode };
+  G.UI = { sleepers: sleepers, init: init, withFirstSeat: withFirstSeat, toolsMode: toolsMode };
 })(Ailand.games.drop4);

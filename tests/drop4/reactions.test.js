@@ -211,4 +211,62 @@
       expect(R.PRIORITY).toEqual(['win', 'lose', 'draw', 'double', 'block', 'reach', 'endgame', 'place']);
     });
   });
+  describe('drop4/Reactions.vary', function () {
+    var BAD = ['anger', 'sadness', 'panic', 'worried', 'surprised'];
+    function ev(kind, seat, by, emotion) { return { kind: kind, seat: seat, by: by, emotion: emotion }; }
+    function variety(v) { return A.core.EmotionVariety.create(function () { return v; }); }
+    it('POOLS heads match detect', function () {
+      var P = R.POOLS;
+      expect([P.reach.mover[0], P.reach.other[0]]).toEqual(['joy', 'worried']);
+      expect([P.double.mover[0], P.double.other[0]]).toEqual(['excited', 'surprised']);
+      expect([P.block.mover[0], P.block.other[0]]).toEqual(['joy', 'anger']);
+      expect(P.win.mover[0]).toBe('excited');
+      expect(P.lose.other[0]).toBe('sadness');
+      expect(P.lose.mover).toEqual(['normal']);
+      expect(P.draw.mover[0]).toBe('joy');
+      expect(P.endgame.mover).toEqual(['thinking']);
+    });
+    it('mover pools have no bad face', function () {
+      Object.keys(R.POOLS).forEach(function (k) {
+        R.POOLS[k].mover.forEach(function (e) { expect(BAD.indexOf(e) < 0).toBe(true); });
+      });
+    });
+    it('varied emotion is in the pool and mover never gets a bad face', function () {
+      [0, 0.5, 0.99].forEach(function (v) {
+        var rng = A.core.Rng.mulberry32(21), vr = variety(v);
+        for (var g = 0; g < 40; g++) {
+          var s = mk({ players: 2, popOut: true, blocks: true }), fired = false;
+          while (!s.result) {
+            var m = randomMove(s, rng), after = E.apply(s, m);
+            var raw = R.detect(s, m, after, { endgameFired: fired });
+            if (of(raw, 'endgame').length) { fired = true; }
+            var out = R.vary(raw, vr);
+            out.forEach(function (e) {
+              var pool = R.POOLS[e.kind][e.seat === e.by ? 'mover' : 'other'];
+              expect(pool.indexOf(e.emotion) >= 0).toBe(true);
+              if (e.seat === m.seat) { expect(BAD.indexOf(e.emotion) < 0).toBe(true); }
+            });
+            s = after;
+          }
+        }
+      });
+    });
+    it('only the top event per seat is varied', function () {
+      var out = R.vary([ev('reach', 1, 1, 'joy'), ev('block', 1, 1, 'joy')], variety(0.99));
+      expect(out[0].emotion).toBe('joy');
+      expect(out[1].emotion).toBe('smug');
+    });
+    it('does not mutate input', function () {
+      var input = [ev('block', 1, 1, 'joy')];
+      R.vary(input, variety(0.99));
+      expect(input[0].emotion).toBe('joy');
+    });
+    it('lose other is sadness or worried', function () {
+      [0, 0.99].forEach(function (v) {
+        var out = R.vary([ev('win', 1, 1, 'excited'), ev('lose', 2, 1, 'sadness')], variety(v));
+        expect(['sadness', 'worried'].indexOf(out[1].emotion) >= 0).toBe(true);
+      });
+      expect(R.vary([ev('lose', 2, 1, 'sadness')], variety(0.99))[0].emotion).toBe('worried');
+    });
+  });
 })(window.Ailand);

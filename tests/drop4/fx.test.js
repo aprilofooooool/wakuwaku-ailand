@@ -56,4 +56,13 @@
   describe('drop4 Fx.drop (reduced motion / no DOM)', function () {
     it('play with null picked does nothing', function () { expect(Fx.play(null, {})).toBe(undefined); });
   });
+  describe('drop4 Fx.faceOf', function () {
+    it('uses the face the reaction picked for the seat', function () {
+      expect(Fx.faceOf({ faces: { 1: 'love' } }, 1, 'joy')).toBe('love');
+    });
+    it('falls back to the given emotion when the seat has none', function () {
+      expect(Fx.faceOf({ faces: { 1: 'love' } }, 2, 'sadness')).toBe('sadness');
+      expect(Fx.faceOf({}, 1, 'joy')).toBe('joy');
+    });
+  });
 })(Ailand);

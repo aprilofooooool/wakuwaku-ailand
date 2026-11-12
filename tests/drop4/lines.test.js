@@ -4,7 +4,7 @@
   var Lines = A.games.drop4.Lines;
   var CHARS = ['mametchi', 'kuchipatchi', 'mimitchi', 'flowertchi'];
   var SITUATIONS = ['start', 'reach', 'reached', 'block', 'blocked', 'double', 'doubled',
-    'endgame', 'win', 'lose', 'draw', 'thinking'];
+    'endgame', 'win', 'lose', 'draw', 'thinking', 'sleep'];
 
   function othelloLines() {
     var set = {};
@@ -18,7 +18,7 @@
   }
 
   describe('drop4/Lines', function () {
-    it('defines 4 characters x 12 situations with 3+ lines', function () {
+    it('defines 4 characters x 13 situations with 3+ lines', function () {
       CHARS.forEach(function (c) {
         expect(!!Lines[c]).toBe(true);
         SITUATIONS.forEach(function (s) {

@@ -188,6 +188,7 @@
 
     // Common start of a round (also the second player's turn): clock, lines, BGM, loop.
     function startRound() {
+      reactions.reset();   // B-3: the combo count starts over each round (also the second player's turn)
       game.playMs = 0;
       game.final = false;
       game.top.classList.remove('is-final');
@@ -411,7 +412,7 @@
       if (r.mode === 'solo') {
         var me = profileOf(chars[0]);
         if (r.newRecord) { nodes.push(el('p', 'wk-card-text wk-record', 'しんきろく！')); }
-        var h = hero(me, r.newRecord ? 'excited' : 'joy', r.newRecord ? 'is-win' : '');
+        var h = hero(me, reactions.forResult(r.newRecord ? 'record' : 'solo'), r.newRecord ? 'is-win' : '');
         h.appendChild(el('p', 'wk-line', line(me.id, r.newRecord ? 'record' : 'end')));
         nodes.push(h);
         nodes.push(el('p', 'wk-result-score', '★' + r.scores[0] + 'てん'));
@@ -424,7 +425,7 @@
         [0, 1].forEach(function (p) {
           var pf = profileOf(chars[p]);
           var win = !r.draw && r.winner === p;
-          var hh = hero(pf, win ? 'excited' : 'joy', win ? 'is-win' : 'is-small');
+          var hh = hero(pf, reactions.forResult(r.draw ? 'draw' : (win ? 'win' : 'lose')), win ? 'is-win' : 'is-small');
           hh.appendChild(el('p', 'wk-hero-score', pf.name + ' ★' + r.scores[p] + 'てん'));
           hh.appendChild(el('p', 'wk-line', line(pf.id, r.draw ? 'draw' : (win ? 'win' : 'lose'))));
           row.appendChild(hh);
@@ -539,7 +540,7 @@
       var f = fieldOf(p.side), h = f.holes[p.hole];
       h.hit = true;
       h.el.classList.add('is-hit');
-      var r = reactions.forHit(p.side, p.kind);
+      var r = reactions.forHit(p.side, p.kind);   // B-3: every 5th own hit in a row is a combo
       faceInto(h.box, profileOf(p.charId), r.emotion);
       C.Effects.mark(h.mark, r.deco || C.CharacterView.markOf(r.emotion));
       Fx.pointsPop(h.el, p.points);
@@ -547,7 +548,7 @@
       sfx(HIT_SOUND[p.kind]);
       if (p.kind === 'rare') { Fx.sparkleAt(h.el); }
       // The forbidden character speaks its own smug line (charId is that character).
-      say(p.side, h.say, p.charId, HIT_LINE[p.kind]);
+      say(p.side, h.say, p.charId, r.combo ? 'combo' : HIT_LINE[p.kind]);
     });
     on('final10', function () {
       game.final = true;

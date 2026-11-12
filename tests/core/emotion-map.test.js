@@ -4,9 +4,12 @@
 
   describe('core/EmotionMap', function () {
     it('expressions with their own image (added 2026-11-12) use it without a mark', function () {
-      ['worried', 'surprised', 'excited', 'sleep', 'smug', 'cheer', 'love'].forEach(function (n) {
+      ['worried', 'surprised', 'excited', 'smug', 'cheer', 'love'].forEach(function (n) {
         expect(E.resolve(n)).toEqual({ image: n, mark: null });
       });
+    });
+    it('sleep uses its own image with the zzz mark (B-3)', function () {
+      expect(E.resolve('sleep')).toEqual({ image: 'sleep', mark: 'zzz' });
     });
     it('angry-steam still borrows the anger image with a mark', function () {
       expect(E.resolve('angry-steam')).toEqual({ image: 'anger', mark: 'steam' });

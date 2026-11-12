@@ -63,5 +63,35 @@
     return events;
   }
 
-  G.Reactions = { detect: detect, PRIORITY: PRIORITY };
+  // B-3: face candidates per event kind, for the mover and for the others. The head of each list is
+  // the emotion detect() gives. Mover lists hold no unpleasant face (requirements 1.6).
+  var POOLS = {
+    reach: { mover: ['joy', 'cheer'], other: ['worried', 'surprised'] },
+    double: { mover: ['excited', 'cheer'], other: ['surprised', 'panic'] },
+    block: { mover: ['joy', 'smug'], other: ['anger', 'surprised'] },
+    endgame: { mover: ['thinking'], other: ['thinking'] },
+    win: { mover: ['excited', 'cheer', 'love'], other: ['excited', 'cheer', 'love'] },
+    lose: { mover: ['normal'], other: ['sadness', 'worried'] },
+    draw: { mover: ['joy', 'cheer', 'love'], other: ['joy', 'cheer', 'love'] },
+    place: { mover: ['normal'], other: ['normal'] }
+  };
+
+  // Re-picks the face of each seat's highest-priority event (the one the UI shows) from POOLS.
+  // Other events keep detect()'s emotion. Returns new event objects; the input is not changed.
+  function vary(events, variety) {
+    var top = {};
+    events.forEach(function (e, i) {
+      var cur = top[e.seat];
+      if (cur === undefined || PRIORITY.indexOf(e.kind) < PRIORITY.indexOf(events[cur].kind)) { top[e.seat] = i; }
+    });
+    return events.map(function (e, i) {
+      var copy = { kind: e.kind, seat: e.seat, emotion: e.emotion, by: e.by };
+      if (top[e.seat] === i && POOLS[e.kind]) {
+        copy.emotion = variety.pick('seat' + e.seat, POOLS[e.kind][e.seat === e.by ? 'mover' : 'other']);
+      }
+      return copy;
+    });
+  }
+
+  G.Reactions = { detect: detect, PRIORITY: PRIORITY, POOLS: POOLS, vary: vary };
 })(Ailand.games.drop4);

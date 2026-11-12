@@ -34,4 +34,10 @@
       expect(UI.toolsMode(true, true)).toBe('result');
     });
   });
+  describe('drop4 UI: sleepers', function () {
+    it('every seat but the current one falls asleep', function () {
+      expect(UI.sleepers([1, 2, 3, 4], 2)).toEqual([1, 3, 4]);
+      expect(UI.sleepers([1, 2], 1)).toEqual([2]);
+    });
+  });
 })(window.Ailand);

@@ -63,6 +63,9 @@
   overflow: hidden;
 }
 .avatar .char-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* B-3: emotion mark at the avatar's top-right corner (same look as drop4's .d4-mark). */
+.avatar-wrap { position: relative; flex: none; }
+.panel-mark { position: absolute; top: 2px; right: 2px; z-index: 1; font-size: 1.2rem; line-height: 1; pointer-events: none; }
 .panel-info { flex: none; display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
 .panel-tag { font-size: 0.75rem; font-weight: 800; color: var(--ink-sub); }
 .panel-name { font-size: 1.125rem; font-weight: 800; white-space: nowrap; }
