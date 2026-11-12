@@ -71,6 +71,35 @@
     });
   });
 
+  describe('core/Bgm.notesBetween new score options', function () {
+    var opt = {
+      bpm: 120, wave: 'triangle', bass: [[100, 4]], steps: [[500, 0.5], [600, 0.5], [0, 3]],
+      chords: [[[300, 350], 1], [0, 3]],
+      drums: [['k', 0.5], ['h', 0.5]], // 1-beat loop
+      swing: 1 / 6
+    };
+    it('chord arrays give one note per pitch on the same beat', function () {
+      var c = Bgm.notesBetween(opt, 120, 0, 4).filter(function (n) { return n.chord; });
+      expect(c.map(function (n) { return n.freq; })).toEqual([300, 350]);
+      expect(c.every(function (n) { return n.beat === 0; })).toBe(true);
+    });
+    it('drums loop on their own length and carry drum kind with freq 0', function () {
+      var d = Bgm.notesBetween(opt, 120, 0, 2).filter(function (n) { return n.drum; });
+      expect(d.map(function (n) { return n.drum; })).toEqual(['k', 'h', 'k', 'h']);
+      expect(d.map(function (n) { return n.beat; })).toEqual([0, 0.5, 1, 1.5]);
+      expect(d.every(function (n) { return n.freq === 0 && n.bass === false; })).toBe(true);
+    });
+    it('swing moves only off-beat 8ths: at = beat + swing; beat is unchanged', function () {
+      var m = Bgm.notesBetween(opt, 120, 0, 1).filter(function (n) { return !n.bass && !n.chord && !n.drum; });
+      expect(m.map(function (n) { return n.beat; })).toEqual([0, 0.5]);
+      expect(Math.abs(m[1].at - (0.5 + 1 / 6)) < 1e-9).toBe(true);
+      expect(m[0].at).toBe(0);
+    });
+    it('without swing, at equals beat for every note', function () {
+      Bgm.notesBetween(score, 120, 0, 16).forEach(function (n) { expect(n.at).toBe(n.beat); });
+    });
+  });
+
   describe('core/Bgm without audio', function () {
     it('start / setTempo / stop never throw when AudioContext is missing', function () {
       Bgm.start(score);

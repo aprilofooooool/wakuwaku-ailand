@@ -2,7 +2,11 @@
   'use strict';
 
   // Looping BGM. score = { bpm, wave, bass: [[freq|0, beats], ...], steps: [[freq|0, beats], ...],
-  //   chords (optional): [[freq|0, beats], ...] played as soft short sine plucks (off-beat "pah" / arpeggio) }.
+  //   chords (optional): [[freq|[freq, ...]|0, beats], ...] played as soft short plucks (an array sounds together),
+  //   drums (optional): [['k'|'s'|'h'|'ks'|0, beats], ...] kick / snare / hi-hat / kick+snare,
+  //   swing (optional): beats to delay every off-beat 8th (0.5 into a beat), e.g. 1/6 for a triplet shuffle,
+  //   gate, melodyPeak, bassWave, chordWave, chordLen, bend, sparkle (optional voice settings; see tick) }.
+  // Every optional field left out keeps the original sound.
   // Notes are scheduled slightly ahead of the audio clock (lookahead) from a setTimeout loop.
   var LOOKAHEAD = 0.1;   // seconds scheduled ahead
   var TICK_MS = 25;
@@ -25,7 +29,8 @@
     return sum;
   }
 
-  function pushNotes(out, steps, bpmNow, from, to, isBass, isChord) {
+  // kind: 'bass' | 'chord' | 'drum' | undefined (melody).
+  function pushNotes(out, steps, bpmNow, from, to, kind) {
     if (!steps || !steps.length) { return; }
     var total = loopBeats(steps);
     if (total <= 0) { return; }
@@ -35,10 +40,19 @@
       var off = 0;
       for (var i = 0; i < steps.length; i++) {
         var beat = k * total + off;
+        var v = steps[i][0];
         off += steps[i][1];
-        if (steps[i][0] > 0 && beat >= from && beat < to) {
-          var n = { beat: beat, freq: steps[i][0], len: steps[i][1] * 60 / bpmNow, bass: isBass };
-          if (isChord) { n.chord = true; }
+        if (!v || beat < from || beat >= to) { continue; }
+        var len = steps[i][1] * 60 / bpmNow;
+        if (kind === 'drum') {
+          out.push({ beat: beat, freq: 0, len: len, bass: false, drum: v });
+          continue;
+        }
+        var freqs = Array.isArray(v) ? v : [v];
+        for (var j = 0; j < freqs.length; j++) {
+          if (!(freqs[j] > 0)) { continue; }
+          var n = { beat: beat, freq: freqs[j], len: len, bass: kind === 'bass' };
+          if (kind === 'chord') { n.chord = true; }
           out.push(n);
         }
       }
@@ -46,13 +60,20 @@
   }
 
   // Pure. Notes whose start beat is in [fromBeat, toBeat); beats count up across loops.
-  // len is in seconds at the given bpm; bass notes carry bass:true, chord-voice notes chord:true.
+  // len is in seconds at the given bpm; bass notes carry bass:true, chord-voice notes chord:true,
+  // drum hits drum:<kind> (freq 0). at = the beat to sound on: beat, or beat + swing for an off-beat 8th.
   function notesBetween(sc, bpmNow, fromBeat, toBeat) {
     var out = [];
     if (!sc || !(bpmNow > 0) || !(toBeat > fromBeat)) { return out; }
-    pushNotes(out, sc.steps, bpmNow, fromBeat, toBeat, false);
-    pushNotes(out, sc.bass, bpmNow, fromBeat, toBeat, true);
-    pushNotes(out, sc.chords, bpmNow, fromBeat, toBeat, false, true);
+    pushNotes(out, sc.steps, bpmNow, fromBeat, toBeat);
+    pushNotes(out, sc.bass, bpmNow, fromBeat, toBeat, 'bass');
+    pushNotes(out, sc.chords, bpmNow, fromBeat, toBeat, 'chord');
+    pushNotes(out, sc.drums, bpmNow, fromBeat, toBeat, 'drum');
+    var swing = sc.swing > 0 ? sc.swing : 0;
+    out.forEach(function (n) {
+      var f = n.beat - Math.floor(n.beat);
+      n.at = swing && Math.abs(f - 0.5) < 1e-9 ? n.beat + swing : n.beat;
+    });
     out.sort(function (a, b) { return a.beat - b.beat; });
     return out;
   }
