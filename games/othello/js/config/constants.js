@@ -42,6 +42,9 @@
     CPU_MIN_WAIT_MS: [800, 1500],
     // Human turn: show Thinking after this long without any operation (ms).
     IDLE_THINK_MS: 5000,
+    // B-3 (UI only, the controller never reads it): on a human turn with no operation for this long,
+    // the other seats' characters fall asleep.
+    SLEEP_AFTER_MS: 20000,
     // Game-in-progress save (O.store key; stored as ailand:othello:<key>) and its format version.
     SAVE_KEY: 'save.v1',
     SAVE_VERSION: 1,

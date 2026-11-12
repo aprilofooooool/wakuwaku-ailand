@@ -593,7 +593,7 @@
       [['btn btn-main', 'はじめから', askRestart], ['btn btn-sub', 'トップに もどる', askTop]].forEach(function (a) {
         var b = el('button', a[0], a[1]);
         b.type = 'button';
-        b.addEventListener('click', function () { m.close(); if (G) { G.ctrl.notifyActivity(); } a[2](); });
+        b.addEventListener('click', function () { m.close(); if (G) { activity(); } a[2](); });
         acts.appendChild(b);
       });
       nodes.push(acts);
@@ -632,12 +632,13 @@
     // Reset first: start() may emit thinking for a CPU first move synchronously.
     afterHistoryMove();
     G.ctrl.start(G.settings);
-    G.ctrl.notifyActivity();
+    activity();
     announceColors();
   }
 
   function unbindGame() {
     if (!G) { return; }
+    if (G.idle) { G.idle.stop(); }
     O.Effects.stopAll();
     if (G.panels) { Object.keys(G.panels).forEach(function (p) { clearHold(G.panels[p]); O.Effects.clearBubbles(G.panels[p].root); }); }
     clearAnnounce();
@@ -718,7 +719,7 @@
     b.appendChild(el('span', 'ctl-text', text));
     b.addEventListener('click', function () {
       if (b.disabled || !G) { return; }
-      G.ctrl.notifyActivity();
+      activity();
       onClick();
     });
     return b;
@@ -746,7 +747,7 @@
     var help = el('button', 'btn help-btn', '？');
     help.type = 'button';
     help.setAttribute('aria-label', 'あそびかたを みる');
-    help.addEventListener('click', function () { G.ctrl.notifyActivity(); showHelp(); });
+    help.addEventListener('click', function () { activity(); showHelp(); });
     return help;
   }
 
@@ -783,7 +784,7 @@
     var board = el('div', 'board');
     board.style.setProperty('--n', String(size));
     board.setAttribute('aria-label', 'ばん');
-    board.addEventListener('pointerdown', function () { G.ctrl.notifyActivity(); });
+    board.addEventListener('pointerdown', function () { activity(); });
     attachBoardInput(board, playCell);
     G.cells = [];
     for (var i = 0; i < size * size; i += 1) {
@@ -800,7 +801,7 @@
     G.banner.type = 'button';
     G.banner.hidden = true;
     G.banner.addEventListener('click', function () {
-      G.ctrl.notifyActivity();
+      activity();
       if (G.announceTimer) { clearAnnounce(); G.banner.hidden = true; return; }
       G.ctrl.skipPass();
     });
@@ -872,8 +873,44 @@
     }, O.Const.PASS_DISPLAY_MS * 2);
   }
 
+  // A human operation: the controller's idle Thinking timer and the B-3 sleep timer both restart.
+  function activity() {
+    G.ctrl.notifyActivity();
+    if (G.idle) { G.idle.poke(); }
+  }
+
+  // B-3: on a human turn with no operation for SLEEP_AFTER_MS, every other seat falls asleep.
+  // UI only: its own line picker and Math.random, never the controller's say() / rng (replay golden).
+  var sleepLines = Ailand.core.LinePicker.create({ gameLines: O.Lines, commonLines: Ailand.core.CommonLines, rng: Math.random });
+  function makeIdle() {
+    var slept = [];
+    return Ailand.core.IdleTimer.create({
+      ms: O.Const.SLEEP_AFTER_MS,
+      onIdle: function () {
+        if (!G || !G.panels) { return; }
+        var turn = G.ctrl.getView().turnPlayer;
+        slept = G.seats.filter(function (p) { return p !== turn; });
+        slept.forEach(function (p) {
+          var panel = G.panels[p];
+          clearHold(panel);
+          setAvatar(panel, 'sleep');
+          var text = sleepLines.pick(panel.ch.id, 'sleep');
+          if (text) { O.Effects.bubble(panel.root, text); }
+        });
+      },
+      onWake: function () {
+        slept.forEach(function (p) {
+          var panel = G && G.panels && G.panels[p];
+          if (panel && panel.emotion === 'sleep') { setAvatar(panel, panel.thinking ? 'thinking' : 'normal'); }
+        });
+        slept = [];
+      }
+    });
+  }
+
   // After Undo / Redo the controller sends no emotion events, so both avatars go back to normal.
   function afterHistoryMove() {
+    if (G.idle) { G.idle.stop(); }
     O.Effects.stopAll();
     G.seats.forEach(function (p) {
       O.Effects.clearBubbles(G.panels[p].root);
@@ -886,7 +923,7 @@
 
   function playCell(cell) {
     if (!G) { return; }
-    G.ctrl.notifyActivity();
+    activity();
     G.ctrl.play(Number(cell.dataset.index));
   }
 
@@ -1094,6 +1131,9 @@
     });
     if (!G.announceTimer) { G.banner.hidden = true; } // the colour announcement closes on its own timer
     if (!view.gameOver) { closeResult(); }
+    // B-3: a human turn starts the sleep timer once (more 'state' events in the same turn do not restart it).
+    if (!view.gameOver && !view.isCpuTurn) { if (G.idle.state() === 'off') { G.idle.arm(); } }
+    else { G.idle.stop(); }
     renderControls();
   }
 
@@ -1104,8 +1144,14 @@
     var bus = O.bus;
     G = { ctrl: ctrl, root: document.getElementById('screen-game'), offs: [], settings: ctrl.getSettings(), chars: null, assistOn: false };
     G.assistOn = !!(G.settings && G.settings.assist);
+    G.idle = makeIdle();
+    var onVisibility = function () { if (G) { if (document.hidden) { G.idle.pause(); } else { G.idle.resume(); } } };
+    var onKey = function () { if (G) { G.idle.poke(); } };
+    document.addEventListener('visibilitychange', onVisibility);
+    document.addEventListener('keydown', onKey);
+    G.offs.push(function () { document.removeEventListener('visibilitychange', onVisibility); document.removeEventListener('keydown', onKey); });
     G.offs.push(bus.on('state', onState));
-    G.offs.push(bus.on('moved', function (e) { if (G) { G.moved = e; } }));
+    G.offs.push(bus.on('moved', function (e) { if (G) { G.moved = e; G.idle.stop(); } }));
     G.offs.push(bus.on('emotion', function (e) { if (G && G.panels) { showEmotion(G.panels[e.player], G.faces.during(e.player, e.emotion)); } }));
     G.offs.push(bus.on('line', function (e) { if (G && G.panels) { O.Effects.bubble(G.panels[e.player].root, e.text); } }));
     G.offs.push(bus.on('thinking', function (e) {
@@ -1122,6 +1168,7 @@
     }));
     G.offs.push(bus.on('busy', function (e) { if (G && G.board) { G.board.classList.toggle('is-busy', e.on); } }));
     G.offs.push(bus.on('pass', function (e) {
+      if (G) { G.idle.stop(); }
       if (!G || !G.banner) { return; }
       clearAnnounce();
       G.banner.classList.remove('announce');
@@ -1130,6 +1177,7 @@
       G.banner.hidden = false;
     }));
     G.offs.push(bus.on('gameover', function (e) {
+      if (G) { G.idle.stop(); }
       // B-3: the controller's game-over emotions came just before this; re-pick the winners' and losers' faces.
       var winners = e.winners || (e.winner ? [e.winner] : []);
       if (!e.replay && winners.length && G && G.panels) {
