@@ -3,15 +3,13 @@
   var E = Ailand.core.EmotionMap;
 
   describe('core/EmotionMap', function () {
-    it('maps the extended expressions', function () {
-      expect(E.resolve('surprised')).toEqual({ image: 'panic', mark: 'bang' });
-      expect(E.resolve('worried')).toEqual({ image: 'panic', mark: 'sweat' });
-      expect(E.resolve('excited')).toEqual({ image: 'joy', mark: 'sparkle' });
-      expect(E.resolve('sleep')).toEqual({ image: 'normal', mark: 'zzz' });
+    it('expressions with their own image (added 2026-11-12) use it without a mark', function () {
+      ['worried', 'surprised', 'excited', 'sleep', 'smug', 'cheer', 'love'].forEach(function (n) {
+        expect(E.resolve(n)).toEqual({ image: n, mark: null });
+      });
+    });
+    it('angry-steam still borrows the anger image with a mark', function () {
       expect(E.resolve('angry-steam')).toEqual({ image: 'anger', mark: 'steam' });
-      expect(E.resolve('smug')).toEqual({ image: 'joy', mark: 'smirk' });
-      expect(E.resolve('cheer')).toEqual({ image: 'joy', mark: 'cheer' });
-      expect(E.resolve('love')).toEqual({ image: 'joy', mark: 'love' });
     });
     it('basic expressions map to themselves without a mark', function () {
       ['normal', 'joy', 'anger', 'sadness', 'panic', 'thinking'].forEach(function (n) {

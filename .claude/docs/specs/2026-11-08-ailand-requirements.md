@@ -62,7 +62,7 @@
 
 ### 1.5 表情読み替え表
 
-手持ちの画像は `normal` `joy` `anger` `sadness` `panic` `thinking` の6種類。
+手持ちの画像は `normal` `joy` `anger` `sadness` `panic` `thinking` の6種類。2026-11-12 に `worried` `surprised` `excited` `sleep` `smug` `cheer` `love` の7種類を4体分追加した（元画像は `assets-src/`）。
 
 | 論理表情 | 画像（いま） | 付けるマーク | 画像を追加したら |
 |---|---|---|---|
@@ -72,14 +72,14 @@
 | sadness | sadness | なし | — |
 | panic | panic | なし | — |
 | thinking | thinking | なし | — |
-| worried | panic | 汗 | `worried.png` を置き、表の1行を書き換える |
-| surprised | panic | 「！」 | `surprised.png` |
-| excited | joy | キラキラ多め | `excited.png` |
-| sleep | normal | Zzz | `sleep.png` |
+| worried | worried | なし | 追加済み（2026-11-12） |
+| surprised | surprised | なし | 追加済み（同上） |
+| excited | excited | なし | 追加済み（同上） |
+| sleep | sleep | なし | 追加済み（同上） |
 | angry-steam | anger | 湯気 | （予約） |
-| smug | joy | 😏（にやり） | `smug.png`（2026-11-11 キャラたたきで追加） |
-| cheer | joy | 🙌（ばんざい） | `cheer.png`（同上） |
-| love | joy | 💕（ハート） | `love.png`（同上） |
+| smug | smug | なし | 追加済み（2026-11-11 キャラたたきで論理表情を追加、2026-11-12 画像） |
+| cheer | cheer | なし | 追加済み（同上） |
+| love | love | なし | 追加済み（同上） |
 
 - 論理表情名は英小文字（必要ならハイフン）で、追加画像のファイル名にそのまま使う。
 - 画像を追加したら、表情読み替え表のコード（`core/emotion-map.js`）の読み替え先を書き換えるだけで、その画像が使われる。

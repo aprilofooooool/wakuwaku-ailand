@@ -10,14 +10,14 @@
     'sadness': { image: 'sadness', mark: null },
     'panic': { image: 'panic', mark: null },
     'thinking': { image: 'thinking', mark: null },
-    'worried': { image: 'panic', mark: 'sweat' },
-    'surprised': { image: 'panic', mark: 'bang' },
-    'excited': { image: 'joy', mark: 'sparkle' },
-    'sleep': { image: 'normal', mark: 'zzz' },
+    'worried': { image: 'worried', mark: null },
+    'surprised': { image: 'surprised', mark: null },
+    'excited': { image: 'excited', mark: null },
+    'sleep': { image: 'sleep', mark: null },
     'angry-steam': { image: 'anger', mark: 'steam' },
-    'smug': { image: 'joy', mark: 'smirk' },
-    'cheer': { image: 'joy', mark: 'cheer' },
-    'love': { image: 'joy', mark: 'love' }
+    'smug': { image: 'smug', mark: null },
+    'cheer': { image: 'cheer', mark: null },
+    'love': { image: 'love', mark: null }
   };
 
   function resolve(logical) {
