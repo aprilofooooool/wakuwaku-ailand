@@ -675,10 +675,15 @@
     }
     var bubble = el('div', 'bubble-slot');
     bubble.dataset.player = player;
+    // B-3: emotion mark (same core Effects.mark as drop4). A sibling of the avatar, since applyImage
+    // replaces the avatar's children and the avatar clips its overflow.
+    var mark = el('span', 'panel-mark');
+    mark.setAttribute('aria-hidden', 'true');
     p.appendChild(avatar);
+    p.appendChild(mark);
     p.appendChild(info);
     p.appendChild(bubble);
-    return { root: p, avatar: avatar, count: count, bubble: bubble, emotion: null, ch: ch };
+    return { root: p, avatar: avatar, mark: mark, count: count, bubble: bubble, emotion: null, ch: ch };
   }
 
   function clearHold(panel) {
@@ -700,6 +705,7 @@
     if (panel.emotion === emotion) { return; }
     panel.emotion = emotion;
     O.CharacterManager.applyImage(panel.avatar, panel.ch, emotion, 'avatar');
+    Ailand.core.Effects.mark(panel.mark, Ailand.core.CharacterView.markOf(emotion));
   }
 
   function makeControl(icon, text, label, onClick) {
@@ -1157,6 +1163,8 @@
     announceColors: announceColors,
     openSettings: openSettings,
     _normalizeSettings: normalizeSettings,
+    _makeCharPanel: makeCharPanel,
+    _setAvatar: setAvatar,
     _attachBoardInput: attachBoardInput
   };
 })(Ailand.games.othello);

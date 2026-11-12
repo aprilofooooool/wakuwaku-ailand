@@ -50,4 +50,26 @@
       el.remove();
     });
   });
+  describe('UI char panel mark (browser, B-3)', function () {
+    function panel() {
+      var c = cloneWithDir(CM.list()[0], '../assets/characters/mametchi/');
+      var pn = O.UI._makeCharPanel('p1', c, '1P');
+      document.body.appendChild(pn.root);
+      return pn;
+    }
+    it('panel has a mark slot', function () {
+      var pn = panel();
+      expect(pn.root.querySelectorAll('.panel-mark').length).toBe(1);
+      expect(pn.mark.getAttribute('aria-hidden')).toBe('true');
+      pn.root.remove();
+    });
+    it('sleep shows zzz and normal clears it', function () {
+      var pn = panel();
+      O.UI._setAvatar(pn, 'sleep');
+      expect(pn.mark.textContent).toBe(Ailand.core.Effects.glyph('zzz'));
+      O.UI._setAvatar(pn, 'normal');
+      expect(pn.mark.textContent).toBe('');
+      pn.root.remove();
+    });
+  });
 })(Ailand.games.othello);
