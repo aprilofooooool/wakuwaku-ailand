@@ -59,6 +59,24 @@
       } finally { t.done(); }
     });
 
+    it('settings screen plays the whack BGM (same as the other games)', function () {
+      var Bgm = A.core.Bgm, Sound = A.core.Sound;
+      var start = Bgm.start, isOn = Sound.isBgmOn, started = [];
+      Bgm.start = function (sc) { started.push(sc); };
+      Sound.isBgmOn = function () { return true; };
+      var t = null;
+      try {
+        t = make();
+        expect(started.length).toBe(1);
+        expect(started[0]).toBe(W.Sounds.BGM);
+      } finally {
+        if (t) { t.done(); }
+        Bgm.start = start;
+        Sound.isBgmOn = isOn;
+        Bgm.stop();
+      }
+    });
+
     it('solo result with no record yet says so instead of ★0', function () {
       var t = make();
       try {

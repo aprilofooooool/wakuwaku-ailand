@@ -158,6 +158,7 @@
       settingsScreen.hidden = false;
       draft = controller.loadSettings();
       renderSettings();
+      startBgm();
       window.scrollTo(0, 0);
     }
 
@@ -330,8 +331,10 @@
       game.bubbleUntil[side] = now + life + BUBBLE_FADE_MS;
     }
 
+    // Settings screen: the BGM at normal tempo (same as the other games). Game: only while playing.
     function startBgm() {
       if (!Sound.isBgmOn()) { Bgm.stop(); return; }
+      if (!game) { Bgm.start(G.Sounds.BGM); return; }
       if (!inPlay() || controller.isPaused()) { return; }
       Bgm.start(G.Sounds.BGM);
       if (game.final) { Bgm.setTempo(G.Sounds.FINAL_BPM); }

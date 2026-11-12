@@ -53,31 +53,48 @@
   function register() { Object.keys(SOUNDS).forEach(function (name) { S.register(name, SOUNDS[name]); }); }
   register();
 
-  // BGM: a bouncy C major pentatonic tune over a C-Am-F-G bass, 8 bars of 4/4 (32 beats) at 132 bpm.
-  // The last 10 seconds play the same score with Bgm.setTempo(FINAL_BPM).
-  var C5 = 523.25, D5 = 587.33, E5 = 659.25, G5 = 783.99, A5 = 880, C6 = 1046.5;
-  var MELODY_BARS = [
-    [[E5, 0.5], [G5, 0.5], [A5, 0.5], [G5, 0.5], [E5, 1], [C5, 1]],
-    [[D5, 0.5], [E5, 0.5], [G5, 1], [E5, 1], [0, 1]],
-    [[A5, 0.5], [G5, 0.5], [E5, 0.5], [G5, 0.5], [A5, 1], [C6, 1]],
-    [[A5, 0.5], [G5, 0.5], [E5, 1], [D5, 1], [0, 1]],
-    [[E5, 0.5], [G5, 0.5], [A5, 0.5], [G5, 0.5], [E5, 1], [C5, 1]],
-    [[D5, 0.5], [E5, 0.5], [G5, 1], [A5, 1], [G5, 1]],
-    [[C6, 0.5], [A5, 0.5], [G5, 0.5], [E5, 0.5], [D5, 1], [E5, 1]],
-    [[C5, 2], [0, 2]]
-  ];
-  var ROOTS = [130.81, 110, 174.61, 196, 130.81, 110, 174.61, 196];       // C3 A2 F3 G3
-  var FIFTHS = [196, 164.81, 261.63, 293.66, 196, 164.81, 261.63, 293.66]; // G3 E3 C4 D4
-  var THIRDS = [329.63, 261.63, 440, 493.88, 329.63, 261.63, 440, 493.88]; // E4 C4 A4 B4
+  // BGM "ドタバタ・ダッシュ" (design 2026-11-12-bgm-variety §2): a busy, cheerful E major dash, 150 bpm,
+  // 8 bars of 4/4 (32 beats). Short sawtooth "pico" lead running in 16ths, triangle bass jumping octaves on every
+  // 8th, short square two-note stabs, four-on-the-floor kick with snare on 2 and 4 and off-beat hi-hats.
+  // Chords (IV-V-iii-vi): A B G#m C#m | A B C#m B. The last 10 seconds: Bgm.setTempo(FINAL_BPM).
+  var GS2 = 103.83, A2 = 110, B2 = 123.47, CS3 = 138.59, GS3 = 207.65, A3 = 220, B3 = 246.94;
+  var CS4 = 277.18, DS4 = 311.13, E4 = 329.63, FS4 = 369.99, GS4 = 415.3;
+  var B4 = 493.88, CS5 = 554.37, DS5 = 622.25, E5 = 659.25, FS5 = 739.99, GS5 = 830.61, A5 = 880, B5 = 987.77;
+  var CS6 = 1108.73;
 
-  var steps = [], bass = [], chords = [];
-  MELODY_BARS.forEach(function (bar) { bar.forEach(function (n) { steps.push(n); }); });
-  ROOTS.forEach(function (root, i) {
-    bass.push([root, 1], [0, 1], [FIFTHS[i], 1], [0, 1]);
-    for (var k = 0; k < 4; k++) { chords.push([0, 0.5], [THIRDS[i], 0.5]); }   // off-beat "pah"
+  var AMAJ = [A2, A3, [CS4, E4]], BMAJ = [B2, B3, [DS4, FS4]], GSM = [GS2, GS3, [B3, DS4]], CSM = [CS3, CS4, [E4, GS4]];
+  // Per bar: [bass root, bass octave, stab chord]; all >= 100 Hz.
+  var BARS = [AMAJ, BMAJ, GSM, CSM, AMAJ, BMAJ, CSM, BMAJ];
+  var bass = [], chords = [], drums = [];
+  BARS.forEach(function (b) {
+    for (var k = 0; k < 4; k++) { bass.push([b[0], 0.5], [b[1], 0.5]); }
+    chords.push([0, 1.5], [b[2], 0.5], [0, 1.5], [b[2], 0.5]);
+    drums.push(['k', 0.5], ['h', 0.5], ['ks', 0.5], ['h', 0.5], ['k', 0.5], ['h', 0.5], ['ks', 0.5], ['h', 0.5]);
   });
 
-  var BGM = { bpm: 132, wave: 'triangle', bass: bass, chords: chords, steps: steps };
+  var RUN_A = [[E5, 0.25], [FS5, 0.25], [GS5, 0.5], [E5, 0.5], [CS5, 0.5], [E5, 0.5], [A5, 0.5], [GS5, 0.5], [E5, 0.5]];
+  var RUN_B = [[FS5, 0.25], [GS5, 0.25], [A5, 0.5], [FS5, 0.5], [DS5, 0.5], [FS5, 0.5], [B5, 0.5], [A5, 0.5], [FS5, 0.5]];
+  var steps = [].concat(RUN_A, RUN_B, [
+    [GS5, 0.5], [B5, 0.5], [GS5, 0.25], [FS5, 0.25], [E5, 0.5], [DS5, 0.5], [E5, 0.5], [FS5, 0.5], [GS5, 0.5],
+    [CS6, 0.5], [B5, 0.5], [GS5, 0.5], [E5, 0.5], [CS5, 1], [0, 1]
+  ], RUN_A, RUN_B, [
+    [E5, 0.25], [GS5, 0.25], [CS6, 0.5], [B5, 0.5], [GS5, 0.5], [A5, 0.5], [B5, 0.5], [CS6, 0.5], [B5, 0.5],
+    [B5, 0.5], [0, 0.25], [B5, 0.25], [A5, 0.25], [GS5, 0.25], [FS5, 0.5], [DS5, 0.5], [FS5, 0.5], [B4, 0.5], [0, 0.5]
+  ]);
 
-  G.Sounds = { register: register, BGM: BGM, FINAL_BPM: 168, names: Object.keys(SOUNDS) };
+  var BGM = {
+    bpm: 150,
+    wave: 'sawtooth',
+    melodyPeak: 0.176,
+    gate: 0.6,
+    bassWave: 'triangle',
+    chordWave: 'square',
+    chordLen: 0.08,
+    bass: bass,
+    chords: chords,
+    drums: drums,
+    steps: steps
+  };
+
+  G.Sounds = { register: register, BGM: BGM, FINAL_BPM: 180, names: Object.keys(SOUNDS) };
 })(Ailand.games.whack);

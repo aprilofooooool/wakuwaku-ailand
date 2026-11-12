@@ -65,9 +65,37 @@
       expect(n.map(function (x) { return x.freq; })).toEqual([300, 350, 300, 350]);
       expect(n.every(function (x) { return x.bass === false && x.len === 0.5; })).toBe(true);
     });
-    it('a score without chords (drop4 NORMAL) yields no chord notes', function () {
-      expect(chords(Bgm.notesBetween(A.games.drop4.Sounds.NORMAL, 120, 0, 32)).length).toBe(0);
+    it('a score without chords yields no chord notes', function () {
       expect(chords(Bgm.notesBetween(score, 120, 0, 16)).length).toBe(0);
+    });
+  });
+
+  describe('core/Bgm.notesBetween new score options', function () {
+    var opt = {
+      bpm: 120, wave: 'triangle', bass: [[100, 4]], steps: [[500, 0.5], [600, 0.5], [0, 3]],
+      chords: [[[300, 350], 1], [0, 3]],
+      drums: [['k', 0.5], ['h', 0.5]], // 1-beat loop
+      swing: 1 / 6
+    };
+    it('chord arrays give one note per pitch on the same beat', function () {
+      var c = Bgm.notesBetween(opt, 120, 0, 4).filter(function (n) { return n.chord; });
+      expect(c.map(function (n) { return n.freq; })).toEqual([300, 350]);
+      expect(c.every(function (n) { return n.beat === 0; })).toBe(true);
+    });
+    it('drums loop on their own length and carry drum kind with freq 0', function () {
+      var d = Bgm.notesBetween(opt, 120, 0, 2).filter(function (n) { return n.drum; });
+      expect(d.map(function (n) { return n.drum; })).toEqual(['k', 'h', 'k', 'h']);
+      expect(d.map(function (n) { return n.beat; })).toEqual([0, 0.5, 1, 1.5]);
+      expect(d.every(function (n) { return n.freq === 0 && n.bass === false; })).toBe(true);
+    });
+    it('swing moves only off-beat 8ths: at = beat + swing; beat is unchanged', function () {
+      var m = Bgm.notesBetween(opt, 120, 0, 1).filter(function (n) { return !n.bass && !n.chord && !n.drum; });
+      expect(m.map(function (n) { return n.beat; })).toEqual([0, 0.5]);
+      expect(Math.abs(m[1].at - (0.5 + 1 / 6)) < 1e-9).toBe(true);
+      expect(m[0].at).toBe(0);
+    });
+    it('without swing, at equals beat for every note', function () {
+      Bgm.notesBetween(score, 120, 0, 16).forEach(function (n) { expect(n.at).toBe(n.beat); });
     });
   });
 
@@ -86,16 +114,16 @@
   });
 
   describe('drop4 Sounds.NORMAL score', function () {
-    it('melody and bass are both 32 beats (8 bars of 4/4) at 120 bpm', function () {
+    it('melody and bass are both 32 beats (8 bars of 4/4) at 100 bpm', function () {
       var N = A.games.drop4.Sounds.NORMAL;
       function sum(s) { return s.reduce(function (t, x) { return t + x[1]; }, 0); }
-      expect(N.bpm).toBe(120);
+      expect(N.bpm).toBe(100);
       expect(sum(N.steps)).toBe(32);
       expect(sum(N.bass)).toBe(32);
     });
-    it('melody stays within a gentle range (G4 to C6)', function () {
+    it('melody stays within a gentle range (Bb4 to D6)', function () {
       var N = A.games.drop4.Sounds.NORMAL;
-      N.steps.forEach(function (s) { if (s[0] > 0) { expect(s[0] >= 392 && s[0] <= 1047).toBe(true); } });
+      N.steps.forEach(function (s) { if (s[0] > 0) { expect(s[0] >= 466.16 && s[0] <= 1174.66).toBe(true); } });
     });
   });
 })(Ailand);

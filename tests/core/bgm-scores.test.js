@@ -4,34 +4,40 @@
   var Bgm = A.core.Bgm;
 
   function beats(steps) { return steps.reduce(function (s, x) { return s + x[1]; }, 0); }
+  function pitches(list) {
+    var out = [];
+    list.forEach(function (x) { (Array.isArray(x[0]) ? x[0] : [x[0]]).forEach(function (f) { out.push(f); }); });
+    return out;
+  }
 
-  // Entry page and othello loops: 8 bars of 4/4, triangle melody over a sine bass plus a light off-beat
-  // chord voice, all 100-1600 Hz; bright tempos (entry 132, othello 120).
-  function checkScore(name, sc, bpm) {
+  // The four loops (design 2026-11-12-bgm-variety §2): each has its own tempo, melody wave and rhythm.
+  // Sounding notes 100-1600 Hz; at least 90% of the melody 400-1200 Hz (drums and sparkle are not score notes).
+  function checkScore(name, sc, want) {
     describe('BGM score: ' + name, function () {
-      it('exists with a triangle melody, a bass line and a chord voice at ' + bpm + ' bpm', function () {
+      it('exists with a ' + want.wave + ' melody at ' + want.bpm + ' bpm and bass and chord voices', function () {
         expect(!!sc).toBe(true);
-        expect(sc.wave).toBe('triangle');
-        expect(sc.bpm).toBe(bpm);
+        expect(sc.wave).toBe(want.wave);
+        expect(sc.bpm).toBe(want.bpm);
         expect(sc.steps.length > 0 && sc.bass.length > 0 && sc.chords.length > 0).toBe(true);
       });
-      it('melody, bass and chords are 32 beats each (8 bars)', function () {
-        expect(beats(sc.steps)).toBe(32);
-        expect(beats(sc.bass)).toBe(32);
-        expect(beats(sc.chords)).toBe(32);
+      it('every voice is ' + want.beats + ' beats long', function () {
+        expect(beats(sc.steps)).toBe(want.beats);
+        expect(beats(sc.bass)).toBe(want.beats);
+        expect(beats(sc.chords)).toBe(want.beats);
+        if (sc.drums) { expect(beats(sc.drums)).toBe(want.beats); }
       });
       it('notesBetween over one loop returns melody, bass and chord notes', function () {
-        var n = Bgm.notesBetween(sc, sc.bpm, 0, 32);
-        expect(n.filter(function (x) { return !x.bass && !x.chord; }).length > 8).toBe(true);
+        var n = Bgm.notesBetween(sc, sc.bpm, 0, want.beats);
+        expect(n.filter(function (x) { return !x.bass && !x.chord && !x.drum; }).length > 8).toBe(true);
         expect(n.filter(function (x) { return x.bass; }).length > 4).toBe(true);
         expect(n.filter(function (x) { return x.chord; }).length > 4).toBe(true);
-        expect(n.every(function (x) { return x.beat >= 0 && x.beat < 32 && x.len > 0; })).toBe(true);
+        expect(n.every(function (x) { return x.beat >= 0 && x.beat < want.beats && x.len > 0; })).toBe(true);
       });
-      it('every sounding note is within 100-1600 Hz; rests are 0', function () {
-        sc.steps.concat(sc.bass, sc.chords).forEach(function (x) {
-          expect(x[0] === 0 || (x[0] >= 100 && x[0] <= 1600)).toBe(true);
-          expect(x[1] > 0).toBe(true);
+      it('every sounding note is within 100-1600 Hz; rests are 0; lengths are positive', function () {
+        pitches(sc.steps.concat(sc.bass, sc.chords)).forEach(function (f) {
+          expect(f === 0 || (f >= 100 && f <= 1600)).toBe(true);
         });
+        sc.steps.concat(sc.bass, sc.chords).forEach(function (x) { expect(x[1] > 0).toBe(true); });
       });
       it('melody is not shrill: at least 90% of its notes are 400-1200 Hz', function () {
         var mel = sc.steps.filter(function (x) { return x[0] > 0; });
@@ -41,14 +47,40 @@
     });
   }
 
-  checkScore('entry page', A.top && A.top.BGM_SCORE, 132);
-  checkScore('othello', A.games.othello && A.games.othello.BGM_SCORE, 120);
+  var TOP = A.top && A.top.BGM_SCORE;
+  var DROP4 = A.games.drop4 && A.games.drop4.Sounds.NORMAL;
+  var OTHELLO = A.games.othello && A.games.othello.BGM_SCORE;
+  var WHACK = A.games.whack && A.games.whack.Sounds.BGM;
 
-  describe('BGM scores differ from each other and from drop4 NORMAL', function () {
-    it('the three melodies are not the same', function () {
-      var a = JSON.stringify(A.top.BGM_SCORE.steps), b = JSON.stringify(A.games.othello.BGM_SCORE.steps);
-      var c = JSON.stringify(A.games.drop4.Sounds.NORMAL.steps);
-      expect(a !== b && a !== c && b !== c).toBe(true);
+  checkScore('entry page', TOP, { bpm: 112, beats: 32, wave: 'square' });
+  checkScore('drop4', DROP4, { bpm: 100, beats: 32, wave: 'sine' });
+  checkScore('othello', OTHELLO, { bpm: 144, beats: 48, wave: 'sine' });
+  checkScore('whack', WHACK, { bpm: 150, beats: 32, wave: 'sawtooth' });
+
+  describe('BGM scores differ from each other', function () {
+    var all = [TOP, DROP4, OTHELLO, WHACK];
+    function distinct(list) { return list.filter(function (v, i) { return list.indexOf(v) === i; }).length === list.length; }
+    it('tempos are all different', function () {
+      expect(distinct(all.map(function (s) { return s.bpm; }))).toBe(true);
+    });
+    it('melody timbres are all different (wave with bend / sparkle)', function () {
+      expect(distinct(all.map(function (s) { return s.wave + '/' + (s.bend || 0) + '/' + !!s.sparkle; }))).toBe(true);
+    });
+    it('every pair differs in rhythm: loop length, swing, or drum pattern', function () {
+      function rhythm(s) { return JSON.stringify([beats(s.steps), s.swing || 0, s.drums || null]); }
+      expect(distinct(all.map(rhythm))).toBe(true);
+    });
+    it('only drop4 swings and bends; only othello sparkles and has no drums', function () {
+      expect(all.map(function (s) { return !!s.swing; })).toEqual([false, true, false, false]);
+      expect(all.map(function (s) { return !!s.bend; })).toEqual([false, true, false, false]);
+      expect(all.map(function (s) { return !!s.sparkle; })).toEqual([false, false, true, false]);
+      expect(all.map(function (s) { return !!s.drums; })).toEqual([true, true, false, true]);
+    });
+    it('drop4 ENDGAME_BPM (126) and whack FINAL_BPM (180) are faster than their normal tempo', function () {
+      expect(A.games.drop4.Sounds.ENDGAME_BPM).toBe(126);
+      expect(A.games.whack.Sounds.FINAL_BPM).toBe(180);
+      expect(A.games.drop4.Sounds.ENDGAME_BPM > DROP4.bpm).toBe(true);
+      expect(A.games.whack.Sounds.FINAL_BPM > WHACK.bpm).toBe(true);
     });
   });
 })(Ailand);
