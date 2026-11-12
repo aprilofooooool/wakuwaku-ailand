@@ -17,5 +17,5 @@
 
 ## 自動テスト（同じ時点）
 
-- `scripts\run.bat test`：626 / 0、ブラウザの `tests/test.html`：639 / 0、`scripts\run.bat check`：OK
-- `scripts\run.bat replay-othello`：（実行中）
+- `scripts\run.bat test`：627 / 0（85aeb53 時点）、ブラウザの `tests/test.html`：639 / 0（4632d76 時点）、`scripts\run.bat check`：OK
+- `scripts\run.bat replay-othello`：95/95 一致（4632d76 時点。そのあとの 85aeb53 は `core/bgm.js` の音の鳴らし方だけ）
