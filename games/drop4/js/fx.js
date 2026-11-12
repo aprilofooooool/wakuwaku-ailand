@@ -95,6 +95,11 @@
     g.el.appendChild(b);
   }
 
+  // Face of a seat in the ending display: the one its reaction picked (B-3), else `logical`.
+  function faceOf(ctx, seat, logical) {
+    return (ctx.faces && ctx.faces[seat]) || logical;
+  }
+
   function heroes(seatList, ctx, logical, spin) {
     var row = el('div', 'd4-heroes');
     seatList.forEach(function (s, i) {
@@ -105,7 +110,7 @@
       img.draggable = false;
       h.appendChild(img);
       row.appendChild(h);
-      C.CharacterView.apply(img, v.profile, logical);
+      C.CharacterView.apply(img, v.profile, faceOf(ctx, s, logical));
     });
     return row;
   }
@@ -215,5 +220,5 @@
     fadeOutAt(g, BANNER_MS);
   }
 
-  G.Fx = { play: play, drop: drop, dropMs: dropMs, stop: stop, keepRings: keepRings, heroSize: heroSize, heroTop: heroTop };
+  G.Fx = { faceOf: faceOf, play: play, drop: drop, dropMs: dropMs, stop: stop, keepRings: keepRings, heroSize: heroSize, heroTop: heroTop };
 })(Ailand.games.drop4);

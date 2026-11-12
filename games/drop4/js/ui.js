@@ -707,7 +707,9 @@
           sfx(kind);
         }
         // The queue waits for the ending display, so the result card appears after it.
-        return Fx.play(p.picked, { seats: g.seats, boardEl: g.boardwrap, winEls: winEls(result), result: result, humans: g.humans });
+        var faces = {};
+        Object.keys(g.seats).forEach(function (s) { faces[s] = g.seats[s].emotion; });
+        return Fx.play(p.picked, { faces: faces, seats: g.seats, boardEl: g.boardwrap, winEls: winEls(result), result: result, humans: g.humans });
       });
     });
     bus.on('gameover', function (p) {
