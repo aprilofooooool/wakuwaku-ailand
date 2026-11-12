@@ -5,3 +5,4 @@
 - B-1 ブラウザでテストを開くと音テストと AI の時間切れテストが失敗する — 2026-11-10 計画フォルダなし（ブランチ `claude/fix-b1-browser-tests-d29a63`。音テストは AudioContext を一時的に隠して実行、時間切れテストは deadline を 1ms 過去にした）
 - B-2 キャラたたき（whack）を作る — 2026-11-11 `done/B-2_whack/`（ブランチ `claude/whack-design-82429d`。残作業：cheer・love の画像を追加したら emotion-map の行を書き換える）
 - B-3 3ゲームのキャラの反応バリエーションを増やす（表情の候補・待ちくたびれ sleep・れんぞく・オセロっちの印） — 2026-11-12 `done/B-3_reaction-variety/`（ブランチ `claude/unruffled-torvalds-a553e5`。残作業なし。あとまわし：オセロっちの起床時にねむりの吹き出しを消さない・パス表示中に数え始めることがある）
+- B-4 4曲の BGM の曲調を作り分ける — 2026-11-13 `done/B-4_bgm-variety/`（ブランチ `claude/stoic-neumann-f697fd`。残作業なし。あとまわし：低音の音の長さが試作より長め（92% と 85%）・スイングで遅らせた音の長さを縮めていない）

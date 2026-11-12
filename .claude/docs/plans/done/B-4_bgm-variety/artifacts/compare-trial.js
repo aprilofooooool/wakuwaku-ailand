@@ -1,5 +1,5 @@
 // B-4 Task 3: checks that the four shipped BGM scores match the approved trial page note for note.
-// Run from the repo root: node .claude/docs/plans/active/B-4_bgm-variety/artifacts/compare-trial.js
+// Run from the repo root: node .claude/docs/plans/done/B-4_bgm-variety/artifacts/compare-trial.js
 'use strict';
 var fs = require('fs');
 var path = require('path');
