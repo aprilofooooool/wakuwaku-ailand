@@ -18,13 +18,14 @@
   }
 
   function param() {
-    var p = { value: 0, lastTarget: null };
-    p.setValueAtTime = function () {};
-    p.exponentialRampToValueAtTime = function () {};
+    var p = { value: 0, lastTarget: null, calls: [] };
+    p.setValueAtTime = function (v, t) { p.calls.push(['setValueAtTime', v, t]); };
+    p.exponentialRampToValueAtTime = function (v, t) { p.calls.push(['exponentialRampToValueAtTime', v, t]); };
     p.setTargetAtTime = function (v) { p.lastTarget = v; };
     return p;
   }
-  function FakeCtx() {
+  // noNoise: a context without AudioBuffer / BiquadFilter support (drum noise must be skipped).
+  function FakeCtx(noNoise) {
     var self = this;
     this.state = 'running';
     this.currentTime = 0;
@@ -45,11 +46,33 @@
       return o;
     };
     this.resume = function () { self.resumed++; self.state = 'running'; return Promise.resolve(); };
+    this.sources = [];
+    this.filters = [];
+    if (!noNoise) {
+      this.sampleRate = 8000;
+      this.createBuffer = function (ch, len) {
+        var data = new Float32Array(len);
+        return { length: len, getChannelData: function () { return data; } };
+      };
+      this.createBufferSource = function () {
+        var s = {
+          buffer: null, connect: function () {}, startT: null, stopT: null,
+          start: function (t) { s.startT = t; }, stop: function (t) { s.stopT = t; }
+        };
+        self.sources.push(s);
+        return s;
+      };
+      this.createBiquadFilter = function () {
+        var f = { type: 'lowpass', frequency: param(), connect: function () {} };
+        self.filters.push(f);
+        return f;
+      };
+    }
   }
 
-  function withFake(state, fn) {
+  function withFake(state, fn, noNoise) {
     var made = null;
-    window.AudioContext = function () { made = new FakeCtx(); made.state = state; return made; };
+    window.AudioContext = function () { made = new FakeCtx(noNoise); made.state = state; return made; };
     Sound._reset();
     memStorage(function () {
       Sound.setEnabled(true);
@@ -173,6 +196,121 @@
         c.currentTime = 0.3;
         Bgm._tick();
         expect(c.oscCount > 0).toBe(true);
+      });
+    });
+  });
+
+  describe('core/Bgm voices (fake clock)', function () {
+    function run(c, seconds) {
+      for (var t = 0; t < seconds; t += 0.025) { c.currentTime += 0.025; Bgm._tick(); }
+    }
+    function f0(o) { return o.frequency.calls.length ? o.frequency.calls[0][1] : null; }
+    function at(c, hz) { return c.oscs.filter(function (o) { return Math.abs(f0(o) - hz) < 1e-6; }); }
+    function types(list) {
+      var seen = {};
+      list.forEach(function (o) { seen[o.type] = true; });
+      return Object.keys(seen).sort();
+    }
+
+    it('defaults are unchanged: triangle melody, sine bass, sine chords', function () {
+      withFake('running', function (c) {
+        Bgm.start({ bpm: 120, wave: 'triangle', bass: [[100, 1]], chords: [[300, 1]], steps: [[500, 1]] });
+        run(c, 1);
+        expect(c.oscs.length > 0).toBe(true);
+        expect(types(at(c, 500))).toEqual(['triangle']);
+        expect(types(at(c, 100))).toEqual(['sine']);
+        expect(types(at(c, 300))).toEqual(['sine']);
+      });
+    });
+    it('bassWave / chordWave / wave pick each voice\'s oscillator type', function () {
+      withFake('running', function (c) {
+        Bgm.start({
+          bpm: 120, wave: 'sawtooth', bassWave: 'triangle', chordWave: 'square',
+          bass: [[100, 1]], chords: [[300, 1]], steps: [[500, 1]]
+        });
+        run(c, 1);
+        expect(types(at(c, 500))).toEqual(['sawtooth']);
+        expect(types(at(c, 100))).toEqual(['triangle']);
+        expect(types(at(c, 300))).toEqual(['square']);
+      });
+    });
+    it('bend starts the melody at freq * bend and ramps up to freq', function () {
+      withFake('running', function (c) {
+        Bgm.start({ bpm: 120, wave: 'sine', bass: [], steps: [[500, 1]], bend: 0.8 });
+        run(c, 0.5);
+        var o = at(c, 400);
+        expect(o.length > 0).toBe(true);
+        var calls = o[0].frequency.calls;
+        var t0 = calls[0][2];
+        var ramp = calls.filter(function (x) { return x[0] === 'exponentialRampToValueAtTime'; })[0];
+        expect(ramp[1]).toBe(500);
+        expect(ramp[2] > t0 && ramp[2] <= t0 + 0.06 + 1e-9).toBe(true);
+      });
+    });
+    it('sparkle adds a quiet sine an octave up for each melody note', function () {
+      withFake('running', function (c) {
+        Bgm.start({ bpm: 120, wave: 'sine', bass: [], steps: [[500, 1]], sparkle: true });
+        run(c, 2);
+        var mel = at(c, 500), up = at(c, 1000);
+        expect(mel.length > 0).toBe(true);
+        expect(up.length).toBe(mel.length);
+        expect(types(up)).toEqual(['sine']);
+      });
+    });
+    it('drums: kick is an oscillator from 150 Hz, snare/hat are filtered noise', function () {
+      withFake('running', function (c) {
+        Bgm.start({ bpm: 120, wave: 'triangle', bass: [], steps: [[0, 1]], drums: [['ks', 0.5], ['h', 0.5]] });
+        run(c, 1);
+        expect(at(c, 150).length > 0).toBe(true);
+        var kinds = c.filters.map(function (f) { return f.type + ':' + f.frequency.value; });
+        expect(kinds.indexOf('bandpass:1800') >= 0).toBe(true);
+        expect(kinds.indexOf('highpass:7000') >= 0).toBe(true);
+        expect(c.sources.length > 0).toBe(true);
+        expect(c.sources.every(function (s) { return s.buffer && s.buffer === c.sources[0].buffer; })).toBe(true);
+      });
+    });
+    it('no noise support: snare and hat are skipped without throwing', function () {
+      withFake('running', function (c) {
+        Bgm.start({ bpm: 120, wave: 'triangle', bass: [], steps: [[0, 2]], drums: [['s', 0.5], ['h', 0.5], ['k', 1]] });
+        run(c, 1.5);
+        expect(at(c, 150).length > 0).toBe(true);
+        expect(c.sources.length).toBe(0);
+      }, true);
+    });
+    it('stop() also stops drum noise sources', function () {
+      withFake('running', function (c) {
+        Bgm.start({ bpm: 120, wave: 'triangle', bass: [], steps: [[0, 1]], drums: [['s', 0.5], ['h', 0.5]] });
+        run(c, 0.5);
+        expect(c.sources.length > 0).toBe(true);
+        Bgm.stop();
+        c.sources.forEach(function (s) { expect(s.stopT <= c.currentTime + 0.1 + 1e-9).toBe(true); });
+      });
+    });
+    var swung = { bpm: 60, wave: 'triangle', bass: [], steps: [[500, 0.5], [600, 0.5]], swing: 1 / 6 };
+    it('swing: off-beat 8ths start swing beats late', function () {
+      withFake('running', function (c) {
+        Bgm.start(swung);
+        run(c, 3);
+        var mel = c.oscs.filter(function (o) { return f0(o) === 500 || f0(o) === 600; });
+        var checked = 0;
+        for (var i = 1; i < mel.length; i++) {
+          if (f0(mel[i]) === 600 && f0(mel[i - 1]) === 500) {
+            expect(Math.abs(mel[i].startT - mel[i - 1].startT - (0.5 + 1 / 6)) < 1e-6).toBe(true);
+            checked++;
+          }
+        }
+        expect(checked >= 2).toBe(true);
+      });
+    });
+    it('swing stays in order across a tempo change', function () {
+      withFake('running', function (c) {
+        Bgm.start(swung);
+        run(c, 1.5);
+        Bgm.setTempo(90);
+        run(c, 2);
+        var st = c.oscs.map(function (o) { return o.startT; });
+        expect(st.length > 4).toBe(true);
+        for (var i = 1; i < st.length; i++) { expect(st[i] > st[i - 1]).toBe(true); }
       });
     });
   });
