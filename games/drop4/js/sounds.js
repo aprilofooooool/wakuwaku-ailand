@@ -43,28 +43,60 @@
 
   Object.keys(SOUNDS).forEach(function (name) { S.register(name, SOUNDS[name]); });
 
-  // Normal BGM: C major pentatonic melody over a C-Am-F-G bass, 8 bars of 4/4 (32 beats) = 16 s at 120 bpm.
-  // Endgame uses the same score with Bgm.setTempo(150).
-  var BAR_ROOTS = [130.81, 110, 87.31, 98, 130.81, 110, 87.31, 98];
-  var BAR_FIFTHS = [98, 164.81, 130.81, 146.83, 98, 164.81, 130.81, 146.83];
-  var BASS = [];
-  BAR_ROOTS.forEach(function (root, i) { BASS.push([root, 1], [0, 1], [BAR_FIFTHS[i], 1], [0, 1]); });
+  // BGM "ぽよんぽよんシャッフル" (design 2026-11-12-bgm-variety §2): a bouncy Bb major shuffle, 100 bpm,
+  // 8 bars of 4/4 (32 beats). Off-beat 8ths swing to the triplet position (swing 1/6). Sine melody that boings up
+  // into each note (bend 0.82) with big leaps; triangle bass hopping by octaves, soft sine off-beat chords,
+  // kick 1&3 and swung hi-hats. Chords: Bb Gm Cm F | Bb Gm Eb-F Bb. Endgame: Bgm.setTempo(ENDGAME_BPM).
+  var C3 = 130.81, D3 = 146.83, EB3 = 155.56, F3 = 174.61, G3 = 196, A3 = 220, BB2 = 116.54, BB3 = 233.08;
+  var C4 = 261.63, D4 = 293.66, EB4 = 311.13, F4 = 349.23, G4 = 392;
+  var BB4 = 466.16, C5 = 523.25, D5 = 587.33, EB5 = 622.25, F5 = 698.46, G5 = 783.99, A5 = 880, BB5 = 932.33;
+  var C6 = 1046.5, D6 = 1174.66;
+
+  // Per bar: [bass root, bass octave or fifth, chord]; bar 7 (null) is split Eb | F. All >= 100 Hz.
+  var BARS = [
+    [BB2, BB3, [D4, F4]], [G3, D3, [BB3, D4]], [C3, C4, [EB4, G4]], [F3, C3, [A3, C4]],
+    [BB2, BB3, [D4, F4]], [G3, D3, [BB3, D4]], null, [BB2, BB3, [D4, F4]]
+  ];
+  var BASS = [], CHORDS = [], DRUMS = [];
+  BARS.forEach(function (b) {
+    if (!b) {
+      BASS.push([EB3, 0.5], [0, 0.5], [EB4, 0.5], [0, 0.5], [F3, 0.5], [0, 0.5], [F3, 0.5], [C3, 0.5]);
+      CHORDS.push([0, 0.5], [[G3, BB3], 0.5], [0, 0.5], [[G3, BB3], 0.5], [0, 0.5], [[A3, C4], 0.5], [0, 0.5], [[A3, C4], 0.5]);
+    } else {
+      BASS.push([b[0], 0.5], [0, 0.5], [b[1], 0.5], [b[0], 0.5], [0, 0.5], [b[0], 0.5], [b[1], 1]);
+      CHORDS.push([0, 0.5], [b[2], 0.5], [0, 0.5], [b[2], 0.5], [0, 0.5], [b[2], 0.5], [0, 0.5], [b[2], 0.5]);
+    }
+    DRUMS.push(['k', 0.5], ['h', 0.5], [0, 0.5], ['h', 0.5], ['k', 0.5], ['h', 0.5], [0, 0.5], ['h', 0.5]);
+  });
 
   var NORMAL = {
-    bpm: 120,
-    wave: 'triangle',
+    bpm: 100,
+    wave: 'sine',
+    melodyPeak: 0.336,
+    gate: 0.7,
+    bend: 0.82,
+    swing: 1 / 6,
+    bassWave: 'triangle',
+    chordWave: 'sine',
+    chordLen: 0.1,
     bass: BASS,
+    chords: CHORDS,
+    drums: DRUMS,
     steps: [
-      [659.25, 1], [783.99, 0.5], [659.25, 0.5], [587.33, 1], [523.25, 1],
-      [523.25, 0.5], [587.33, 0.5], [659.25, 1], [783.99, 1], [659.25, 1],
-      [880, 1], [783.99, 0.5], [659.25, 0.5], [783.99, 1], [880, 1],
-      [783.99, 1.5], [659.25, 0.5], [587.33, 1], [0, 1],
-      [659.25, 0.5], [783.99, 0.5], [1046.5, 1], [880, 1], [783.99, 1],
-      [880, 1], [783.99, 0.5], [659.25, 0.5], [587.33, 1], [659.25, 1],
-      [587.33, 0.5], [659.25, 0.5], [783.99, 1], [659.25, 1], [587.33, 1],
-      [523.25, 1], [587.33, 1], [659.25, 1], [0, 1]
+      // boing up and leap (bars 1-2)
+      [F5, 0.5], [D5, 0.5], [F5, 0.5], [BB5, 1], [0, 0.5], [F5, 0.5], [G5, 0.5],
+      [BB5, 0.5], [G5, 0.5], [0, 0.5], [D5, 0.5], [G5, 1], [F5, 1],
+      // up to C6 and land on A5 (bars 3-4)
+      [EB5, 0.5], [G5, 0.5], [C6, 1], [BB5, 0.5], [G5, 0.5], [EB5, 1],
+      [F5, 0.5], [0, 0.5], [C5, 0.5], [F5, 0.5], [A5, 1], [0, 1],
+      // falling hops from D6 (bars 5-6)
+      [D6, 0.5], [BB5, 0.5], [F5, 0.5], [D5, 0.5], [F5, 0.5], [BB5, 0.5], [0, 1],
+      [G5, 0.5], [A5, 0.5], [BB5, 0.5], [G5, 0.5], [D5, 1], [G5, 1],
+      // Eb-F and home (bars 7-8)
+      [EB5, 0.5], [G5, 0.5], [BB5, 1], [C6, 0.5], [A5, 0.5], [F5, 1],
+      [BB5, 0.5], [F5, 0.5], [D5, 0.5], [F5, 0.5], [BB4, 1], [0, 1]
     ]
   };
 
-  G.Sounds = { NORMAL: NORMAL, names: Object.keys(SOUNDS) };
+  G.Sounds = { NORMAL: NORMAL, ENDGAME_BPM: 126, names: Object.keys(SOUNDS) };
 })(Ailand.games.drop4);

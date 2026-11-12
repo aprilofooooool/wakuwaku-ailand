@@ -65,8 +65,7 @@
       expect(n.map(function (x) { return x.freq; })).toEqual([300, 350, 300, 350]);
       expect(n.every(function (x) { return x.bass === false && x.len === 0.5; })).toBe(true);
     });
-    it('a score without chords (drop4 NORMAL) yields no chord notes', function () {
-      expect(chords(Bgm.notesBetween(A.games.drop4.Sounds.NORMAL, 120, 0, 32)).length).toBe(0);
+    it('a score without chords yields no chord notes', function () {
       expect(chords(Bgm.notesBetween(score, 120, 0, 16)).length).toBe(0);
     });
   });
@@ -115,16 +114,16 @@
   });
 
   describe('drop4 Sounds.NORMAL score', function () {
-    it('melody and bass are both 32 beats (8 bars of 4/4) at 120 bpm', function () {
+    it('melody and bass are both 32 beats (8 bars of 4/4) at 100 bpm', function () {
       var N = A.games.drop4.Sounds.NORMAL;
       function sum(s) { return s.reduce(function (t, x) { return t + x[1]; }, 0); }
-      expect(N.bpm).toBe(120);
+      expect(N.bpm).toBe(100);
       expect(sum(N.steps)).toBe(32);
       expect(sum(N.bass)).toBe(32);
     });
-    it('melody stays within a gentle range (G4 to C6)', function () {
+    it('melody stays within a gentle range (Bb4 to D6)', function () {
       var N = A.games.drop4.Sounds.NORMAL;
-      N.steps.forEach(function (s) { if (s[0] > 0) { expect(s[0] >= 392 && s[0] <= 1047).toBe(true); } });
+      N.steps.forEach(function (s) { if (s[0] > 0) { expect(s[0] >= 466.16 && s[0] <= 1174.66).toBe(true); } });
     });
   });
 })(Ailand);

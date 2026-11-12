@@ -1,45 +1,56 @@
 (function (O) {
   'use strict';
-  // オセロっち BGM "ぴょこぴょこポルカ": cheerful F major, 120 bpm, 8 bars of 4/4 (32 beats).
-  // Melody: a 2-bar call-and-answer motif (dotted 8ths, syncopated rests, octave leap) repeated a step higher,
-  // then a climbing Dm-Bb phrase and a run up to C6 that falls home. Bass walks root-fifth on every beat
-  // (staccato); chords tick softly on every off-beat ("oom-pah" polka). Chords: F Bb C F | Dm Bb C F.
-  // Played by core/bgm.js (triangle melody, sine bass, soft sine chord plucks; same gains as drop4).
+  // オセロっち BGM "ひなたぼっこワルツ" (design 2026-11-12-bgm-variety §2): a gentle, happy Eb major waltz,
+  // 3/4 at 144 bpm (one bar = 1.25 s), 16 bars (48 beats), no drums. Music-box melody: sine with a quiet sine an
+  // octave up (sparkle). Sine bass on beat 1, two-note triangle chords on beats 2 and 3 ("oom-pah-pah").
+  // Chords: Eb Eb Ab Bb | Cm Ab Bb Eb | Ab Bb Gm Cm | Ab Bb Eb Eb. Played by core/bgm.js.
   // Othello's own SE stay in sound-synthesizer.js.
-  var F4 = 349.23, G4 = 392, A4 = 440, BB4 = 466.16, C5 = 523.25, D5 = 587.33, E5 = 659.25;
-  var F5 = 698.46, G5 = 783.99, A5 = 880, C6 = 1046.5;
-  var BB2 = 116.54, C3 = 130.81, D3 = 146.83, F3 = 174.61, G3 = 196, A3 = 220, BB3 = 233.08;
-  var C4 = 261.63, D4 = 293.66, E4 = 329.63;
+  var AB2 = 103.83, BB2 = 116.54, C3 = 130.81, EB3 = 155.56, G3 = 196, AB3 = 207.65, BB3 = 233.08;
+  var C4 = 261.63, D4 = 293.66, EB4 = 311.13;
+  var AB4 = 415.3, BB4 = 466.16, C5 = 523.25, D5 = 587.33, EB5 = 622.25, F5 = 698.46, G5 = 783.99;
+  var AB5 = 830.61, BB5 = 932.33, C6 = 1046.5;
 
-  // Per bar: [bass root, bass fifth, off-beat chord tone 1, off-beat chord tone 2]; all >= 100 Hz.
-  var BARS = [
-    [F3, C3, A3, C4], [BB2, F3, BB3, D4], [C3, G3, C4, E4], [F3, C3, A3, C4],
-    [D3, A3, A3, D4], [BB2, F3, BB3, D4], [C3, G3, C4, E4], [F3, C3, A3, C4]
-  ];
+  var EB = [EB3, [G3, BB3]], AB = [AB2, [AB3, C4]], BB = [BB2, [AB3, D4]], CM = [C3, [G3, EB4]], GM = [G3, [BB3, D4]];
+  // Per bar: [bass on beat 1, chord on beats 2 and 3]; all >= 100 Hz.
+  var BARS = [EB, EB, AB, BB, CM, AB, BB, EB, AB, BB, GM, CM, AB, BB, EB, EB];
   var BASS = [], CHORDS = [];
   BARS.forEach(function (b) {
-    BASS.push([b[0], 0.5], [0, 0.5], [b[1], 0.5], [0, 0.5], [b[0], 0.5], [0, 0.5], [b[1], 0.5], [0, 0.5]);
-    CHORDS.push([0, 0.5], [b[2], 0.5], [0, 0.5], [b[3], 0.5], [0, 0.5], [b[2], 0.5], [0, 0.5], [b[3], 0.5]);
+    BASS.push([b[0], 1], [0, 2]);
+    CHORDS.push([0, 1], [b[1], 1], [b[1], 1]);
   });
 
   O.BGM_SCORE = {
-    bpm: 120,
-    wave: 'triangle',
+    bpm: 144,
+    wave: 'sine',
+    melodyPeak: 0.32,
+    gate: 0.8,
+    sparkle: true,
+    bassWave: 'sine',
+    chordWave: 'triangle',
+    chordLen: 0.14,
     bass: BASS,
     chords: CHORDS,
     steps: [
-      // call and answer (bars 1-2)
-      [C5, 0.75], [A4, 0.25], [C5, 0.5], [F5, 0.5], [0, 0.5], [F5, 0.5], [E5, 0.5], [F5, 0.5],
-      [D5, 0.5], [0, 0.25], [D5, 0.25], [BB4, 0.5], [D5, 0.5], [C5, 1], [0, 1],
-      // the same, a step higher (bars 3-4)
-      [C5, 0.75], [G4, 0.25], [C5, 0.5], [E5, 0.5], [0, 0.5], [G5, 0.5], [F5, 0.5], [E5, 0.5],
-      [F5, 0.5], [0, 0.25], [C5, 0.25], [A4, 0.5], [C5, 0.5], [F4, 1], [0, 1],
-      // climbing phrase (bars 5-6)
-      [A4, 0.5], [D5, 0.5], [F5, 0.5], [A5, 0.5], [0, 0.5], [A5, 0.25], [G5, 0.25], [F5, 0.5], [D5, 0.5],
-      [BB4, 0.5], [D5, 0.5], [F5, 1], [0, 0.5], [D5, 0.5], [F5, 0.5], [D5, 0.5],
-      // run up to C6 and fall home with an octave leap (bars 7-8)
-      [E5, 0.75], [F5, 0.25], [G5, 0.5], [C5, 0.5], [E5, 0.75], [F5, 0.25], [G5, 0.5], [C6, 0.5],
-      [A5, 0.5], [F5, 0.5], [C5, 0.5], [A4, 0.5], [F4, 0.5], [F5, 0.5], [0, 1]
+      // sunny opening (bars 1-4)
+      [G5, 1.5], [F5, 0.5], [EB5, 1],
+      [BB4, 1], [EB5, 1], [G5, 1],
+      [AB5, 1.5], [G5, 0.5], [F5, 1],
+      [D5, 1], [F5, 1], [BB5, 1],
+      // up to C6 and back home (bars 5-8)
+      [C6, 1.5], [BB5, 0.5], [G5, 1],
+      [AB5, 1], [F5, 1], [C5, 1],
+      [D5, 1], [EB5, 0.5], [F5, 0.5], [BB4, 1],
+      [EB5, 2], [0, 1],
+      // second phrase (bars 9-12)
+      [C5, 0.5], [EB5, 0.5], [AB5, 1], [C6, 1],
+      [BB5, 1.5], [AB5, 0.5], [F5, 1],
+      [G5, 0.5], [BB5, 0.5], [D5, 1], [G5, 1],
+      [EB5, 1.5], [D5, 0.5], [C5, 1],
+      // rise and the opening again, then home (bars 13-16)
+      [AB4, 1], [C5, 1], [EB5, 1],
+      [F5, 1], [G5, 0.5], [AB5, 0.5], [BB5, 1],
+      [G5, 1.5], [F5, 0.5], [EB5, 1],
+      [EB5, 2], [BB4, 1]
     ]
   };
 })(Ailand.games.othello);

@@ -13,7 +13,6 @@
   var LEVELS = [['weak', 'よわい'], ['normal', 'ふつう'], ['strong', 'つよい']];
   var FIRSTS = [['me', 'じぶん'], ['them', 'あいて'], ['random', 'ランダム']];
   var THINKING_TEXT = 'うーん…';
-  var ENDGAME_BPM = 150;   // requirements 3.9: endgame raises the BGM tempo
   var GREETING_MS = 2000;  // the start greeting stays this long before thinking / reactions may replace it
   var FIRST_LANDING = 0.55; // fx.js d4-drop: the disc first touches down at 55% of dropMs
   // BGM ON/OFF: shared core setting (core/sound.js).
@@ -233,12 +232,12 @@
       if (gameScreen.hidden) { Bgm.start(G.Sounds.NORMAL); return; }
       if (view.over) { return; }
       Bgm.start(G.Sounds.NORMAL);
-      if (fast) { Bgm.setTempo(ENDGAME_BPM); }
+      if (fast) { Bgm.setTempo(G.Sounds.ENDGAME_BPM); }
     }
     // Same condition as Reactions' endgame event: empty cells <= a quarter of the board.
     function syncTempo(state) {
       fast = E.emptyCount(state) * 4 <= state.cells.length;
-      Bgm.setTempo(fast ? ENDGAME_BPM : G.Sounds.NORMAL.bpm);
+      Bgm.setTempo(fast ? G.Sounds.ENDGAME_BPM : G.Sounds.NORMAL.bpm);
     }
     function greeting(seat) { return Date.now() < (greetUntil[seat] || 0); }
     function line(seat, situation) {
@@ -722,7 +721,7 @@
         events.forEach(function (e) { setFace(e.seat, e.emotion); });
         Object.keys(p.lines || {}).forEach(function (s) { setBubble(Number(s), p.lines[s]); });
         var result = view.state && view.state.result;
-        if (p.events.some(function (e) { return e.kind === 'endgame'; })) { fast = true; Bgm.setTempo(ENDGAME_BPM); }
+        if (p.events.some(function (e) { return e.kind === 'endgame'; })) { fast = true; Bgm.setTempo(G.Sounds.ENDGAME_BPM); }
         var kind = p.picked && p.picked.event.kind;
         if (result) {
           // Game over: the ending sound replaces the BGM (same perspective as the controller's gameover event).
