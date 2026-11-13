@@ -52,7 +52,18 @@
   var OTHELLO = A.games.othello && A.games.othello.BGM_SCORE;
   var WHACK = A.games.whack && A.games.whack.Sounds.BGM;
 
-  checkScore('entry page', TOP, { bpm: 112, beats: 32, wave: 'square' });
+  checkScore('entry page', TOP, { bpm: 128, beats: 32, wave: 'square' });
+
+  describe('entry page BGM is a bouncy pop song', function () {
+    it('chords hit the off-beats (the "and" of every beat)', function () {
+      var off = 0, at = 0;
+      TOP.chords.forEach(function (x) { if (x[0]) { expect(at % 1).toBe(0.5); } at += x[1]; off += x[0] ? 1 : 0; });
+      expect(off).toBe(32);
+    });
+    it('hi-hats run on the 8ths between kick and snare', function () {
+      expect(TOP.drums.some(function (x) { return x[0] === 'h'; })).toBe(true);
+    });
+  });
   checkScore('drop4', DROP4, { bpm: 100, beats: 32, wave: 'sine' });
   checkScore('othello', OTHELLO, { bpm: 144, beats: 48, wave: 'sine' });
   checkScore('whack', WHACK, { bpm: 150, beats: 32, wave: 'sawtooth' });
