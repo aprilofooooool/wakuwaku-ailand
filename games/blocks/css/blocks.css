@@ -92,7 +92,7 @@ body.bl-playing { overflow: hidden; }
 .bl-starcount { font-size: 20px; font-weight: 900; line-height: 1.2; white-space: nowrap; }
 /* Challenge: the best so far under the score (spec 4.3). The clock is not shown. */
 .bl-best { font-size: 14px; font-weight: 800; line-height: 1.2; white-space: nowrap; }
-.bl-best[hidden], .bl-clock[hidden] { display: none; }
+.bl-best[hidden] { display: none; }
 /* Almost there (design 3.3): the special frame lights up. */
 .bl-star.is-almost { background: var(--bl-almost-bg); border-color: var(--bl-gold); animation: bl-glow 900ms ease-in-out infinite alternate; }
 @keyframes bl-glow { from { box-shadow: 0 0 2px var(--bl-gold); } to { box-shadow: 0 0 14px var(--bl-gold), 0 0 4px var(--bl-gold); } }

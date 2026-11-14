@@ -10,8 +10,9 @@
     var m = init || {};
     return {
       m: m,
+      sets: [],
       get: function (k, fb) { return Object.prototype.hasOwnProperty.call(m, k) ? m[k] : fb; },
-      set: function (k, v) { m[k] = v; },
+      set: function (k, v) { this.sets.push(k); m[k] = v; },
       remove: function (k) { delete m[k]; },
       has: function (k) { return Object.prototype.hasOwnProperty.call(m, k); }
     };
@@ -278,7 +279,7 @@
       expect(t.ctl.game().mode).toBe('challenge');
     });
     it('bestOf reads safely', function () {
-      [undefined, 'x', { easy: -3 }, { easy: '7' }, [5]].forEach(function (b) {
+      [undefined, 'x', { easy: -3 }, { easy: '7' }, [5], { easy: 2.5 }, { easy: Infinity }].forEach(function (b) {
         expect(make(b === undefined ? {} : { 'best.v2': b }).ctl.bestOf('easy')).toBe(0);
       });
       expect(make({ 'best.v2': { easy: 7 } }).ctl.bestOf('easy')).toBe(7);
@@ -288,7 +289,7 @@
       expect(make({ 'best.v1': { easy: 9 } }).ctl.bestOf('easy')).toBe(0);
     });
     it('bestTimeOf reads safely', function () {
-      [undefined, 'x', { easy: -1 }, { easy: '7' }, [5]].forEach(function (b) {
+      [undefined, 'x', { easy: -1 }, { easy: '7' }, [5], { easy: 2.5 }, { easy: Infinity }].forEach(function (b) {
         expect(make(b === undefined ? {} : { 'time.v1': b }).ctl.bestTimeOf('easy')).toBe(0);
       });
       expect(make({ 'time.v1': { easy: 83 } }).ctl.bestTimeOf('easy')).toBe(83);
@@ -337,6 +338,15 @@
       expect(r.newTime).toBe(false);
       expect(r.bestTime).toBe(80);
       expect(r.timeSec).toBe(83);
+    });
+    it('collect clear equal to the stored time is not a new time and does not write', function () {
+      var t = collectClear({ 'time.v1': { easy: 83 } }, 82100);
+      var r = t.ctl.getResult();
+      expect(r.timeSec).toBe(83);
+      expect(r.newTime).toBe(false);
+      expect(r.bestTime).toBe(83);
+      expect(t.storage.m['time.v1'].easy).toBe(83);
+      expect(t.storage.sets.indexOf('time.v1')).toBe(-1);
     });
     it('collect clear replaces a slower stored time only for its difficulty', function () {
       var t = collectClear({ 'time.v1': { easy: 84, normal: 50 } }, 82100);

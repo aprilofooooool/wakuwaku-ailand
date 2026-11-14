@@ -50,10 +50,11 @@
   }
   function goalOf(difficulty) { return K.DIFFICULTY[difficulty].goal; }
   // 180000 -> '3ぷん', 150000 -> '2ぷん30びょう'.
-  function timeOf(difficulty) {
-    var s = Math.round(K.DIFFICULTY[difficulty].timeMs / 1000);
+  function minutesOf(ms) {
+    var s = Math.round(ms / 1000);
     return Math.floor(s / 60) + 'ぷん' + (s % 60 ? (s % 60) + 'びょう' : '');
   }
+  function timeOf(difficulty) { return minutesOf(K.DIFFICULTY[difficulty].timeMs); }
   // Whole seconds (rounded up by the caller): 89 -> '1:29', 0 -> '0:00'.
   function clockOf(sec) { return Math.floor(sec / 60) + ':' + (sec % 60 < 10 ? '0' : '') + (sec % 60); }
   // A long how-to line: a br after each part; css keeps the words whole.
@@ -157,7 +158,7 @@
         if (challenge) {
           var best = controller.bestOf(it[0]);
           meta.appendChild(el('span', 'bl-level-best', best > 0 ? 'さいこう ' + best + 'こ' : 'きろく なし'));
-          meta.appendChild(el('span', 'bl-level-time', '3ぷん'));
+          meta.appendChild(el('span', 'bl-level-time', minutesOf(K.CHALLENGE_MS)));
         } else {
           meta.appendChild(el('span', 'bl-level-goal', goalOf(it[0]) + 'こ あつめよう'));
           meta.appendChild(el('span', 'bl-level-time', timeOf(it[0])));
@@ -186,7 +187,7 @@
       body.appendChild(face);
       body.appendChild(el('p', 'bl-howto-text', 'そろえて けすと かおが とんでいくよ'));
       if (draft.mode === 'challenge') {
-        body.appendChild(textLines(['3ぷんで ' + pf.name + 'の かおを', 'できるだけ たくさん あつめよう']));
+        body.appendChild(textLines([minutesOf(K.CHALLENGE_MS) + 'で ' + pf.name + 'の かおを', 'できるだけ たくさん あつめよう']));
         body.appendChild(textLines(['じかんは のびないよ。', 'さいこうきろくを こえよう！']));
       } else {
         body.appendChild(el('p', 'bl-howto-text', pf.name + 'の かおを ' + goalOf(draft.difficulty) + 'こ あつめたら クリア'));

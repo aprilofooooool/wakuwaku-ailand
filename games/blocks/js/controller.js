@@ -36,7 +36,7 @@
     function bestOf(difficulty) {
       var b = storage.get(BEST_KEY, null);
       var v = b && typeof b === 'object' && !Array.isArray(b) ? b[difficulty] : 0;
-      return typeof v === 'number' && v > 0 ? v : 0;
+      return typeof v === 'number' && isFinite(v) && v > 0 && v % 1 === 0 ? v : 0;
     }
 
     function saveBest(difficulty, n) {
@@ -49,7 +49,7 @@
     function bestTimeOf(difficulty) {
       var b = storage.get(TIME_KEY, null);
       var v = b && typeof b === 'object' && !Array.isArray(b) ? b[difficulty] : 0;
-      return typeof v === 'number' && v > 0 ? v : 0;
+      return typeof v === 'number' && isFinite(v) && v > 0 && v % 1 === 0 ? v : 0;
     }
 
     function saveTime(difficulty, sec) {

@@ -759,8 +759,12 @@
     it('a collect clear that adds time leaves elapsedMs alone', function () {
       var g = mk(1);
       setupClear(g, 2);
+      var t0 = g.timeMs;
       E.hardDrop(g);
       expect(g.elapsedMs).toBe(0);
+      E.step(g, K.SETTLE_MS);
+      expect(g.elapsedMs).toBe(K.SETTLE_MS);
+      expect(g.timeMs > t0 - K.SETTLE_MS).toBe(true);   // the bonus grew the clock
     });
 
     it('challenge faces and star wave add no time and emit no time event', function () {
@@ -795,6 +799,24 @@
       expect(g.state).toBe('over');
       expect(types(ev)).toEqual(['collapse', 'over']);
       expect(ev[1].reason).toBe('timeup');
+    });
+
+    it('a challenge star wave started before time 0 still runs, counts and then ends timeup', function () {
+      var g = mkc(0);
+      starSetup(g);
+      E.hardDrop(g);
+      var ev = E.step(g, K.SETTLE_MS);
+      expect(types(ev)).toEqual(['collapse', 'star']);
+      var before = g.collected;
+      expect(ev[1].faces.length > 0).toBe(true);
+      g.timeMs = 100;   // runs out during the star settle
+      var ev2 = E.step(g, K.STAR_SETTLE_MS);
+      expect(g.timeMs).toBe(0);
+      expect(g.collected).toBe(ev[1].collected);
+      expect(g.collected).toBe(before);
+      expect(types(ev2)).toEqual(['collapse', 'over']);
+      expect(ev2[1].reason).toBe('timeup');
+      expect(g.state).toBe('over');
     });
 
     it('a clear adds the own faces, emits no time and never reaches goal', function () {
