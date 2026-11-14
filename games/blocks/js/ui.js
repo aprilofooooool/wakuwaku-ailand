@@ -1,0 +1,632 @@
+(function (G) {
+  'use strict';
+  // blocks screens: settings (design 3.2), play (3.3), pause (3.4) and result (3.5).
+  // DOM is touched only after init(). Time runs only while deps.loop runs (countdown and play).
+  var C = Ailand.core, K = G.Constants, L = G.Layout, R = G.Render, Fx = G.Fx, Sound = C.Sound, Bgm = C.Bgm;
+
+  var LEVELS = [['easy', 'かんたん'], ['normal', 'ふつう'], ['hard', 'むずかしい']];
+  var PADS = {
+    move: [['left', '←', 'ひだり'], ['right', '→', 'みぎ']],
+    act: [['rotate', '↻', 'まわす'], ['soft', '↓', 'おとす'], ['hard', '⤓', 'いっきに おとす']]
+  };
+  // Keyboard (design 4). Repeats come from the controller, never from the OS key repeat.
+  var KEYS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'rotate', ArrowDown: 'soft', ' ': 'hard', Spacebar: 'hard' };
+  var MOVE_SOUND = { left: 'blocks-move', right: 'blocks-move', rotate: 'blocks-rotate' };
+  var BUBBLE_MS = 1600;
+  var START_BUBBLE_MS = 2000;
+  var BUBBLE_FADE_MS = 250;    // core/effects.js bubble fade-out
+  var REACT_MS = 1600;         // the chosen character goes back to normal after a reaction
+  var RESULT_WAIT_MS = 1000;   // longest wait for flying faces before the result card
+  var COLLECT_GAP_MS = 60;     // at most one "collect" sound per this many ms
+  var JAR_SHOWN = 24;          // faces drawn inside the jar (the number shows the total)
+  var MAX_DPR = 3;
+  var FRAME_PX = 8;            // the board frame's border on both sides (css .bl-boardframe) and a little air
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) { e.className = cls; }
+    if (text !== undefined) { e.textContent = text; }
+    return e;
+  }
+  function button(cls, text, onClick) {
+    var b = el('button', cls, text);
+    b.type = 'button';
+    b.addEventListener('click', onClick);
+    return b;
+  }
+  function faceInto(wrap, profile, emotion) {
+    wrap.innerHTML = '';
+    var img = el('img', 'char-img');
+    img.draggable = false;
+    wrap.appendChild(img);
+    C.CharacterView.apply(img, profile, emotion);
+  }
+  function profileOf(id) { return C.Characters.get(id); }
+  function centerOf(node) {
+    var r = node.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  }
+  function goalOf(difficulty) { return K.DIFFICULTY[difficulty].goal; }
+
+  // Loads every character's normal image once for the board (design 7: before the round starts).
+  function loadImages(onLoad) {
+    var images = {};
+    C.Characters.list().forEach(function (pf) {
+      var img = new Image();
+      img.onload = onLoad;
+      img.src = C.CharacterView.candidates(pf, 'normal')[0];
+      images[pf.id] = img;
+    });
+    return images;
+  }
+
+  // deps: { bus, loop, linePicker?, rng? }. Returns { step(ms), showPause(reason), destroy() }.
+  function init(root, controller, deps) {
+    var d = deps || {};
+    var bus = d.bus, loop = d.loop;
+    if (!bus || typeof bus.on !== 'function') { throw new Error('blocks UI.init: deps.bus (EventBus) is required'); }
+    if (!loop || typeof loop.start !== 'function') { throw new Error('blocks UI.init: deps.loop (core Loop) is required'); }
+    var linePicker = d.linePicker || null;
+    var reactions = G.Reactions.create(d.rng || Math.random);
+    var draft = controller.loadSettings();
+    var game = null;          // per-round view state (see beginRound)
+    var timers = [];
+    var images = loadImages(function () { redraw(); drawNext(); });
+
+    var settingsScreen = el('main', 'screen bl-settings-screen');
+    settingsScreen.id = 'screen-settings';
+    var gameScreen = el('main', 'screen bl-game-screen');
+    gameScreen.id = 'screen-game';
+    gameScreen.hidden = true;
+    root.appendChild(settingsScreen);
+    root.appendChild(gameScreen);
+
+    var header = C.UI.header({
+      title: 'おちブロック',
+      soundOn: Sound.isEnabled(),
+      onBack: onBack,
+      onSound: function () { return Sound.toggleFromTap(); },
+      onSettings: openMenu
+    });
+    document.body.insertBefore(header, document.body.firstChild);
+
+    function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+    function clearTimers() { timers.forEach(clearTimeout); timers = []; }
+    function sfx(name) { if (game) { Sound.play(name); } }
+    function inPlay() { var p = controller.phase(); return !!game && (p === 'countdown' || p === 'playing'); }
+
+    // ---------- settings screen ----------
+
+    function panel(title) {
+      var p = el('section', 'bl-panel');
+      p.appendChild(el('h2', null, title));
+      settingsScreen.appendChild(p);
+      return p;
+    }
+
+    function renderSettings() {
+      settingsScreen.innerHTML = '';
+      var p1 = panel('キャラ');
+      p1.appendChild(el('div', 'bl-pickname', profileOf(draft.char).name));
+      var list = el('div', 'bl-charlist');
+      C.Characters.list().forEach(function (pf) {
+        var b = button('bl-charbtn', undefined, function () { draft.char = pf.id; renderSettings(); });
+        b.setAttribute('aria-pressed', String(draft.char === pf.id));
+        b.setAttribute('aria-label', pf.name);
+        var face = el('span', 'bl-charface');
+        faceInto(face, pf, 'normal');
+        b.appendChild(face);
+        list.appendChild(b);
+      });
+      p1.appendChild(list);
+
+      var p2 = panel('むずかしさ');
+      var levels = el('div', 'bl-levels');
+      LEVELS.forEach(function (it) {
+        var b = button('bl-choice bl-level', undefined, function () { draft.difficulty = it[0]; renderSettings(); });
+        b.appendChild(el('span', 'bl-level-name', it[1]));
+        b.appendChild(el('span', 'bl-level-goal', goalOf(it[0]) + 'こ あつめよう'));
+        b.setAttribute('aria-pressed', String(draft.difficulty === it[0]));
+        levels.appendChild(b);
+      });
+      p2.appendChild(levels);
+
+      var p3 = el('section', 'bl-panel bl-startpanel');
+      p3.appendChild(button('btn btn-main bl-start', 'はじめる', startGame));
+      p3.appendChild(button('btn btn-sub bl-howto', 'あそびかた', function () { showHowTo(false); }));
+      settingsScreen.appendChild(p3);
+    }
+
+    // The how-to card (design 3.2): before the first round, and from the あそびかた button.
+    function showHowTo(beforeStart) {
+      var pf = profileOf(draft.char);
+      var m = null;
+      var body = el('div', 'bl-howto-body');
+      var face = el('div', 'bl-howto-face');
+      faceInto(face, pf, 'joy');
+      body.appendChild(face);
+      body.appendChild(el('p', 'bl-howto-text', 'そろえて けすと かおが とんでいくよ'));
+      body.appendChild(el('p', 'bl-howto-text', pf.name + 'の かおを ' + goalOf(draft.difficulty) + 'こ あつめたら クリア'));
+      var acts = el('div', 'bl-menu');
+      acts.appendChild(button('btn btn-main', beforeStart ? 'はじめる' : 'わかった', function () {
+        m.close();
+        controller.markHowToSeen();
+        if (beforeStart) { startGame(); }
+      }));
+      m = C.UI.modal('あそびかた', [body, acts]);
+    }
+
+    function showSettings() {
+      leaveGame();
+      settingsScreen.hidden = false;
+      draft = controller.loadSettings();
+      renderSettings();
+      startBgm();
+      window.scrollTo(0, 0);
+    }
+
+    // ---------- game screen ----------
+
+    function startGame() {
+      if (controller.needsHowTo()) { showHowTo(true); return; }
+      var s = { char: draft.char, difficulty: draft.difficulty };
+      controller.start(s);
+      beginRound(s);
+    }
+
+    function beginRound(settings) {
+      clearTimers();
+      Fx.stop();
+      var cg = controller.game();
+      game = {
+        settings: settings, profile: profileOf(settings.char), goal: cg.goal,
+        cell: 0, dpr: 1, hideRows: [], shown: { star: 0, jar: 0 }, flying: 0, almost: false,
+        bubbleUntil: 0, reactToken: 0, lastCollect: 0, pending: null, resultShown: false
+      };
+      buildGame();
+      settingsScreen.hidden = true;
+      gameScreen.hidden = false;
+      document.body.classList.add('bl-playing');
+      window.scrollTo(0, 0);
+      applyLayout();
+      paintCounts();
+      reactions.reset();
+      say('start', START_BUBBLE_MS);
+      startBgm();
+      loop.start();
+    }
+
+    function buildGame() {
+      gameScreen.innerHTML = '';
+      var wrap = el('div', 'bl-game');
+
+      var boardWrap = el('div', 'bl-boardwrap');
+      var frame = el('div', 'bl-boardframe');
+      var canvas = el('canvas', 'bl-board');
+      frame.appendChild(canvas);
+      boardWrap.appendChild(frame);
+
+      var info = el('div', 'bl-info');
+      var next = el('div', 'bl-next');
+      next.appendChild(el('span', 'bl-label', 'つぎ'));
+      var nextCanvas = el('canvas', 'bl-nextcanvas');
+      next.appendChild(nextCanvas);
+      var star = el('div', 'bl-star');
+      var starFace = el('div', 'bl-starface');
+      faceInto(starFace, game.profile, 'normal');
+      var starCount = el('div', 'bl-starcount');
+      star.appendChild(el('span', 'bl-starmark', '★'));
+      star.appendChild(starFace);
+      star.appendChild(starCount);
+      info.appendChild(next);
+      info.appendChild(star);
+
+      var buddy = el('div', 'bl-buddy');
+      var faceWrap = el('div', 'bl-facewrap');
+      var face = el('div', 'bl-face');
+      faceInto(face, game.profile, 'normal');
+      var mark = el('span', 'bl-mark');
+      mark.setAttribute('aria-hidden', 'true');
+      var sayEl = el('div', 'bl-say');
+      faceWrap.appendChild(face);
+      faceWrap.appendChild(mark);
+      faceWrap.appendChild(sayEl);
+      var jar = el('div', 'bl-jar');
+      var jarBody = el('div', 'bl-jarbody');
+      var jarCount = el('div', 'bl-jarcount');
+      jar.appendChild(el('div', 'bl-jarlid'));
+      jar.appendChild(jarBody);
+      jar.appendChild(jarCount);
+      buddy.appendChild(faceWrap);
+      buddy.appendChild(jar);
+
+      var padEl = el('div', 'bl-pad');
+      game.pads = [];
+      ['move', 'act'].forEach(function (group) {
+        var g = el('div', 'bl-pad-' + group);
+        PADS[group].forEach(function (p) { g.appendChild(padButton(p[0], p[1], p[2])); });
+        padEl.appendChild(g);
+      });
+
+      var overlay = el('div', 'bl-overlay');
+      overlay.hidden = true;
+
+      wrap.appendChild(boardWrap);
+      wrap.appendChild(info);
+      wrap.appendChild(buddy);
+      wrap.appendChild(padEl);
+      gameScreen.appendChild(wrap);
+      gameScreen.appendChild(overlay);
+
+      game.wrap = wrap;
+      game.boardWrap = boardWrap;
+      game.frame = frame;
+      game.canvas = canvas;
+      game.ctx = canvas.getContext('2d');
+      game.nextCanvas = nextCanvas;
+      game.nextCtx = nextCanvas.getContext('2d');
+      game.star = star;
+      game.starFace = starFace;
+      game.starCount = starCount;
+      game.face = face;
+      game.mark = mark;
+      game.say = sayEl;
+      game.jarBody = jarBody;
+      game.jarCount = jarCount;
+      game.overlay = overlay;
+    }
+
+    // Input (design 4): pointerdown moves once; held buttons repeat in the controller until this finger lifts,
+    // is cancelled or leaves the button. Each button follows its own pointerId, so two fingers work together.
+    function padButton(action, icon, label) {
+      var b = el('button', 'bl-padbtn', icon);
+      b.type = 'button';
+      b.dataset.action = action;
+      b.setAttribute('aria-label', label);
+      var pad = { pid: null };
+      b.addEventListener('pointerdown', function (e) {
+        e.preventDefault();
+        // Touch captures the pointer implicitly; release it so pointerleave fires when the finger slides off.
+        try { if (b.hasPointerCapture && b.hasPointerCapture(e.pointerId)) { b.releasePointerCapture(e.pointerId); } } catch (err) { /* ignore */ }
+        if (!game || controller.phase() !== 'playing' || controller.isPaused()) { return; }
+        pad.pid = e.pointerId;
+        controller.press(action);
+        redraw();
+      });
+      function up(e) {
+        if (pad.pid === null || e.pointerId !== pad.pid) { return; }
+        pad.pid = null;
+        controller.release(action);
+      }
+      b.addEventListener('pointerup', up);
+      b.addEventListener('pointercancel', up);
+      b.addEventListener('pointerleave', up);
+      b.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+      game.pads.push(pad);
+      return b;
+    }
+    function forgetPointers() { if (game) { game.pads.forEach(function (p) { p.pid = null; }); } }
+
+    function onKeyDown(e) {
+      var action = KEYS[e.key];
+      if (!action || !game || controller.phase() !== 'playing' || controller.isPaused()) { return; }
+      e.preventDefault();
+      if (e.repeat) { return; }   // a held key repeats in the controller (press again would move again)
+      controller.press(action);
+      redraw();
+    }
+    function onKeyUp(e) {
+      var action = KEYS[e.key];
+      if (action) { controller.release(action); }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keyup', onKeyUp);
+
+    // Cell size: the largest board that fits the board area (design 3.3). Canvas size follows devicePixelRatio (design 7).
+    function applyLayout() {
+      if (!game) { return; }
+      var r = game.boardWrap.getBoundingClientRect();
+      var cell = L.cellSize(r.width - FRAME_PX, r.height - FRAME_PX);
+      var dpr = Math.min(MAX_DPR, window.devicePixelRatio || 1);
+      game.cell = cell;
+      game.dpr = dpr;
+      game.canvas.style.width = (cell * K.COLS) + 'px';
+      game.canvas.style.height = (cell * K.ROWS) + 'px';
+      game.canvas.width = Math.round(cell * K.COLS * dpr);
+      game.canvas.height = Math.round(cell * K.ROWS * dpr);
+      var nc = Math.max(12, Math.min(22, cell));
+      game.nextCell = nc;
+      game.nextCanvas.style.width = (nc * 4) + 'px';
+      game.nextCanvas.style.height = (nc * 2) + 'px';
+      game.nextCanvas.width = Math.round(nc * 4 * dpr);
+      game.nextCanvas.height = Math.round(nc * 2 * dpr);
+      redraw();
+      drawNext();
+    }
+
+    function redraw() {
+      var cg = controller.game();
+      if (!game || !cg || !game.cell) { return; }
+      R.draw(game.ctx, cg, { cell: game.cell, dpr: game.dpr, images: images, hideRows: game.hideRows, selfId: game.settings.char });
+    }
+    function drawNext() {
+      var cg = controller.game();
+      if (!game || !cg || !game.nextCell) { return; }
+      R.drawNext(game.nextCtx, cg.next, { cell: game.nextCell, dpr: game.dpr, images: images, selfId: game.settings.char });
+    }
+
+    function paintCounts() {
+      game.starCount.textContent = game.shown.star + '／' + game.goal;
+      game.jarCount.textContent = 'みんな ' + game.shown.jar;
+    }
+
+    // One bubble at a time (design 5.1): a new line waits until the previous one is gone.
+    function say(situation, ms) {
+      if (!linePicker || !game) { return; }
+      var now = Date.now();
+      if (game.bubbleUntil > now) { return; }
+      var text = linePicker.pick(game.profile.id, situation);
+      if (!text) { return; }
+      var life = ms || BUBBLE_MS;
+      C.Effects.bubble(game.say, text, life);
+      game.bubbleUntil = now + life + BUBBLE_FADE_MS;
+    }
+
+    // The chosen character's face for a clear, back to normal after a moment (design 5.1).
+    function react(emotion) {
+      var token = ++game.reactToken;
+      faceInto(game.face, game.profile, emotion);
+      C.Effects.mark(game.mark, C.CharacterView.markOf(emotion));
+      later(function () {
+        if (!game || game.reactToken !== token) { return; }
+        faceInto(game.face, game.profile, 'normal');
+        C.Effects.mark(game.mark, null);
+      }, REACT_MS);
+    }
+
+    // Faces fly from their cells to the special frame (mine) or the jar (others); counts go up as they land.
+    function flyFaces(faces) {
+      var rect = game.canvas.getBoundingClientRect();
+      var starAt = centerOf(game.starFace), jarAt = centerOf(game.jarBody);
+      var gap = Math.min(30, 300 / Math.max(1, faces.length));
+      var size = Math.max(18, game.cell * 0.9);
+      faces.forEach(function (f, i) {
+        game.flying++;
+        var g = game;
+        Fx.fly(L.cellCenter(rect, game.cell, f.col, f.row), f.mine ? starAt : jarAt, profileOf(f.charId), size, {
+          delay: Math.round(i * gap),
+          deco: i,
+          onLand: function () { if (game === g) { land(f); } }
+        });
+      });
+    }
+
+    function land(f) {
+      game.flying--;
+      if (f.mine) {
+        game.shown.star++;
+        var now = Date.now();
+        if (now - game.lastCollect >= COLLECT_GAP_MS) { game.lastCollect = now; sfx('blocks-collect'); }
+      } else {
+        game.shown.jar++;
+        var mini = el('span', 'bl-mini');
+        faceInto(mini, profileOf(f.charId), 'joy');
+        game.jarBody.appendChild(mini);
+        while (game.jarBody.children.length > JAR_SHOWN) { game.jarBody.removeChild(game.jarBody.firstChild); }
+      }
+      paintCounts();
+      if (game.flying <= 0 && game.pending) { showResult(); }
+    }
+
+    // Settings screen: the BGM at normal tempo. Game: only while playing.
+    function startBgm() {
+      if (!Sound.isBgmOn()) { Bgm.stop(); return; }
+      if (!game) { Bgm.start(G.Sounds.BGM); return; }
+      if (!inPlay() || controller.isPaused()) { return; }
+      Bgm.start(G.Sounds.BGM);
+      if (game.almost) { Bgm.setTempo(G.Sounds.ALMOST_BPM); }
+    }
+
+    // ---------- overlay: pause and result ----------
+
+    function showOverlay(cls, nodes) {
+      var o = game.overlay;
+      o.innerHTML = '';
+      var card = el('div', 'bl-card ' + (cls || ''));
+      nodes.forEach(function (n) { card.appendChild(n); });
+      o.appendChild(card);
+      o.hidden = false;
+      return card;
+    }
+    function hideOverlay() { if (game) { game.overlay.hidden = true; game.overlay.innerHTML = ''; } }
+
+    function pauseGame(reason) {
+      if (!inPlay() || controller.isPaused()) { return false; }
+      controller.pause(reason);
+      loop.stop();
+      showPause(reason);
+      return true;
+    }
+
+    // Also called by main.js after Loop's onPause (tab hidden), when the controller is already paused.
+    // The board is hidden while paused (design 3.4).
+    function showPause() {
+      if (!inPlay()) { return; }
+      Bgm.stop();
+      forgetPointers();
+      game.wrap.classList.add('is-paused');
+      showOverlay('bl-pause', [el('p', 'bl-card-text', 'ひとやすみ ちゅう'), button('btn btn-main bl-resume', 'つづける', resumeGame)]);
+    }
+
+    function resumeGame() {
+      if (!inPlay()) { return; }
+      hideOverlay();
+      game.wrap.classList.remove('is-paused');
+      controller.resume();
+      startBgm();
+      loop.start();
+    }
+
+    function line(situation) { return linePicker ? linePicker.pick(game.profile.id, situation) : ''; }
+
+    // Result (design 3.5): waits for flying faces (at most RESULT_WAIT_MS), then shows the card once.
+    function onResult(r) {
+      loop.stop();
+      Bgm.stop();
+      forgetPointers();
+      game.pending = r;
+      if (game.flying <= 0) { showResult(); return; }
+      later(showResult, RESULT_WAIT_MS);
+    }
+
+    function showResult() {
+      if (!game || !game.pending || game.resultShown) { return; }
+      var r = game.pending;
+      game.resultShown = true;
+      game.shown.star = r.collected;
+      game.shown.jar = r.jar;
+      paintCounts();
+      var pf = game.profile;
+      var nodes = [];
+      nodes.push(el('p', 'bl-card-text', r.cleared ? 'クリア！' : 'おしまい'));
+      var hero = el('div', 'bl-hero' + (r.cleared ? ' is-win' : ''));
+      var face = el('div', 'bl-heroface');
+      faceInto(face, pf, reactions.forResult(r.cleared ? 'goal' : 'over'));
+      hero.appendChild(face);
+      hero.appendChild(el('p', 'bl-line', line(r.cleared ? 'clear' : 'over')));
+      nodes.push(hero);
+      nodes.push(el('p', 'bl-result-score', pf.name + 'の かお ★' + r.collected + 'こ あつめたよ' + (r.cleared ? '！' : '')));
+      nodes.push(el('p', 'bl-result-jar', 'みんなの かお ' + r.jar + 'こ'));
+      var acts = el('div', 'bl-result-actions');
+      acts.appendChild(button('btn btn-main bl-again', 'もういっかい', again));
+      acts.appendChild(button('btn btn-sub bl-tosettings', 'せっていに もどる', showSettings));
+      nodes.push(acts);
+      showOverlay('bl-result', nodes);
+      sfx(r.cleared ? 'blocks-goal' : 'blocks-over');
+      if (r.cleared) { Fx.confetti(); }
+    }
+
+    function again() {
+      var s = { char: game.settings.char, difficulty: game.settings.difficulty };
+      controller.start(s);
+      beginRound(s);
+    }
+
+    function leaveGame() {
+      loop.stop();
+      Bgm.stop();
+      clearTimers();
+      Fx.stop();
+      if (controller.phase() !== 'idle') { controller.quit(); }
+      game = null;
+      gameScreen.hidden = true;
+      gameScreen.innerHTML = '';
+      document.body.classList.remove('bl-playing');
+    }
+
+    // ---------- header ----------
+
+    function goEntry() {
+      leaveGame();
+      location.href = C.CharacterView.basePath() + 'index.html';
+    }
+
+    // During play, もどる pauses and asks first (design 3.4).
+    function onBack() {
+      if (!inPlay()) { goEntry(); return; }
+      pauseGame('back');
+      var m = null;
+      var acts = el('div', 'bl-menu');
+      acts.appendChild(button('btn btn-main', 'やめる', function () { m.close(); goEntry(); }));
+      acts.appendChild(button('btn btn-sub', 'つづける', function () { m.close(); resumeGame(); }));
+      m = C.UI.modal('やめる？', [acts]);
+    }
+
+    // せってい: さいしょから (back to the settings screen) and BGM ON/OFF. Time stops while it is open.
+    function openMenu() {
+      pauseGame('menu');
+      var nodes = [];
+      var m = null;
+      if (!gameScreen.hidden) {
+        var acts = el('div', 'bl-menu');
+        acts.appendChild(button('btn btn-main', 'さいしょから', function () { m.close(); showSettings(); }));
+        nodes.push(acts);
+      }
+      var row = el('div', 'bl-rule');
+      row.appendChild(el('span', 'bl-rulename', 'BGM'));
+      var opts = el('div', 'bl-choices');
+      [[true, 'ON'], [false, 'OFF']].forEach(function (it) {
+        var b = button('bl-choice', it[1], function () {
+          Sound.setBgmOn(it[0]);
+          if (it[0]) { startBgm(); } else { Bgm.stop(); }
+          Array.prototype.forEach.call(opts.children, function (x, i) { x.setAttribute('aria-pressed', String((i === 0) === it[0])); });
+        });
+        b.setAttribute('aria-pressed', String(Sound.isBgmOn() === it[0]));
+        opts.appendChild(b);
+      });
+      row.appendChild(opts);
+      nodes.push(row);
+      m = C.UI.modal('せってい', nodes);
+    }
+
+    // ---------- controller events ----------
+
+    var offs = [];
+    function on(name, fn) { offs.push(bus.on(name, function (p) { if (game) { fn(p); } })); }
+
+    on('count', function (p) { Fx.showBanner(String(p.n), 'is-count', 800); sfx('blocks-count'); });
+    on('go', function () { Fx.showBanner('スタート！', 'is-go', 900); sfx('blocks-go'); });
+    on('spawn', function () { drawNext(); redraw(); });
+    on('moved', function (p) { if (MOVE_SOUND[p.action]) { sfx(MOVE_SOUND[p.action]); } });
+    on('lock', function () { sfx('blocks-lock'); redraw(); });
+    on('clear', function (p) {
+      game.hideRows = p.rows.slice();
+      redraw();
+      sfx(p.rows.length >= 4 ? 'blocks-quad' : (p.rows.length >= 2 ? 'blocks-multi' : 'blocks-line'));
+      flyFaces(p.faces);
+      // One screen effect per lock (design 5.3): a clear that reaches the goal leaves the stage to the result.
+      var events = [p];
+      if (p.collected >= game.goal) { events.push({ type: 'goal' }); }
+      if (G.Reactions.screenFx(events) === 'quad') { Fx.flash(game.frame); }
+      var r = reactions.forClear(p);
+      react(r.emotion);
+      if (p.almost) {
+        game.almost = true;
+        game.star.classList.add('is-almost');
+        if (Sound.isBgmOn()) { Bgm.setTempo(G.Sounds.ALMOST_BPM); }
+        say('almost');
+      } else if (r.situation) {
+        say(r.situation);
+      }
+    });
+    on('collapse', function () { game.hideRows = []; redraw(); });
+    on('danger', function (p) { game.frame.classList.toggle('is-danger', !!p.on); });
+    on('result', onResult);
+
+    function onResize() { applyLayout(); }
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+
+    showSettings();
+
+    return {
+      // Redraws the board; called after controller.advance on every loop step.
+      step: function () { if (game && inPlay()) { redraw(); } },
+      showPause: showPause,
+      // Tests: removes the UI, its header and listeners.
+      destroy: function () {
+        leaveGame();
+        offs.forEach(function (off) { if (typeof off === 'function') { off(); } });
+        document.removeEventListener('keydown', onKeyDown);
+        document.removeEventListener('keyup', onKeyUp);
+        window.removeEventListener('resize', onResize);
+        window.removeEventListener('orientationchange', onResize);
+        if (header.parentNode) { header.parentNode.removeChild(header); }
+        root.removeChild(settingsScreen);
+        root.removeChild(gameScreen);
+      }
+    };
+  }
+
+  G.UI = { init: init };
+})(Ailand.games.blocks);

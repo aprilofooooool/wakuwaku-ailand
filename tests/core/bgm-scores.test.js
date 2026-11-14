@@ -10,7 +10,7 @@
     return out;
   }
 
-  // The four loops (design 2026-11-12-bgm-variety §2): each has its own tempo, melody wave and rhythm.
+  // The five loops (design 2026-11-12-bgm-variety §2): each has its own tempo, melody wave and rhythm.
   // Sounding notes 100-1600 Hz; at least 90% of the melody 400-1200 Hz (drums and sparkle are not score notes).
   function checkScore(name, sc, want) {
     describe('BGM score: ' + name, function () {

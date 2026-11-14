@@ -8,7 +8,7 @@
     { id: 'whack', name: 'キャラたたき', href: 'games/whack/index.html', ready: true, saveKey: null },
     { id: 'fill', name: 'ピースうめ', href: '', ready: false, saveKey: null },
     { id: 'territory', name: 'ピースじんとり', href: '', ready: false, saveKey: null },
-    { id: 'blocks', name: 'おちブロック', href: '', ready: false, saveKey: null },
+    { id: 'blocks', name: 'おちブロック', href: 'games/blocks/index.html', ready: true, saveKey: null },
     { id: 'chain', name: 'おちものれんさ', href: '', ready: false, saveKey: null }
   ];
 

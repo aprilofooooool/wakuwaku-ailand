@@ -1,0 +1,165 @@
+/* blocks (おちブロック). Soft peach-pink page (the other games: cream, light blue, green), white panels with the
+   navy outline (design 3.1). The board canvas size comes from Layout.cellSize in ui.js. */
+:root {
+  --page-bg: #fff0f5;
+  --page-dot: #ffd9e6;
+  --bl-on-bg: #ffe3ee;
+  --bl-gold: #ffc83a;
+  --bl-almost-bg: #fff4c2;
+  --bl-danger: #ff8a8a;
+  --bl-danger-glow: rgba(255, 90, 90, 0.3);
+  --bl-jar: #e6f6ff;
+  --bl-lid: #ffb3cf;
+  --bl-hard: #ffd1e1;
+}
+
+/* Board and buttons: no scroll, zoom, text selection or long-press menu (design 4). */
+.bl-boardwrap, .bl-settings-screen button, .bl-game button, .bl-overlay button, #modal-root button {
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+/* The settings screen may be taller than a phone: a drag on its buttons must still scroll it. */
+.bl-settings-screen button { touch-action: manipulation; }
+.bl-overlay[hidden], .bl-game-screen[hidden] { display: none !important; }
+
+/* ---------- settings screen ---------- */
+.bl-settings-screen { max-width: var(--content-max); margin: 0 auto; padding: 12px 16px calc(32px + env(safe-area-inset-bottom)); }
+.bl-panel { background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-l); box-shadow: var(--shadow-m); padding: 14px 16px 16px; margin: 0 0 18px; }
+.bl-panel h2 { margin: 0 0 10px; font-size: 1.2rem; font-weight: 900; }
+.bl-pickname { font-weight: 900; font-size: 18px; margin-bottom: 8px; }
+.bl-charlist { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.bl-charbtn { font: inherit; color: var(--ink); min-width: 64px; min-height: 72px; padding: 4px 2px; display: flex; align-items: center; justify-content: center; background: var(--surface); border: var(--border-w) solid var(--disabled-bg); border-radius: var(--radius-m); cursor: pointer; }
+.bl-charbtn[aria-pressed="true"] { border-color: var(--outline); background: var(--bl-on-bg); box-shadow: var(--shadow-s); }
+.bl-charface { display: block; width: 56px; height: 56px; }
+.bl-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.bl-levels { display: flex; flex-direction: column; gap: 8px; }
+.bl-choice { font: inherit; font-size: 18px; font-weight: 800; color: var(--ink); min-width: 64px; min-height: 64px; padding: 6px 16px; background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-round); box-shadow: var(--shadow-s); cursor: pointer; }
+.bl-choice[aria-pressed="true"] { background: var(--accent-yellow); }
+.bl-choice:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--outline); }
+.bl-choice:focus-visible, .bl-charbtn:focus-visible, .bl-padbtn:focus-visible { outline: 4px solid var(--accent-blue); outline-offset: 2px; }
+.bl-level { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
+.bl-level-name { font-weight: 900; }
+.bl-level-goal { font-size: 18px; font-weight: 700; }
+.bl-startpanel { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.bl-start, .bl-howto, .bl-card .btn, .bl-menu .btn { min-width: 64px; min-height: 64px; }
+.bl-howto-body { text-align: center; }
+.bl-howto-face { width: 96px; height: 96px; margin: 0 auto 8px; }
+.bl-howto-text { margin: 0 0 12px; font-size: 18px; font-weight: 800; }
+
+/* ---------- game screen ---------- */
+body.bl-playing { overflow: hidden; }
+.bl-game-screen { position: relative; overflow: hidden; height: 100%; }
+/* Phone portrait (design 3.3): board on the left, つぎ / ★ / character / jar on the right, buttons below. */
+.bl-game {
+  height: 100%; box-sizing: border-box; display: grid; gap: 8px;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+  grid-template-columns: minmax(0, 1fr) 100px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "board info" "board buddy" "pad pad";
+}
+.bl-boardwrap { grid-area: board; position: relative; min-width: 0; min-height: 0; }
+.bl-boardframe { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); line-height: 0; background: #fff; border: 3px solid var(--outline); border-radius: 8px; box-shadow: var(--shadow-s); }
+.bl-board { display: block; border-radius: 5px; }
+.bl-game.is-paused .bl-board, .bl-game.is-paused .bl-nextcanvas { visibility: hidden; }   /* design 3.4 */
+/* Danger (design 3.3): the frame turns softly red; the character's face never changes for it. */
+.bl-boardframe.is-danger { border-color: var(--bl-danger); box-shadow: 0 0 0 4px var(--bl-danger-glow), 0 0 16px var(--bl-danger-glow); }
+/* Four lines at once (design 5.3): the board shines once. */
+.bl-boardframe.is-flash::after { content: ""; position: absolute; inset: 0; border-radius: 5px; pointer-events: none; background: radial-gradient(circle, rgba(255, 255, 255, 0.95), rgba(255, 228, 140, 0.6) 60%, rgba(255, 200, 58, 0)); animation: bl-flash 650ms ease-out both; }
+@keyframes bl-flash { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
+
+.bl-info { grid-area: info; display: flex; flex-direction: column; gap: 8px; }
+.bl-next, .bl-star { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 4px 6px; background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-m); box-shadow: var(--shadow-s); }
+.bl-label { font-size: 18px; font-weight: 900; line-height: 1.2; }
+.bl-nextcanvas { display: block; }
+.bl-starmark { position: absolute; left: 4px; top: 0; font-size: 20px; color: var(--bl-gold); text-shadow: 0 0 1px var(--outline); }
+.bl-starface { width: 44px; height: 44px; }
+.bl-starcount { font-size: 20px; font-weight: 900; line-height: 1.2; white-space: nowrap; }
+/* Almost there (design 3.3): the special frame lights up. */
+.bl-star.is-almost { background: var(--bl-almost-bg); border-color: var(--bl-gold); animation: bl-glow 900ms ease-in-out infinite alternate; }
+@keyframes bl-glow { from { box-shadow: 0 0 2px var(--bl-gold); } to { box-shadow: 0 0 14px var(--bl-gold), 0 0 4px var(--bl-gold); } }
+
+.bl-buddy { grid-area: buddy; min-height: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.bl-facewrap { position: relative; flex: none; width: 76px; height: 76px; }
+.bl-face { width: 100%; height: 100%; border-radius: 50%; background: var(--surface); border: var(--border-w) solid var(--outline); overflow: hidden; }
+.bl-mark { position: absolute; top: -4px; right: -4px; font-size: 22px; line-height: 1; }
+/* Speech bubble (core/effects.js): left of the face, over the board's edge on a phone (keeps ★ visible). */
+.bl-say { position: absolute; right: 100%; top: 0; z-index: 30; margin-right: 6px; width: max-content; max-width: 9em; pointer-events: none; }
+.bl-jar { position: relative; flex: 1 1 auto; width: 100%; min-height: 70px; max-height: 190px; display: flex; flex-direction: column; }
+.bl-jarlid { flex: none; width: 70%; height: 10px; margin: 0 auto; background: var(--bl-lid); border: 2px solid var(--outline); border-radius: 6px 6px 2px 2px; }
+.bl-jarbody { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-wrap: wrap-reverse; align-content: flex-start; justify-content: center; gap: 2px; padding: 4px; background: var(--bl-jar); border: var(--border-w) solid var(--outline); border-radius: 10px 10px 20px 20px; }
+.bl-mini { display: block; flex: none; width: 18px; height: 18px; }
+.bl-jarcount { flex: none; font-size: 18px; font-weight: 900; text-align: center; line-height: 1.3; }
+
+.bl-pad { grid-area: pad; display: flex; justify-content: space-between; gap: 10px; }
+.bl-pad-move, .bl-pad-act { display: flex; gap: 6px; }
+.bl-pad-move { flex: 2 1 0; }
+.bl-pad-act { flex: 3 1 0; }
+.bl-padbtn { flex: 1 1 0; min-width: 64px; min-height: 68px; padding: 0; font: inherit; font-size: 30px; font-weight: 900; line-height: 1; color: var(--ink); background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-m); box-shadow: var(--shadow-s); cursor: pointer; }
+.bl-padbtn[data-action="hard"] { background: var(--bl-hard); }
+.bl-padbtn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--outline); background: var(--accent-yellow); }
+
+/* Landscape / PC (design 3.3): character and jar left, board in the middle, つぎ and ★ right;
+   ← → under the left side, ↻ ↓ ⤓ under the right side. */
+@media (min-aspect-ratio: 1/1) {
+  .bl-game {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas: "buddy board info" "move board act";
+  }
+  .bl-pad { display: contents; }
+  .bl-pad-move { grid-area: move; justify-content: center; }
+  .bl-pad-act { grid-area: act; justify-content: center; }
+  .bl-padbtn { flex: 0 0 auto; width: 72px; height: 72px; }
+  .bl-info { align-items: center; justify-content: center; }
+  .bl-next, .bl-star { width: 100%; max-width: 160px; }
+  .bl-buddy { justify-content: center; }
+  .bl-jar { max-width: 160px; }
+  .bl-say { right: auto; left: 100%; margin: 0 0 0 6px; }
+}
+/* Phone landscape: compact header (buttons stay 64px), same as drop4 and whack. */
+@media (orientation: landscape) and (max-height: 500px) {
+  :root { --header-h: 67px; }
+  .bl-game { gap: 6px; padding-top: 6px; }
+  .bl-padbtn { width: 66px; height: 66px; min-height: 64px; }
+}
+
+/* ---------- flying faces (games/blocks/js/fx.js): hop out of the cell, then glide to the frame or the jar ---------- */
+.bl-fly { position: absolute; width: var(--size); height: var(--size); margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2); animation: bl-fly-x 700ms linear var(--d) both; }
+.bl-fly-in { position: relative; width: 100%; height: 100%; animation: bl-fly-y 700ms var(--d) both; }
+.bl-fly-deco { position: absolute; right: -10px; top: -10px; font-size: 16px; font-weight: 900; color: var(--accent-pink); text-shadow: 0 0 2px #fff, 0 0 2px #fff; }
+@keyframes bl-fly-x { from { transform: translateX(0); } to { transform: translateX(var(--dx)); } }
+@keyframes bl-fly-y {
+  0% { transform: translateY(0) scale(1); animation-timing-function: ease-out; }
+  30% { transform: translateY(-36px) scale(1.15); animation-timing-function: ease-in; }
+  100% { transform: translateY(var(--dy)) scale(0.6); }
+}
+
+/* ---------- overlay cards: pause and result ---------- */
+.bl-overlay { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--overlay); }
+.bl-card { width: 100%; max-width: 520px; max-height: 100%; overflow-y: auto; box-sizing: border-box; background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-l); box-shadow: var(--shadow-soft); padding: 20px; text-align: center; }
+.bl-card-text { margin: 0 0 12px; font-size: 1.6rem; font-weight: 900; }
+.bl-hero { display: flex; flex-direction: column; align-items: center; }
+.bl-heroface { width: min(44vw, 28vh, 220px); aspect-ratio: 1; border-radius: 50%; background: var(--surface); border: var(--border-w) solid var(--outline); box-shadow: var(--shadow-m); overflow: hidden; }
+.bl-hero.is-win .bl-heroface { animation: bl-hero 1100ms ease-in-out infinite; }
+@keyframes bl-hero { 0%, 100% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-5%) rotate(-8deg); } 60% { transform: translateY(0) rotate(8deg); } }
+.bl-line { margin: 8px 0 0; padding: 6px 12px; font-size: 18px; font-weight: 800; background: var(--surface); border: 2px solid var(--outline); border-radius: var(--radius-s); }
+.bl-line:empty { display: none; }
+.bl-result-score { margin: 12px 0 4px; font-size: 1.3rem; font-weight: 900; }
+.bl-result-jar { margin: 0 0 4px; font-size: 18px; font-weight: 800; }
+.bl-result-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 12px; }
+.bl-menu { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.bl-rule { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0; }
+.bl-rulename { font-weight: 900; min-width: 4em; }
+
+/* ---------- full-screen banners ---------- */
+.bl-banner { display: flex; align-items: center; justify-content: center; }
+.bl-banner-text { font-size: 6rem; font-weight: 900; line-height: 1; color: var(--ink); text-shadow: 0 0 8px #fff, 0 0 16px #fff, 0 0 24px var(--fx-gold); animation: bl-banner 420ms ease-out both; }
+.bl-banner.is-go .bl-banner-text { font-size: 2.6rem; padding: 8px 24px; background: #fff; border: 4px solid var(--outline); border-radius: var(--radius-round); text-shadow: none; }
+@keyframes bl-banner { 0% { opacity: 0; transform: scale(0.4); } 60% { opacity: 1; transform: scale(1.15); } 100% { transform: scale(1); } }
+
+/* Reduced motion (design 5.2): base.css stops every animation and transition. Faces do not fly: they fade where
+   they were (counts go up at once), and the glow becomes a still highlight. */
+@media (prefers-reduced-motion: reduce) {
+  .bl-fly { transition: opacity 400ms ease !important; }
+  .bl-fly.fx-out { opacity: 0; }
+  .bl-star.is-almost { box-shadow: 0 0 0 3px var(--bl-gold); }
+}

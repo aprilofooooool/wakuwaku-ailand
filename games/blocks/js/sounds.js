@@ -30,7 +30,9 @@
       note(c, d, t, 1568, 0.45, 0.45, 'sine', 0.15);
     },
     // Game over: gentle, slowly falling two notes (never harsh).
-    'blocks-over': function (c, d, t) { seq(c, d, t, [440, 392], 0.22, 0.3, 'triangle', 0.3); }
+    'blocks-over': function (c, d, t) { seq(c, d, t, [440, 392], 0.22, 0.3, 'triangle', 0.3); },
+    // main.js plays 'button' on every button click outside the play pad (same tone as drop4 and whack).
+    button: function (c, d, t) { note(c, d, t, 900, 0, 0.04, 'square', 0.15); }
   };
 
   // Registers every effect sound on core Sound (safe to call again). Runs once at load.
