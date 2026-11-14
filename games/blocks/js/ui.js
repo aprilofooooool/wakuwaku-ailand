@@ -418,7 +418,7 @@
       var first = game.clockSec < 0;
       game.clockSec = sec;
       game.clockTime.textContent = clockOf(sec);
-      var hurry = cg.timeMs <= K.HURRY_MS;
+      var hurry = inPlay() && cg.timeMs <= K.HURRY_MS;   // the clock stops blinking once the round is over
       if (hurry && sec > 0 && !first) { sfx('blocks-tick'); }
       if (hurry === game.hurry) { return; }
       game.hurry = hurry;
@@ -426,6 +426,14 @@
       if (Sound.isBgmOn() && inPlay() && !controller.isPaused()) { Bgm.setTempo(bpmNow()); }
     }
     function bpmNow() { return game.hurry ? G.Sounds.HURRY_BPM : (game.almost ? G.Sounds.ALMOST_BPM : G.Sounds.BGM.bpm); }
+
+    // The one-time "almost" (from a clear or a star wave): star frame, faster BGM and the forced line.
+    function showAlmost() {
+      game.almost = true;
+      game.star.classList.add('is-almost');
+      if (Sound.isBgmOn()) { Bgm.setTempo(bpmNow()); }   // under 10 s the hurry tempo stays
+      say('almost', BUBBLE_MS, true);
+    }
 
     // One bubble at a time (design 5.1): a new line waits until the previous one is gone.
     // force (the one-time almost line): replaces the bubble on screen instead of being dropped.
@@ -552,6 +560,8 @@
       if (!game || !game.pending || game.resultShown) { return; }
       var r = game.pending;
       game.resultShown = true;
+      game.hurry = false;
+      game.clock.classList.remove('is-hurry');
       game.shown.star = r.collected;
       game.shown.jar = r.jar;
       paintCounts();
@@ -662,10 +672,7 @@
       var r = reactions.forClear(p);
       react(r.emotion);
       if (p.almost) {
-        game.almost = true;
-        game.star.classList.add('is-almost');
-        if (Sound.isBgmOn()) { Bgm.setTempo(bpmNow()); }   // under 10 s the hurry tempo stays
-        say('almost', BUBBLE_MS, true);
+        showAlmost();
       } else if (r.situation) {
         say(r.situation);
       }
@@ -679,7 +686,7 @@
       redraw();
       flyFaces(p.faces);
       react(reactions.forStar().emotion);
-      say('star', BUBBLE_MS, true);
+      if (p.almost) { showAlmost(); } else { say('star', BUBBLE_MS, true); }
     });
     // A time bonus: "+N" next to the clock for a moment (the clock itself repaints on the next step).
     on('time', function (p) {

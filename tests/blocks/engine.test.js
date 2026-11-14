@@ -649,5 +649,61 @@
       expect(types(ev)).toEqual(['collapse', 'goal']);
       expect(g.state).toBe('goal');
     });
+
+    // The row 21 clear collects 1 own face (col 0); the star wave then finds 2 more (both on row 21 after the collapse).
+    function starWave(g) {
+      clearBoard(g);
+      fillSides(g, 21, ['mametchi'].concat(others(5)));
+      g.board[20][0] = { charId: 'mametchi' };
+      g.board[20][8] = { charId: 'mametchi' };
+      g.piece = { shape: 'I', charId: 'kuchipatchi', x: 3, y: 0, rot: 0, star: 1 };
+    }
+
+    it('a star wave that reaches the goal ends with goal, even at 0 time', function () {
+      var g = mk(1);
+      starWave(g);
+      g.goal = 3;
+      var ev = E.hardDrop(g);
+      expect(ev[1].collected).toBe(1);
+      expect(types(E.step(g, K.SETTLE_MS))).toEqual(['collapse', 'star', 'time']);
+      expect(g.collected).toBe(3);
+      g.timeMs = 100;   // runs out during the star settle
+      var ev2 = E.step(g, K.STAR_SETTLE_MS);
+      expect(g.timeMs).toBe(0);
+      expect(types(ev2)).toEqual(['collapse', 'goal']);
+      expect(ev2[1].collected).toBe(3);
+      expect(g.state).toBe('goal');
+      expect(g.overReason).toBe(null);
+    });
+
+    it('a star wave that leaves ALMOST or fewer raises almost once', function () {
+      var g = mk(1);
+      starWave(g);
+      g.goal = 5;   // 4 left after the row clear, 2 after the star
+      var ev = E.hardDrop(g);
+      expect(ev[1].almost).toBe(false);
+      var ev2 = E.step(g, K.SETTLE_MS);
+      expect(ev2[1].type).toBe('star');
+      expect(ev2[1].collected).toBe(3);
+      expect(ev2[1].almost).toBe(true);
+      var h = mk(1);
+      starWave(h);
+      h.goal = 5;
+      h._almostDone = true;   // already said by an earlier clear
+      E.hardDrop(h);
+      expect(E.step(h, K.SETTLE_MS)[1].almost).toBe(false);
+    });
+
+    it('a star wave leaves own faces that carry a star', function () {
+      var g = mk(1);
+      starWave(g);
+      g.board[20][8] = { charId: 'mametchi', star: true };
+      E.hardDrop(g);
+      var ev = E.step(g, K.SETTLE_MS);
+      expect(ev[1].faces).toEqual([{ col: 0, row: 21, charId: 'mametchi', mine: true }]);
+      expect(g.collected).toBe(2);
+      E.step(g, K.STAR_SETTLE_MS);
+      expect(g.board[21][8]).toEqual({ charId: 'mametchi', star: true });
+    });
   });
 })(window.Ailand);

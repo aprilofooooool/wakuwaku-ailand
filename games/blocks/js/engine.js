@@ -95,6 +95,14 @@
     return rows;
   }
 
+  // True once: the first time a collect leaves 1..ALMOST faces to go (a jump straight to the goal uses it up silently).
+  function checkAlmost(game) {
+    var left = game.goal - game.collected;
+    if (game._almostDone || left > K.ALMOST) { return false; }
+    game._almostDone = true;
+    return left > 0;
+  }
+
   // Counts faces in the full rows, updates the totals and speed, and starts the settle wait.
   function startClear(game, rows) {
     var cfg = K.DIFFICULTY[game.difficulty];
@@ -112,12 +120,7 @@
     game.jar += other;
     game.lines += rows.length;
     game.fallMs = Math.max(cfg.minMs, cfg.fallMs * Math.pow(K.SPEEDUP, Math.floor(game.lines / K.SPEEDUP_LINES)));
-    var left = game.goal - game.collected;
-    var almost = false;
-    if (!game._almostDone && left <= K.ALMOST) {
-      game._almostDone = true;
-      almost = left > 0;
-    }
+    var almost = checkAlmost(game);
     game.state = 'settling';
     game._settle = { kind: 'rows', rows: rows, star: star, acc: 0 };
     var events = [{ type: 'clear', rows: rows, faces: faces, mine: mine, collected: game.collected, almost: almost, star: star }];
@@ -147,20 +150,22 @@
   }
 
   // Collects every own face on the board, adds the star time and starts the star settle.
+  // A face that carries another star stays: that star fires when its row clears (thrill design 2.2).
   function startStar(game) {
     var cfg = K.DIFFICULTY[game.difficulty];
     var faces = [];
     for (var r = 0; r < TOTAL_ROWS; r++) {
       for (var c = 0; c < K.COLS; c++) {
         var cell = game.board[r][c];
-        if (cell !== null && cell.charId === game.selfId) { faces.push({ col: c, row: r, charId: cell.charId, mine: true }); }
+        if (cell !== null && cell.charId === game.selfId && !cell.star) { faces.push({ col: c, row: r, charId: cell.charId, mine: true }); }
       }
     }
     game.collected += faces.length;
+    var almost = checkAlmost(game);
     var addMs = K.STAR_MS + faces.length * cfg.faceMs;
     game.timeMs += addMs;
     game._settle = { kind: 'star', faces: faces, acc: 0 };
-    return [{ type: 'star', faces: faces, collected: game.collected }, { type: 'time', addMs: addMs }];
+    return [{ type: 'star', faces: faces, collected: game.collected, almost: almost }, { type: 'time', addMs: addMs }];
   }
 
   // Removes each star face from its column; the cells above it in that column move down 1.

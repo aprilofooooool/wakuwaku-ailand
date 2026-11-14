@@ -290,6 +290,91 @@
       } finally { t.done(); }
     });
 
+    it('the BGM tempo follows hurry, almost and pause', function () {
+      var Bgm = A.core.Bgm, Sound = A.core.Sound, S = B.Sounds;
+      var start = Bgm.start, stop = Bgm.stop, isOn = Sound.isBgmOn, starts = 0;
+      // Like the real start (it resets the tempo to the score's bpm), without sound.
+      Bgm.start = function (sc) { starts++; Bgm.setTempo(sc.bpm); };
+      Bgm.stop = function () {};
+      Sound.isBgmOn = function () { return true; };
+      var t = null, fl = holdFlights();
+      try {
+        t = make(false, 'normal');
+        play(t);
+        var g = t.controller.game();
+        expect(Bgm.getTempo()).toBe(S.BGM.bpm);
+        g.timeMs = 9000;
+        runUi(t, STEP);
+        expect(Bgm.getTempo()).toBe(S.HURRY_BPM);
+        g.timeMs = 20000;   // a bonus lifts the clock above 10 s
+        runUi(t, STEP);
+        expect(Bgm.getTempo()).toBe(S.BGM.bpm);
+        // Pause and resume during hurry: the restart comes back at the hurry tempo.
+        g.timeMs = 9000;
+        runUi(t, STEP);
+        t.controller.pause('hidden');
+        t.ui.showPause('hidden');
+        var n = starts;
+        t.box.querySelector('.bl-resume').click();
+        expect(starts).toBe(n + 1);
+        expect(Bgm.getTempo()).toBe(S.HURRY_BPM);
+        // The almost line during hurry keeps the hurry tempo; above 10 s it is the almost tempo.
+        setupClear(t, 1);
+        g.collected = g.goal - 4;   // this clear leaves 3
+        t.controller.press('hard');
+        expect(t.box.querySelector('.bl-star').classList.contains('is-almost')).toBe(true);
+        expect(Bgm.getTempo()).toBe(S.HURRY_BPM);
+        g.timeMs = 20000;
+        runUi(t, STEP);
+        expect(Bgm.getTempo()).toBe(S.ALMOST_BPM);
+      } finally {
+        fl.restore();
+        if (t) { t.done(); }
+        Bgm.start = start;
+        Bgm.stop = stop;
+        Sound.isBgmOn = isOn;
+        Bgm.stop();
+      }
+    });
+
+    it('the result stops the hurry blink and もういっかい starts with a calm clock', function () {
+      var t = make(false, 'normal');
+      try {
+        play(t);
+        t.controller.game().timeMs = 9000;
+        runUi(t, STEP);
+        expect(t.box.querySelector('.bl-clock').classList.contains('is-hurry')).toBe(true);
+        t.controller.game().timeMs = 10;
+        runUi(t, STEP);
+        expect(t.controller.phase()).toBe('result');
+        expect(!!t.box.querySelector('.bl-result')).toBe(true);
+        expect(t.box.querySelector('.bl-clock').classList.contains('is-hurry')).toBe(false);
+        buttonByText(t.box, 'もういっかい').click();
+        var clock = t.box.querySelector('.bl-clock');
+        expect(clock.classList.contains('is-hurry')).toBe(false);
+        expect(clock.querySelector('.bl-clocktime').textContent).toBe('2:30');
+      } finally { t.done(); }
+    });
+
+    it('star cells hide while they fly and show again after the collapse', function () {
+      var t = make(), fl = holdFlights(), draw = B.Render.draw, hidden = [];
+      B.Render.draw = function (ctx, g, o) { hidden.push(o.hideCells.slice()); };
+      try {
+        play(t);
+        var faces = [{ col: 0, row: 21, charId: 'mametchi', mine: true }, { col: 8, row: 20, charId: 'mametchi', mine: true }];
+        t.bus.emit('star', { type: 'star', faces: faces, collected: 2, almost: false });
+        expect(hidden.length > 0).toBe(true);
+        expect(hidden[hidden.length - 1]).toEqual([[0, 21], [8, 20]]);
+        expect(fl.lands.length).toBe(2);
+        expect(t.box.querySelector('.bl-star').classList.contains('is-almost')).toBe(false);
+        t.bus.emit('collapse', { type: 'collapse', cells: [[0, 21], [8, 20]] });
+        expect(hidden[hidden.length - 1]).toEqual([]);
+        // A star wave that leaves ALMOST or fewer shows the almost frame, as a clear does.
+        t.bus.emit('star', { type: 'star', faces: [], collected: 12, almost: true });
+        expect(t.box.querySelector('.bl-star').classList.contains('is-almost')).toBe(true);
+      } finally { B.Render.draw = draw; fl.restore(); t.done(); }
+    });
+
     it('a time event shows +N next to the clock', function () {
       var t = make();
       try {
