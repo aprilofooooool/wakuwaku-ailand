@@ -7,7 +7,7 @@
   var LEVELS = [['easy', 'かんたん'], ['normal', 'ふつう'], ['hard', 'むずかしい']];
   var PADS = {
     move: [['left', '←', 'ひだり'], ['right', '→', 'みぎ']],
-    act: [['rotate', '↻', 'まわす'], ['soft', '↓', 'おとす'], ['hard', '⤓', 'いっきに おとす']]
+    act: [['rotate', '↻', 'まわす'], ['soft', '↓', 'おとす'], ['hard', '↓', 'いっきに おとす']]
   };
   // Keyboard (design 4). Repeats come from the controller, never from the OS key repeat.
   var KEYS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'rotate', ArrowDown: 'soft', ' ': 'hard', Spacebar: 'hard' };
@@ -279,8 +279,9 @@
     // Input (design 4): pointerdown moves once; held buttons repeat in the controller until this finger lifts,
     // is cancelled or leaves the button. Each button follows its own pointerId, so two fingers work together.
     function padButton(action, icon, label) {
-      var b = el('button', 'bl-padbtn', icon);
+      var b = el('button', 'bl-padbtn');
       b.type = 'button';
+      b.appendChild(el('span', 'bl-ico', icon));   // hard drop: the same arrow onto a CSS floor bar (any font renders it)
       b.dataset.action = action;
       b.setAttribute('aria-label', label);
       var pad = { pid: null };
@@ -307,20 +308,28 @@
     }
     function forgetPointers() { if (game) { game.pads.forEach(function (p) { p.pid = null; }); } }
 
+    var keysHeld = {};   // actions held by keys (released on keyup or when the window loses focus)
     function onKeyDown(e) {
       var action = KEYS[e.key];
       if (!action || !game || controller.phase() !== 'playing' || controller.isPaused()) { return; }
       e.preventDefault();
       if (e.repeat) { return; }   // a held key repeats in the controller (press again would move again)
+      keysHeld[action] = true;
       controller.press(action);
       redraw();
     }
     function onKeyUp(e) {
       var action = KEYS[e.key];
-      if (action) { controller.release(action); }
+      if (action) { delete keysHeld[action]; controller.release(action); }
+    }
+    // A keyup never arrives when focus leaves the window mid-press: stop those repeats here.
+    function onBlur() {
+      Object.keys(keysHeld).forEach(function (a) { controller.release(a); });
+      keysHeld = {};
     }
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', onBlur);
 
     // Cell size: the largest board that fits the board area (design 3.3). Canvas size follows devicePixelRatio (design 7).
     function applyLayout() {
@@ -361,10 +370,11 @@
     }
 
     // One bubble at a time (design 5.1): a new line waits until the previous one is gone.
-    function say(situation, ms) {
+    // force (the one-time almost line): replaces the bubble on screen instead of being dropped.
+    function say(situation, ms, force) {
       if (!linePicker || !game) { return; }
       var now = Date.now();
-      if (game.bubbleUntil > now) { return; }
+      if (!force && game.bubbleUntil > now) { return; }
       var text = linePicker.pick(game.profile.id, situation);
       if (!text) { return; }
       var life = ms || BUBBLE_MS;
@@ -403,6 +413,7 @@
 
     function land(f) {
       game.flying--;
+      if (game.resultShown) { return; }   // the result card already shows the final counts
       if (f.mine) {
         game.shown.star++;
         var now = Date.now();
@@ -594,7 +605,7 @@
         game.almost = true;
         game.star.classList.add('is-almost');
         if (Sound.isBgmOn()) { Bgm.setTempo(G.Sounds.ALMOST_BPM); }
-        say('almost');
+        say('almost', BUBBLE_MS, true);
       } else if (r.situation) {
         say(r.situation);
       }
@@ -619,6 +630,7 @@
         offs.forEach(function (off) { if (typeof off === 'function') { off(); } });
         document.removeEventListener('keydown', onKeyDown);
         document.removeEventListener('keyup', onKeyUp);
+        window.removeEventListener('blur', onBlur);
         window.removeEventListener('resize', onResize);
         window.removeEventListener('orientationchange', onResize);
         if (header.parentNode) { header.parentNode.removeChild(header); }
