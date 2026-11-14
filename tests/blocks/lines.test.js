@@ -3,7 +3,7 @@
   var describe = A.Test.describe, it = A.Test.it, expect = A.Test.expect;
   var Lines = A.games.blocks.Lines;
   var CHARS = ['mametchi', 'kuchipatchi', 'mimitchi', 'flowertchi'];
-  var MIN = { start: 3, mine: 5, multi: 3, almost: 3, clear: 3, over: 3, star: 3, timeup: 3 };
+  var MIN = { start: 3, mine: 5, multi: 3, almost: 3, clear: 3, over: 3, star: 3, timeup: 3, record: 3, nearRecord: 3 };
   var SITUATIONS = Object.keys(MIN);
 
   describe('blocks/Lines', function () {
@@ -39,6 +39,16 @@
                 SITUATIONS.forEach(function (s) { expect(Lines[c][s].indexOf(t)).toBe(-1); });
               });
             });
+          });
+        });
+      });
+    });
+    it('record lines never mention the goal or clearing', function () {
+      CHARS.forEach(function (c) {
+        ['record', 'nearRecord'].forEach(function (s) {
+          Lines[c][s].forEach(function (t) {
+            expect(t.indexOf('ゴール')).toBe(-1);
+            expect(t.indexOf('クリア')).toBe(-1);
           });
         });
       });

@@ -60,6 +60,14 @@
         expect(['excited', 'cheer'].indexOf(x.emotion) >= 0).toBe(true);
       }
     });
+    it('forRecord is excited or cheer with the record situation', function () {
+      var i, x;
+      for (i = 0; i < 50; i++) {
+        x = R.create(A.core.Rng.mulberry32(i)).forRecord();
+        expect(x.situation).toBe('record');
+        expect(['excited', 'cheer'].indexOf(x.emotion) >= 0).toBe(true);
+      }
+    });
     it('result faces', function () {
       [0, 0.5, 0.99].forEach(function (v) {
         var r = R.create(function () { return v; });

@@ -24,6 +24,11 @@
       note(c, d, t, 2093, 0.5, 0.6, 'sine', 0.14);
       note(c, d, t, 2637, 0.62, 0.5, 'sine', 0.1);
     },
+    // New personal best: a short bright rising "pi-ra-ri-n" (shorter than goal and star, no low notes).
+    'blocks-record': function (c, d, t) {
+      seq(c, d, t, [784, 988, 1175, 1568], 0.06, 0.14, 'triangle', 0.38);
+      note(c, d, t, 2349, 0.2, 0.3, 'sine', 0.12);
+    },
     // Last 10 seconds: a short soft tick.
     'blocks-tick': function (c, d, t) { note(c, d, t, 1000, 0, 0.03, 'sine', 0.12); },
     // A face flies to the counter.

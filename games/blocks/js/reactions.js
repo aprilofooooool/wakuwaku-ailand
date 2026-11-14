@@ -6,6 +6,7 @@
   var MINE = ['joy', 'cheer', 'love'];
   var GOAL = ['excited', 'cheer'];
   var STAR = ['excited', 'cheer'];
+  var RECORD = ['excited', 'cheer'];
 
   // Chooses the face for a clear. Same emotion never 3 times in a row (a pool of one may repeat).
   function create(rng) {
@@ -20,6 +21,9 @@
     // The star comeback: a happy, excited face.
     function forStar() { return { emotion: variety.pick('star', STAR), situation: 'star' }; }
 
+    // A new personal best: a happy, excited face.
+    function forRecord() { return { emotion: variety.pick('record', RECORD), situation: 'record' }; }
+
     // 'over' is the only place a worried face may appear.
     function forResult(kind) {
       if (kind === 'over') { return 'worried'; }
@@ -28,7 +32,7 @@
 
     function reset() { variety.reset(); }
 
-    return { forClear: forClear, forStar: forStar, forResult: forResult, reset: reset };
+    return { forClear: forClear, forStar: forStar, forRecord: forRecord, forResult: forResult, reset: reset };
   }
 
   // Picks one screen effect for the events of a single lock. Priority: goal, star, quad, multi, mine, single.
