@@ -15,6 +15,10 @@
     DANGER_ROWS: 4,
     SPEEDUP_LINES: 4,
     SPEEDUP: 0.92,
+    STAR_MS: 15000,
+    STAR_MIN: 12,
+    STAR_MAX: 18,
+    STAR_SETTLE_MS: 600,
     DIFFICULTY: {
       easy: { fallMs: 900, minMs: 350, goal: 15, timeMs: 180000, faceMs: 3000 },
       normal: { fallMs: 650, minMs: 200, goal: 30, timeMs: 150000, faceMs: 3000 },

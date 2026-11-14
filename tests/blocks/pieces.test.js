@@ -55,6 +55,10 @@
       expect(r.shape).toBe('T');
       expect(r.charId).toBe('a');
     });
+    it('tryRotate keeps star', function () {
+      expect(P.tryRotate({ shape: 'T', charId: 'a', x: 4, y: 5, rot: 0, star: 2 }, function () { return true; }).star).toBe(2);
+      expect(P.tryRotate({ shape: 'T', charId: 'a', x: 4, y: 5, rot: 0, star: null }, function () { return true; }).star).toBe(null);
+    });
     it('tryRotate wraps rot to 0..3', function () {
       var r = P.tryRotate({ shape: 'L', charId: 'a', x: 0, y: 0, rot: 3 }, function () { return true; });
       expect(r.rot).toBe(0);

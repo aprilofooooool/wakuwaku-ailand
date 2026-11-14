@@ -489,4 +489,165 @@
       expect(ev[1].reason).toBe('timeup');
     });
   });
+
+  describe('blocks engine star', function () {
+    // Every drawn piece in order (first piece, next, then each new next), with its star.
+    function drawnStars(g, n) {
+      var seq = [g.piece, g.next];
+      while (seq.length < n) {
+        clearBoard(g);
+        E.hardDrop(g);
+        seq.push(g.next);
+      }
+      return seq.map(function (p) { return { shape: p.shape, charId: p.charId, star: p.star }; });
+    }
+    // A vertical I that lands in col 9 (I at rot 1 sits in box col 2).
+    function setI9(g) {
+      g.piece = { shape: 'I', charId: 'kuchipatchi', x: 7, y: 0, rot: 1, star: null };
+    }
+
+    it('star pieces come every 12 to 18 draws', function () {
+      var seq = drawnStars(mk(3), 200);
+      var at = [];
+      seq.forEach(function (p, i) {
+        if (p.star !== null) {
+          expect(p.star >= 0 && p.star <= 3).toBe(true);
+          at.push(i + 1);
+        }
+      });
+      expect(at.length).toBeGreaterThanOrEqual(10);
+      expect(at[0]).toBeLessThanOrEqual(18);
+      for (var i = 1; i < at.length; i++) {
+        expect(at[i] - at[i - 1]).toBeGreaterThanOrEqual(12);
+        expect(at[i] - at[i - 1]).toBeLessThanOrEqual(18);
+      }
+    });
+
+    it('star rolls do not change the shapes and characters', function () {
+      var rng = A.core.Rng.mulberry32(11);
+      var sb = E.createBag(rng, P.SHAPES);
+      var cb = E.createBag(rng, CHARS);
+      var want = [];
+      for (var i = 0; i < 28; i++) { want.push(sb.next() + cb.next()); }
+      expect(drawnStars(mk(11), 28).map(function (p) { return p.shape + p.charId; })).toEqual(want);
+    });
+
+    it('lock writes star only on the star cell', function () {
+      var g = mk(1);
+      clearBoard(g);
+      g.piece = { shape: 'T', charId: 'mimitchi', x: 4, y: 2, rot: 1, star: 2 };
+      var y = E.ghostY(g);
+      var sc = P.cells('T', 1)[2];
+      E.hardDrop(g);
+      var stars = [];
+      g.board.forEach(function (row, r) {
+        row.forEach(function (cell, c) { if (cell && cell.star) { stars.push([c, r]); } });
+      });
+      expect(stars).toEqual([[4 + sc[0], y + sc[1]]]);
+      expect(g.board[y + sc[1]][4 + sc[0]]).toEqual({ charId: 'mimitchi', star: true });
+    });
+
+    it('a star clear collects every own face and collapses their columns', function () {
+      var g = mk(1);
+      clearBoard(g);
+      fillSides(g, 21, ['mametchi', 'kuchipatchi', 'kuchipatchi', 'kuchipatchi', 'kuchipatchi', 'kuchipatchi']);
+      g.board[20][0] = { charId: 'kuchipatchi' };
+      g.board[19][0] = { charId: 'mimitchi' };
+      g.board[18][0] = { charId: 'mametchi' };
+      g.board[17][0] = { charId: 'flowertchi' };
+      g.board[20][8] = { charId: 'mametchi' };
+      g.piece = { shape: 'I', charId: 'kuchipatchi', x: 3, y: 0, rot: 0, star: 1 };
+      var ev = E.hardDrop(g);
+      expect(types(ev)).toEqual(['lock', 'clear', 'time']);
+      expect(ev[1].star).toBe(true);
+      expect(g.collected).toBe(1);
+      var t0 = g.timeMs;
+      var ev2 = E.step(g, K.SETTLE_MS);
+      expect(types(ev2)).toEqual(['collapse', 'star', 'time']);
+      expect(ev2[0].rows).toEqual([21]);
+      expect(ev2[1].faces).toEqual([
+        { col: 0, row: 19, charId: 'mametchi', mine: true },
+        { col: 8, row: 21, charId: 'mametchi', mine: true }
+      ]);
+      expect(ev2[1].collected).toBe(3);
+      expect(ev2[2].addMs).toBe(15000 + 2 * 3000);
+      expect(g.timeMs).toBe(t0 - K.SETTLE_MS + 21000);
+      expect(g.state).toBe('settling');
+      expect(types(E.step(g, K.STAR_SETTLE_MS - 1))).toEqual([]);
+      var ev3 = E.step(g, 1);
+      expect(types(ev3)).toEqual(['collapse', 'spawn']);
+      expect(ev3[0].cells).toEqual([[0, 19], [8, 21]]);
+      // flowertchi was above the removed face (row 18 after the row collapse) and moves down 1.
+      expect(g.board[19][0].charId).toBe('flowertchi');
+      expect(g.board[18][0]).toBe(null);
+      // mimitchi was below the removed face: shifted by the row collapse only (19 -> 20).
+      expect(g.board[20][0].charId).toBe('mimitchi');
+      expect(g.board[21][0].charId).toBe('kuchipatchi');
+      expect(g.board[21][8]).toBe(null);
+      expect(g.collected).toBe(3);
+      expect(g.state).toBe('falling');
+    });
+
+    it('a star removal that fills a row clears it as a chain', function () {
+      var g = mk(1);
+      clearBoard(g);
+      fillSides(g, 21, others(6));
+      g.board[20][0] = { charId: 'mametchi' };
+      for (var c = 1; c < K.COLS; c++) { g.board[19][c] = { charId: 'kuchipatchi' }; }
+      g.board[18][0] = { charId: 'kuchipatchi' };
+      // The I goes straight to row 21 under the row 19 overhang.
+      g.piece = { shape: 'I', charId: 'kuchipatchi', x: 3, y: 20, rot: 0, star: 0 };
+      E.hardDrop(g);
+      expect(types(E.step(g, K.SETTLE_MS))).toEqual(['collapse', 'star', 'time']);
+      var ev = E.step(g, K.STAR_SETTLE_MS);
+      expect(types(ev)).toEqual(['collapse', 'clear']);
+      expect(ev[0].cells).toEqual([[0, 21]]);
+      expect(ev[1].rows).toEqual([20]);
+      expect(ev[1].star).toBe(false);
+      expect(types(E.step(g, K.SETTLE_MS))).toEqual(['collapse', 'spawn']);
+    });
+
+    it('a star cell left on the board fires on the next clear of its row', function () {
+      var g = mk(1);
+      clearBoard(g);
+      g.piece = { shape: 'I', charId: 'kuchipatchi', x: 3, y: 0, rot: 0, star: 3 };
+      var ev = E.hardDrop(g);
+      expect(types(ev)).toEqual(['lock', 'spawn']);
+      expect(g.board[21][6]).toEqual({ charId: 'kuchipatchi', star: true });
+      [0, 1, 2, 7, 8].forEach(function (c) { g.board[21][c] = { charId: c === 0 ? 'mametchi' : 'kuchipatchi' }; });
+      setI9(g);
+      var ev2 = E.hardDrop(g);
+      expect(types(ev2)).toEqual(['lock', 'clear', 'time']);
+      expect(ev2[1].star).toBe(true);
+      expect(types(E.step(g, K.SETTLE_MS))).toEqual(['collapse', 'star', 'time']);
+    });
+
+    it('two stars in one clear fire one star event', function () {
+      var g = mk(1);
+      clearBoard(g);
+      for (var r = 20; r <= 21; r++) {
+        for (var c = 0; c < 9; c++) { g.board[r][c] = { charId: 'kuchipatchi' }; }
+      }
+      g.board[21][1] = { charId: 'kuchipatchi', star: true };
+      g.board[20][4] = { charId: 'kuchipatchi', star: true };
+      g.board[19][2] = { charId: 'mametchi' };
+      setI9(g);
+      E.hardDrop(g);
+      var all = E.step(g, K.SETTLE_MS).concat(E.step(g, K.STAR_SETTLE_MS));
+      expect(types(all)).toEqual(['collapse', 'star', 'time', 'collapse', 'spawn']);
+    });
+
+    it('a star clear that reaches the goal ends with goal and no star', function () {
+      var g = mk(1);
+      clearBoard(g);
+      fillSides(g, 21, ['mametchi'].concat(others(5)));
+      g.board[20][8] = { charId: 'mametchi' };
+      g.goal = 1;
+      g.piece = { shape: 'I', charId: 'kuchipatchi', x: 3, y: 0, rot: 0, star: 0 };
+      E.hardDrop(g);
+      var ev = E.step(g, K.SETTLE_MS);
+      expect(types(ev)).toEqual(['collapse', 'goal']);
+      expect(g.state).toBe('goal');
+    });
+  });
 })(window.Ailand);

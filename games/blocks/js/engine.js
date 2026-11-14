@@ -44,7 +44,7 @@
   }
 
   function moved(piece, dx, dy) {
-    return { shape: piece.shape, charId: piece.charId, x: piece.x + dx, y: piece.y + dy, rot: piece.rot };
+    return { shape: piece.shape, charId: piece.charId, x: piece.x + dx, y: piece.y + dy, rot: piece.rot, star: piece.star };
   }
 
   function canDown(game) { return fits(game, moved(game.piece, 0, 1)); }
@@ -56,14 +56,23 @@
     return y;
   }
 
+  function rollStarIn(rng) { return K.STAR_MIN + Math.floor(rng() * (K.STAR_MAX - K.STAR_MIN + 1)); }
+
+  // Star rolls use their own rng, so the shape and character order for a seed stays the same.
   function drawNext(game) {
-    game.next = { shape: game._shapeBag.next(), charId: game._charBag.next() };
+    var star = null;
+    game._starIn--;
+    if (game._starIn <= 0) {
+      star = Math.floor(game._starRng() * 4);
+      game._starIn = rollStarIn(game._starRng);
+    }
+    game.next = { shape: game._shapeBag.next(), charId: game._charBag.next(), star: star };
   }
 
   // Puts `next` on the board top and draws a new `next`. Returns the events; ends the game if blocked.
   function spawn(game) {
     var n = game.next;
-    game.piece = { shape: n.shape, charId: n.charId, x: 3, y: 0, rot: 0 };
+    game.piece = { shape: n.shape, charId: n.charId, x: 3, y: 0, rot: 0, star: n.star };
     game._fallAcc = 0;
     game._lockAcc = 0;
     game._resets = 0;
@@ -90,9 +99,10 @@
   function startClear(game, rows) {
     var cfg = K.DIFFICULTY[game.difficulty];
     var faces = [];
-    var mine = 0, other = 0;
+    var mine = 0, other = 0, star = false;
     rows.forEach(function (r) {
       for (var c = 0; c < K.COLS; c++) {
+        if (game.board[r][c].star) { star = true; }
         var isMine = game.board[r][c].charId === game.selfId;
         if (isMine) { mine++; } else { other++; }
         faces.push({ col: c, row: r, charId: game.board[r][c].charId, mine: isMine });
@@ -109,8 +119,8 @@
       almost = left > 0;
     }
     game.state = 'settling';
-    game._settle = { rows: rows, acc: 0 };
-    var events = [{ type: 'clear', rows: rows, faces: faces, mine: mine, collected: game.collected, almost: almost }];
+    game._settle = { kind: 'rows', rows: rows, star: star, acc: 0 };
+    var events = [{ type: 'clear', rows: rows, faces: faces, mine: mine, collected: game.collected, almost: almost, star: star }];
     if (mine > 0) {
       game.timeMs += mine * cfg.faceMs;
       events.push({ type: 'time', addMs: mine * cfg.faceMs });
@@ -124,17 +134,8 @@
     return [{ type: 'over', reason: 'timeup' }];
   }
 
-  // Removes the cleared rows, drops everything above, then ends with goal, spawn or over.
-  function finishSettle(game) {
-    var rows = game._settle.rows;
-    game._settle = null;
-    for (var i = rows.length - 1; i >= 0; i--) { game.board.splice(rows[i], 1); }
-    for (var n = 0; n < rows.length; n++) {
-      var row = [];
-      for (var c = 0; c < K.COLS; c++) { row.push(null); }
-      game.board.unshift(row);
-    }
-    var events = [{ type: 'collapse', rows: rows }];
+  // The end of every settle: a reached goal wins, then time up, then the next piece.
+  function endSettle(game, events) {
     if (game.collected >= game.goal) {
       game.state = 'goal';
       events.push({ type: 'goal', collected: game.collected, jar: game.jar });
@@ -143,6 +144,59 @@
     if (game.timeMs <= 0) { return events.concat(timeUp(game)); }
     game.state = 'falling';
     return events.concat(spawn(game));
+  }
+
+  // Collects every own face on the board, adds the star time and starts the star settle.
+  function startStar(game) {
+    var cfg = K.DIFFICULTY[game.difficulty];
+    var faces = [];
+    for (var r = 0; r < TOTAL_ROWS; r++) {
+      for (var c = 0; c < K.COLS; c++) {
+        var cell = game.board[r][c];
+        if (cell !== null && cell.charId === game.selfId) { faces.push({ col: c, row: r, charId: cell.charId, mine: true }); }
+      }
+    }
+    game.collected += faces.length;
+    var addMs = K.STAR_MS + faces.length * cfg.faceMs;
+    game.timeMs += addMs;
+    game._settle = { kind: 'star', faces: faces, acc: 0 };
+    return [{ type: 'star', faces: faces, collected: game.collected }, { type: 'time', addMs: addMs }];
+  }
+
+  // Removes each star face from its column; the cells above it in that column move down 1.
+  function removeFaces(game, faces) {
+    for (var c = 0; c < K.COLS; c++) {
+      var rows = faces.filter(function (f) { return f.col === c; }).map(function (f) { return f.row; });
+      if (rows.length === 0) { continue; }
+      var col = game.board.map(function (row) { return row[c]; });
+      for (var i = rows.length - 1; i >= 0; i--) { col.splice(rows[i], 1); }
+      for (var n = 0; n < rows.length; n++) { col.unshift(null); }
+      for (var r = 0; r < TOTAL_ROWS; r++) { game.board[r][c] = col[r]; }
+    }
+  }
+
+  // Ends a settle. Rows: removes them and drops everything above, then a star (unless the goal is reached).
+  // Star: removes the faces, then a chain clear or the usual end.
+  function finishSettle(game) {
+    var s = game._settle;
+    game._settle = null;
+    if (s.kind === 'star') {
+      removeFaces(game, s.faces);
+      var collapsed = [{ type: 'collapse', cells: s.faces.map(function (f) { return [f.col, f.row]; }) }];
+      var full = fullRows(game);
+      if (full.length > 0) { return collapsed.concat(startClear(game, full)); }
+      return endSettle(game, collapsed);
+    }
+    var rows = s.rows;
+    for (var i = rows.length - 1; i >= 0; i--) { game.board.splice(rows[i], 1); }
+    for (var n = 0; n < rows.length; n++) {
+      var row = [];
+      for (var c = 0; c < K.COLS; c++) { row.push(null); }
+      game.board.unshift(row);
+    }
+    var events = [{ type: 'collapse', rows: rows }];
+    if (s.star && game.collected < game.goal) { return events.concat(startStar(game)); }
+    return endSettle(game, events);
   }
 
   // True when a settled cell sits in the top DANGER_ROWS visible rows (design 3.3).
@@ -160,8 +214,8 @@
     var p = game.piece;
     var cells = P.cells(p.shape, p.rot).map(function (c) { return [p.x + c[0], p.y + c[1]]; });
     var allHidden = true;
-    cells.forEach(function (c) {
-      game.board[c[1]][c[0]] = { charId: p.charId };
+    cells.forEach(function (c, i) {
+      game.board[c[1]][c[0]] = i === p.star ? { charId: p.charId, star: true } : { charId: p.charId };
       if (c[1] >= K.HIDDEN) { allHidden = false; }
     });
     var events = [{ type: 'lock', cells: cells }];
@@ -179,6 +233,7 @@
   function create(opts) {
     var cfg = K.DIFFICULTY[opts.difficulty];
     var rng = Ailand.core.Rng.mulberry32(opts.seed);
+    var starRng = Ailand.core.Rng.mulberry32(opts.seed ^ 0x5bd1e995);
     var game = {
       board: emptyBoard(),
       piece: null,
@@ -195,6 +250,8 @@
       difficulty: opts.difficulty,
       _shapeBag: createBag(rng, P.SHAPES),
       _charBag: createBag(rng, CHARS),
+      _starRng: starRng,
+      _starIn: rollStarIn(starRng),
       _fallAcc: 0,
       _lockAcc: 0,
       _resets: 0,
@@ -251,7 +308,8 @@
     if (game.state === 'falling' && game.timeMs <= 0) { return timeUp(game); }
     if (game.state === 'settling') {
       game._settle.acc += ms;
-      return game._settle.acc >= K.SETTLE_MS ? finishSettle(game) : events;
+      var wait = game._settle.kind === 'star' ? K.STAR_SETTLE_MS : K.SETTLE_MS;
+      return game._settle.acc >= wait ? finishSettle(game) : events;
     }
     while (game.state === 'falling' && left > 0) {
       if (!canDown(game)) {

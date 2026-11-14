@@ -27,7 +27,7 @@
   function tryRotate(piece, fits) {
     var rot = (((piece.rot + 1) % 4) + 4) % 4;
     for (var i = 0; i < KICKS.length; i++) {
-      var cand = { shape: piece.shape, charId: piece.charId, x: piece.x + KICKS[i][0], y: piece.y + KICKS[i][1], rot: rot };
+      var cand = { shape: piece.shape, charId: piece.charId, x: piece.x + KICKS[i][0], y: piece.y + KICKS[i][1], rot: rot, star: piece.star };
       if (fits(cand)) { return cand; }
     }
     return null;
