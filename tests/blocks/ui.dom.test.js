@@ -524,16 +524,40 @@
 
     it('record shows the しんきろく！ banner and a record line; via a star only the line', function () {
       var t = make(true, 'easy', { mode: 'challenge', best: { easy: 10 } }), bn = holdBanners();
+      var Sound = A.core.Sound, playSound = Sound.play, sounds = [];
+      Sound.play = function (name) { sounds.push(name); };
       try {
         play(t);
         t.bus.emit('record', { type: 'record', collected: 11, viaStar: false });
         expect(bn.texts.indexOf('しんきろく！') >= 0).toBe(true);
+        expect(sounds.indexOf('blocks-record') >= 0).toBe(true);
         expect(B.Lines.mametchi.record.indexOf(bubbleText(t)) >= 0).toBe(true);
         bn.texts.length = 0;
+        sounds.length = 0;
         t.bus.emit('record', { type: 'record', collected: 12, viaStar: true });
         expect(bn.texts.length).toBe(0);
+        expect(sounds.indexOf('blocks-record')).toBe(-1);
         expect(B.Lines.mametchi.record.indexOf(bubbleText(t)) >= 0).toBe(true);
-      } finally { bn.restore(); t.done(); }
+      } finally { Sound.play = playSound; bn.restore(); t.done(); }
+    });
+
+    it('a 4-row clear that first passes the best leaves the flash to the record', function () {
+      var t = make(false, 'easy', { mode: 'challenge', best: { easy: 10 } }), fl = holdFlights();
+      var flash = B.Fx.flash, flashes = 0;
+      B.Fx.flash = function () { flashes++; };
+      function quad(collected) {
+        t.bus.emit('clear', { type: 'clear', rows: [18, 19, 20, 21], faces: [], mine: 4, collected: collected, star: false, almost: false });
+      }
+      try {
+        play(t);
+        quad(8);    // below the best: the usual quad flash
+        expect(flashes).toBe(1);
+        quad(12);   // first past the best: no flash, the record event follows
+        expect(flashes).toBe(1);
+        t.bus.emit('record', { type: 'record', collected: 12, viaStar: false });
+        quad(16);   // record already done this round: the quad flash again
+        expect(flashes).toBe(2);
+      } finally { B.Fx.flash = flash; fl.restore(); t.done(); }
     });
 
     it('almost in challenge says a nearRecord line and raises the tempo', function () {

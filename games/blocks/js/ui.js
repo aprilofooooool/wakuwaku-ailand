@@ -222,7 +222,7 @@
       Fx.stop();
       var cg = controller.game();
       game = {
-        settings: settings, profile: profileOf(settings.char), goal: cg.goal, challenge: cg.mode === 'challenge', best: cg.best,
+        settings: settings, profile: profileOf(settings.char), goal: cg.goal, challenge: cg.mode === 'challenge', best: cg.best, recordDone: false,
         cell: 0, dpr: 1, hideRows: [], hideCells: [], clockSec: -1, hurry: false, shown: { star: 0, jar: 0 }, flying: 0, almost: false,
         bubbleUntil: 0, reactToken: 0, lastCollect: 0, pending: null, resultShown: false
       };
@@ -700,6 +700,8 @@
       // and a star clear leaves it to the star event that follows.
       var events = [p];
       if (!game.challenge && p.collected >= game.goal) { events.push({ type: 'goal' }); }
+      // Challenge: a clear that first passes the best leaves the stage to the record event that follows (spec 3.3).
+      if (game.challenge && game.best > 0 && !game.recordDone && p.collected > game.best) { events.push({ type: 'goal' }); }
       if (!p.star && G.Reactions.screenFx(events) === 'quad') { Fx.flash(game.frame); }
       var r = reactions.forClear(p);
       react(r.emotion);
@@ -732,6 +734,7 @@
     });
     // A new record (spec 3.3), once per round. With a star wave the banner and sound stay the star's.
     on('record', function (p) {
+      game.recordDone = true;
       if (!p.viaStar) { Fx.showBanner('しんきろく！', 'is-go', 900); sfx('blocks-record'); }
       react(reactions.forRecord().emotion);
       say('record', BUBBLE_MS, true);
