@@ -157,9 +157,12 @@
         if (challenge) {
           var best = controller.bestOf(it[0]);
           meta.appendChild(el('span', 'bl-level-best', best > 0 ? 'さいこう ' + best + 'こ' : 'きろく なし'));
+          meta.appendChild(el('span', 'bl-level-time', '3ぷん'));
         } else {
           meta.appendChild(el('span', 'bl-level-goal', goalOf(it[0]) + 'こ あつめよう'));
           meta.appendChild(el('span', 'bl-level-time', timeOf(it[0])));
+          var bestTime = controller.bestTimeOf(it[0]);
+          if (bestTime > 0) { meta.appendChild(el('span', 'bl-level-best', 'ベスト ' + clockOf(bestTime))); }
         }
         b.appendChild(meta);
         b.setAttribute('aria-pressed', String(draft.difficulty === it[0]));
@@ -183,8 +186,8 @@
       body.appendChild(face);
       body.appendChild(el('p', 'bl-howto-text', 'そろえて けすと かおが とんでいくよ'));
       if (draft.mode === 'challenge') {
-        body.appendChild(textLines([pf.name + 'の かおを たくさん あつめて、', 'さいこうきろくを こえよう！']));
-        body.appendChild(textLines(['じかんは ないよ。', 'うえまで つまったら おしまい']));
+        body.appendChild(textLines(['3ぷんで ' + pf.name + 'の かおを', 'できるだけ たくさん あつめよう']));
+        body.appendChild(textLines(['じかんは のびないよ。', 'さいこうきろくを こえよう！']));
       } else {
         body.appendChild(el('p', 'bl-howto-text', pf.name + 'の かおを ' + goalOf(draft.difficulty) + 'こ あつめたら クリア'));
         body.appendChild(textLines(['じかんが なくなると おしまい。', 'じぶんの かおを けすと のびるよ']));
@@ -265,7 +268,6 @@
       var starCount = el('div', 'bl-starcount');
       var best = el('div', 'bl-best');
       best.hidden = !game.challenge || game.best <= 0;   // no best yet: hidden for the whole round (spec 4.3)
-      clock.hidden = game.challenge;                     // the challenge has no time
       star.appendChild(el('span', 'bl-starmark', '★'));
       star.appendChild(starFace);
       star.appendChild(starCount);
@@ -440,7 +442,7 @@
     // ticks once a second and the BGM runs at HURRY_BPM.
     function paintClock() {
       var cg = controller.game();
-      if (!game || !cg || game.challenge) { return; }   // the challenge has no clock (timeMs is null)
+      if (!game || !cg) { return; }   // both modes count down (challenge: 3 minutes, spec 8.1)
       var sec = Math.ceil(cg.timeMs / 1000);
       if (sec === game.clockSec) { return; }
       var first = game.clockSec < 0;
@@ -594,11 +596,12 @@
       game.shown.jar = r.jar;
       paintCounts();
       var pf = game.profile;
-      // Challenge (spec 4.4): a new record is shown like a clear; otherwise the usual おしまい.
+      // Challenge (spec 4.4, 8.1): a new record is shown like a clear; else じかんです on time up, else おしまい.
       var record = game.challenge && !!r.newRecord;
       var win = r.cleared || record;
       var nodes = [];
-      nodes.push(el('p', 'bl-card-text', r.cleared ? 'クリア！' : (record ? 'しんきろく！' : (r.timeup ? 'じかんぎれ' : 'おしまい'))));
+      var timeupText = game.challenge ? 'じかんです' : 'じかんぎれ';
+      nodes.push(el('p', 'bl-card-text', r.cleared ? 'クリア！' : (record ? 'しんきろく！' : (r.timeup ? timeupText : 'おしまい'))));
       var hero = el('div', 'bl-hero' + (win ? ' is-win' : ''));
       var face = el('div', 'bl-heroface');
       faceInto(face, pf, reactions.forResult(win ? 'goal' : 'over'));
@@ -607,6 +610,11 @@
       nodes.push(hero);
       nodes.push(el('p', 'bl-result-score', pf.name + 'の かお ★' + r.collected + 'こ あつめたよ' + (win ? '！' : '')));
       if (game.challenge) { nodes.push(el('p', 'bl-result-best', r.best > 0 ? 'さいこう ' + r.best : 'きろく なし')); }
+      if (!game.challenge && r.cleared) {   // collect clear: the time, and しんきろく！ when it is the best (spec 8.2)
+        var tm = el('p', 'bl-result-time', 'タイム ' + clockOf(r.timeSec));
+        if (r.newTime) { tm.appendChild(el('span', 'bl-result-newtime', 'しんきろく！')); }
+        nodes.push(tm);
+      }
       nodes.push(el('p', 'bl-result-jar', 'みんなの かお ' + r.jar + 'こ'));
       var acts = el('div', 'bl-result-actions');
       acts.appendChild(button('btn btn-main bl-again', 'もういっかい', again));

@@ -5,12 +5,13 @@
   var B = A.games.blocks;
   var STEP = A.core.Loop.STEP_MS;
 
-  // extra (optional): { mode, best } — the saved mode and the saved best.v1 object.
+  // extra (optional): { mode, best, time } — the saved mode, the saved best.v2 object and the saved time.v1 object.
   function fakeStorage(seen, difficulty, extra) {
     var m = {};
     if (seen) { m[B.Controller.SETTINGS_KEY] = { char: 'mametchi', difficulty: difficulty || 'easy', seenHowTo: true }; }
     if (seen && extra && extra.mode) { m[B.Controller.SETTINGS_KEY].mode = extra.mode; }
     if (extra && extra.best) { m[B.Controller.BEST_KEY] = extra.best; }
+    if (extra && extra.time) { m[B.Controller.TIME_KEY] = extra.time; }
     return {
       get: function (k, fb) { return Object.prototype.hasOwnProperty.call(m, k) ? m[k] : fb; },
       set: function (k, v) { m[k] = v; },
@@ -93,6 +94,13 @@
   }
   function challengeResult(o) {
     var r = { cleared: false, timeup: false, collected: 0, goal: null, jar: 3, char: 'mametchi', mode: 'challenge', best: 0, newRecord: false };
+    Object.keys(o).forEach(function (k) { r[k] = o[k]; });
+    r.type = 'result';
+    return r;
+  }
+  function collectResult(o) {
+    var r = { cleared: true, timeup: false, collected: 15, goal: 15, jar: 3, char: 'mametchi', mode: 'collect', best: 0, newRecord: false,
+      timeSec: 83, bestTime: 83, newTime: false };
     Object.keys(o).forEach(function (k) { r[k] = o[k]; });
     r.type = 'result';
     return r;
@@ -468,7 +476,7 @@
         expect(levels[0].textContent.indexOf('さいこう 23こ') >= 0).toBe(true);
         expect(levels[1].textContent.indexOf('きろく なし') >= 0).toBe(true);
         expect(levels[2].textContent.indexOf('きろく なし') >= 0).toBe(true);
-        expect(levels[0].textContent.indexOf('ぷん')).toBe(-1);
+        Array.prototype.forEach.call(levels, function (lv) { expect(lv.textContent.indexOf('3ぷん') >= 0).toBe(true); });
         expect(levels[0].textContent.indexOf('あつめよう')).toBe(-1);
         Array.prototype.forEach.call(s.querySelectorAll('button'), function (b) {
           var r = b.getBoundingClientRect();
@@ -479,32 +487,57 @@
       } finally { t.done(); }
     });
 
-    it('how-to in challenge tells about no time, the top and the best', function () {
+    it('how-to in challenge tells about 3 minutes, no extra time and the best', function () {
       var t = make(false, 'easy', { mode: 'challenge' });
       try {
         buttonByText(t.box, 'あそびかた').click();
         var text = document.querySelector('.bl-howto-body').textContent;
-        expect(text.indexOf('じかんは ない') >= 0).toBe(true);
-        expect(text.indexOf('つまったら おしまい') >= 0).toBe(true);
+        expect(text.indexOf('3ぷん') >= 0).toBe(true);
+        expect(text.indexOf('のびない') >= 0).toBe(true);
         expect(text.indexOf('さいこうきろく') >= 0).toBe(true);
         expect(text.indexOf('じかんが なくなると')).toBe(-1);
         buttonByText(document.getElementById('modal-root'), 'わかった').click();
       } finally { t.done(); }
     });
 
-    it('challenge play: no clock, ★ N without a goal, the best hidden when 0', function () {
+    it('challenge play: the clock starts at 3:00, ★ N without a goal, the best hidden when 0', function () {
       var t = make(false, 'easy', { mode: 'challenge' });
       try {
         play(t);
         expect(t.controller.game().mode).toBe('challenge');
-        expect(t.box.querySelector('.bl-clock').hidden).toBe(true);
-        expect(getComputedStyle(t.box.querySelector('.bl-clock')).display).toBe('none');
+        var clock = t.box.querySelector('.bl-info .bl-clock');
+        expect(clock.hidden).toBe(false);
+        expect(getComputedStyle(clock).display === 'none').toBe(false);
+        expect(clock.textContent).toBe('のこり 3:00');
         expect(t.box.querySelector('.bl-starcount').textContent).toBe('0');
         expect(t.box.querySelector('.bl-star').textContent.indexOf('／')).toBe(-1);
         expect(t.box.querySelector('.bl-best').hidden).toBe(true);
-        runUi(t, STEP * 5);   // the clock does not tick or blink
-        expect(t.box.querySelector('.bl-clock').classList.contains('is-hurry')).toBe(false);
       } finally { t.done(); }
+    });
+
+    it('challenge play: the clock hurries under 10 seconds like collect', function () {
+      var t = make(false, 'easy', { mode: 'challenge' });
+      try {
+        play(t);
+        var clock = t.box.querySelector('.bl-clock');
+        expect(clock.classList.contains('is-hurry')).toBe(false);
+        t.controller.game().timeMs = 9000;
+        runUi(t, STEP);
+        expect(clock.classList.contains('is-hurry')).toBe(true);
+        expect(clock.querySelector('.bl-clocktime').textContent).toBe('0:09');
+      } finally { t.done(); }
+    });
+
+    it('challenge play: a clear of own faces shows no +N', function () {
+      var t = make(false, 'easy', { mode: 'challenge' }), fl = holdFlights();
+      try {
+        play(t);
+        setupClear(t, 6);
+        t.controller.press('hard');
+        expect(t.controller.game().collected > 0).toBe(true);
+        runUi(t, STEP * 3);
+        expect(t.box.querySelector('.bl-timeadd')).toBe(null);
+      } finally { fl.restore(); t.done(); }
     });
 
     it('challenge play with a best shows さいこう M and follows the score past it', function () {
@@ -577,7 +610,7 @@
         expect(B.Lines.mametchi.nearRecord.indexOf(bubbleText(t)) >= 0).toBe(true);
         expect(t.box.querySelector('.bl-star').classList.contains('is-almost')).toBe(true);
         expect(Bgm.getTempo()).toBe(S.ALMOST_BPM);
-        runUi(t, STEP * 3);   // no clock: the tempo stays
+        runUi(t, STEP * 3);   // the clock is far above 10 s: the tempo stays
         expect(Bgm.getTempo()).toBe(S.ALMOST_BPM);
       } finally {
         fl.restore();
@@ -637,6 +670,76 @@
       } finally { t.done(); }
     });
 
+    it('challenge result at time up without a record: じかんです and a timeup line', function () {
+      var t = make(true, 'easy', { mode: 'challenge', best: { easy: 30 } });
+      try {
+        play(t);
+        t.bus.emit('result', challengeResult({ timeup: true, collected: 25, best: 30, newRecord: false }));
+        var card = t.box.querySelector('.bl-result');
+        expect(card.querySelector('.bl-card-text').textContent).toBe('じかんです');
+        expect(card.querySelector('.bl-hero').classList.contains('is-win')).toBe(false);
+        expect(B.Lines.mametchi.timeup.indexOf(card.querySelector('.bl-line').textContent) >= 0).toBe(true);
+        expect(card.querySelector('.bl-result-time')).toBe(null);
+      } finally { t.done(); }
+    });
+
+    it('challenge result at time up with a new record: しんきろく！ and a record line', function () {
+      var t = make(true, 'easy', { mode: 'challenge', best: { easy: 20 } });
+      try {
+        play(t);
+        t.bus.emit('result', challengeResult({ timeup: true, collected: 25, best: 25, newRecord: true }));
+        var card = t.box.querySelector('.bl-result');
+        expect(card.querySelector('.bl-card-text').textContent).toBe('しんきろく！');
+        expect(B.Lines.mametchi.record.indexOf(card.querySelector('.bl-line').textContent) >= 0).toBe(true);
+      } finally { t.done(); }
+    });
+
+    // ---------- かおあつめのタイム (spec 8.2) ----------
+
+    it('settings in collect: ベスト m:ss only for a level with a saved time', function () {
+      var t = make(false, 'easy', { time: { easy: 83 } });
+      try {
+        var levels = t.box.querySelectorAll('.bl-level');
+        expect(levels[0].textContent.indexOf('ベスト 1:23') >= 0).toBe(true);
+        expect(levels[0].textContent.indexOf('15こ あつめよう') >= 0).toBe(true);
+        expect(levels[0].textContent.indexOf('3ぷん') >= 0).toBe(true);
+        expect(levels[1].textContent.indexOf('ベスト')).toBe(-1);
+        expect(levels[2].textContent.indexOf('ベスト')).toBe(-1);
+      } finally { t.done(); }
+    });
+
+    it('collect clear result shows タイム m:ss and しんきろく！ only on a new time', function () {
+      var t = make(true);
+      try {
+        play(t);
+        t.bus.emit('result', collectResult({ timeSec: 83, newTime: true }));
+        var card = t.box.querySelector('.bl-result');
+        expect(card.querySelector('.bl-card-text').textContent).toBe('クリア！');
+        expect(card.querySelector('.bl-result-time').textContent.indexOf('タイム 1:23') >= 0).toBe(true);
+        expect(card.querySelector('.bl-result-newtime').textContent).toBe('しんきろく！');
+      } finally { t.done(); }
+      var u = make(true);
+      try {
+        play(u);
+        u.bus.emit('result', collectResult({ timeSec: 90, bestTime: 83, newTime: false }));
+        var card2 = u.box.querySelector('.bl-result');
+        expect(card2.querySelector('.bl-result-time').textContent).toBe('タイム 1:30');
+        expect(card2.querySelector('.bl-result-newtime')).toBe(null);
+      } finally { u.done(); }
+    });
+
+    it('a collect loss shows no タイム', function () {
+      var t = make(true);
+      try {
+        play(t);
+        t.bus.emit('result', collectResult({ cleared: false, timeup: true, collected: 9, timeSec: 150, newTime: false }));
+        var card = t.box.querySelector('.bl-result');
+        expect(card.querySelector('.bl-card-text').textContent).toBe('じかんぎれ');
+        expect(card.querySelector('.bl-result-time')).toBe(null);
+        expect(card.textContent.indexOf('タイム')).toBe(-1);
+      } finally { t.done(); }
+    });
+
     it('collect result has no さいこう line', function () {
       var t = make(true);
       try {
@@ -658,7 +761,8 @@
         var g = t.controller.game();
         expect(g.mode).toBe('challenge');
         expect(g.difficulty).toBe('normal');
-        expect(t.box.querySelector('.bl-clock').hidden).toBe(true);
+        expect(t.box.querySelector('.bl-clock').hidden).toBe(false);
+        expect(t.box.querySelector('.bl-clocktime').textContent).toBe('3:00');
       } finally { t.done(); }
     });
   });

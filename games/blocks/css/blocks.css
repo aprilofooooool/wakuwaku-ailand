@@ -168,6 +168,8 @@ body.bl-playing { overflow: hidden; }
 .bl-result-score { margin: 12px 0 4px; font-size: 1.3rem; font-weight: 900; }
 .bl-result-jar { margin: 0 0 4px; font-size: 18px; font-weight: 800; }
 .bl-result-best { margin: 0 0 4px; font-size: 20px; font-weight: 900; }
+.bl-result-time { margin: 0 0 4px; font-size: 20px; font-weight: 900; }
+.bl-result-newtime { display: inline-block; margin-left: 8px; padding: 0 8px; color: var(--ink); background: var(--bl-gold); border: 2px solid var(--outline); border-radius: 10px; }
 .bl-result-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 12px; }
 .bl-menu { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
 .bl-rule { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0; }
