@@ -96,11 +96,20 @@
   }
 
   // True once: the first time a collect leaves 1..ALMOST faces to go (a jump straight to the goal uses it up silently).
+  // In challenge the target is the best (never true when best is 0).
   function checkAlmost(game) {
-    var left = game.goal - game.collected;
+    var target = game.mode === 'challenge' ? game.best : game.goal;
+    var left = target - game.collected;
     if (game._almostDone || left > K.ALMOST) { return false; }
     game._almostDone = true;
     return left > 0;
+  }
+
+  // Challenge only: [record event] the first time collected passes a best above 0, else [] (at most once per round).
+  function checkRecord(game, viaStar) {
+    if (game.mode !== 'challenge' || game.best <= 0 || game._recordDone || game.collected <= game.best) { return []; }
+    game._recordDone = true;
+    return [{ type: 'record', collected: game.collected, viaStar: viaStar }];
   }
 
   // Counts faces in the full rows, updates the totals and speed, and starts the settle wait.
@@ -124,11 +133,11 @@
     game.state = 'settling';
     game._settle = { kind: 'rows', rows: rows, star: star, acc: 0 };
     var events = [{ type: 'clear', rows: rows, faces: faces, mine: mine, collected: game.collected, almost: almost, star: star }];
-    if (mine > 0) {
+    if (game.timeMs !== null && mine > 0) {
       game.timeMs += mine * cfg.faceMs;
       events.push({ type: 'time', addMs: mine * cfg.faceMs });
     }
-    return events;
+    return events.concat(checkRecord(game, false));
   }
 
   function timeUp(game) {
@@ -139,12 +148,12 @@
 
   // The end of every settle: a reached goal wins, then time up, then the next piece.
   function endSettle(game, events) {
-    if (game.collected >= game.goal) {
+    if (game.goal !== null && game.collected >= game.goal) {
       game.state = 'goal';
       events.push({ type: 'goal', collected: game.collected, jar: game.jar });
       return events;
     }
-    if (game.timeMs <= 0) { return events.concat(timeUp(game)); }
+    if (game.timeMs !== null && game.timeMs <= 0) { return events.concat(timeUp(game)); }
     game.state = 'falling';
     return events.concat(spawn(game));
   }
@@ -162,10 +171,14 @@
     }
     game.collected += faces.length;
     var almost = checkAlmost(game);
-    var addMs = K.STAR_MS + faces.length * cfg.faceMs;
-    game.timeMs += addMs;
     game._settle = { kind: 'star', faces: faces, acc: 0 };
-    return [{ type: 'star', faces: faces, collected: game.collected, almost: almost }, { type: 'time', addMs: addMs }];
+    var events = [{ type: 'star', faces: faces, collected: game.collected, almost: almost }];
+    if (game.timeMs !== null) {
+      var addMs = K.STAR_MS + faces.length * cfg.faceMs;
+      game.timeMs += addMs;
+      events.push({ type: 'time', addMs: addMs });
+    }
+    return events.concat(checkRecord(game, true));
   }
 
   // Removes each star face from its column; the cells above it in that column move down 1.
@@ -200,7 +213,7 @@
       game.board.unshift(row);
     }
     var events = [{ type: 'collapse', rows: rows }];
-    if (s.star && game.collected < game.goal) { return events.concat(startStar(game)); }
+    if (s.star && (game.goal === null || game.collected < game.goal)) { return events.concat(startStar(game)); }
     return endSettle(game, events);
   }
 
@@ -239,13 +252,17 @@
     var cfg = K.DIFFICULTY[opts.difficulty];
     var rng = Ailand.core.Rng.mulberry32(opts.seed);
     var starRng = Ailand.core.Rng.mulberry32(opts.seed ^ 0x5bd1e995);
+    var challenge = opts.mode === 'challenge';
+    var best = typeof opts.best === 'number' && opts.best > 0 ? Math.floor(opts.best) : 0;
     var game = {
+      mode: challenge ? 'challenge' : 'collect',
+      best: challenge ? best : 0,
       board: emptyBoard(),
       piece: null,
       next: null,
       selfId: opts.selfId,
-      goal: cfg.goal,
-      timeMs: cfg.timeMs,
+      goal: challenge ? null : cfg.goal,
+      timeMs: challenge ? null : cfg.timeMs,
       overReason: null,
       collected: 0,
       jar: 0,
@@ -261,7 +278,8 @@
       _lockAcc: 0,
       _resets: 0,
       _settle: null,
-      _almostDone: false
+      _almostDone: false,
+      _recordDone: false
     };
     drawNext(game);
     spawn(game);
@@ -309,8 +327,8 @@
   function step(game, ms) {
     var events = [];
     var left = ms;
-    if (game.state === 'falling' || game.state === 'settling') { game.timeMs = Math.max(0, game.timeMs - ms); }
-    if (game.state === 'falling' && game.timeMs <= 0) { return timeUp(game); }
+    if (game.timeMs !== null && (game.state === 'falling' || game.state === 'settling')) { game.timeMs = Math.max(0, game.timeMs - ms); }
+    if (game.state === 'falling' && game.timeMs !== null && game.timeMs <= 0) { return timeUp(game); }
     if (game.state === 'settling') {
       game._settle.acc += ms;
       var wait = game._settle.kind === 'star' ? K.STAR_SETTLE_MS : K.SETTLE_MS;

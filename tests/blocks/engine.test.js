@@ -706,4 +706,125 @@
       expect(g.board[21][8]).toEqual({ charId: 'mametchi', star: true });
     });
   });
+
+  describe('blocks engine challenge', function () {
+    function mkc(best, seed) { return E.create({ difficulty: 'normal', selfId: 'mametchi', seed: seed === undefined ? 1 : seed, mode: 'challenge', best: best }); }
+    function starSetup(g) {
+      clearBoard(g);
+      fillSides(g, 21, ['mametchi', 'kuchipatchi', 'kuchipatchi', 'kuchipatchi', 'kuchipatchi', 'kuchipatchi']);
+      g.board[20][0] = { charId: 'kuchipatchi' };
+      g.board[19][0] = { charId: 'mimitchi' };
+      g.board[18][0] = { charId: 'mametchi' };
+      g.board[17][0] = { charId: 'flowertchi' };
+      g.board[20][8] = { charId: 'mametchi' };
+      g.piece = { shape: 'I', charId: 'kuchipatchi', x: 3, y: 0, rot: 0, star: 1 };
+    }
+
+    it('create without mode is collect with goal, time and best 0', function () {
+      var g = mk(1);
+      expect(g.mode).toBe('collect');
+      expect(g.goal).toBe(30);
+      expect(g.timeMs).toBe(150000);
+      expect(g.best).toBe(0);
+    });
+
+    it('best defaults to 0 for a non-number or negative value', function () {
+      expect(mkc(undefined).best).toBe(0);
+      expect(mkc('7').best).toBe(0);
+      expect(mkc(-3).best).toBe(0);
+      expect(mkc(7).best).toBe(7);
+    });
+
+    it('challenge has no goal and no time, and time never runs out', function () {
+      var g = mkc(0);
+      expect(g.mode).toBe('challenge');
+      expect(g.goal).toBe(null);
+      expect(g.timeMs).toBe(null);
+      var ev = E.step(g, 600000);
+      expect(g.timeMs).toBe(null);
+      expect(ev.some(function (e) { return e.type === 'over'; })).toBe(false);
+    });
+
+    it('a clear adds the own faces, emits no time and never reaches goal', function () {
+      var g = mkc(0);
+      setupClear(g, 2);
+      g.collected = 999;
+      var ev = E.hardDrop(g);
+      expect(types(ev)).toEqual(['lock', 'clear']);
+      expect(g.collected).toBe(1001);
+      expect(types(E.step(g, K.SETTLE_MS))).toEqual(['collapse', 'spawn']);
+      expect(g.state).toBe('falling');
+    });
+
+    it('a star clear emits star with no time and counts the faces', function () {
+      var g = mkc(0);
+      starSetup(g);
+      expect(types(E.hardDrop(g))).toEqual(['lock', 'clear']);
+      var ev = E.step(g, K.SETTLE_MS);
+      expect(types(ev)).toEqual(['collapse', 'star']);
+      expect(g.collected).toBe(3);
+    });
+
+    it('locking into the hidden rows is over blocked', function () {
+      var g = mkc(0);
+      g.piece.shape = 'I';
+      g.piece.y = 0;
+      for (var c = 0; c < K.COLS; c++) { g.board[2][c] = { charId: 'mametchi' }; }
+      var ev = E.hardDrop(g);
+      expect(g.state).toBe('over');
+      expect(g.overReason).toBe('blocked');
+      expect(types(ev)).toContain('over');
+    });
+
+    it('beating the best emits record once after clear', function () {
+      var g = mkc(5);
+      g.collected = 4;
+      setupClear(g, 2);
+      var ev = E.hardDrop(g);
+      expect(types(ev)).toEqual(['lock', 'clear', 'record']);
+      expect(ev[2]).toEqual({ type: 'record', collected: 6, viaStar: false });
+      E.step(g, K.SETTLE_MS);
+      setupClear(g, 2);
+      expect(types(E.hardDrop(g))).toEqual(['lock', 'clear']);
+    });
+
+    it('almost uses best as the target', function () {
+      var g = mkc(5);
+      g.collected = 1;
+      setupClear(g, 1);
+      var ev = E.hardDrop(g);
+      expect(ev[1].almost).toBe(true);
+      expect(types(ev)).toEqual(['lock', 'clear']);
+      var g2 = mkc(5);
+      g2.collected = 1;
+      setupClear(g2, 5);
+      var ev2 = E.hardDrop(g2);
+      expect(ev2[1].almost).toBe(false);
+      expect(types(ev2)).toEqual(['lock', 'clear', 'record']);
+    });
+
+    it('best 0 never gives almost or record', function () {
+      var g = mkc(0);
+      setupClear(g, 3);
+      var ev = E.hardDrop(g);
+      expect(ev[1].almost).toBe(false);
+      expect(types(ev)).toEqual(['lock', 'clear']);
+    });
+
+    it('a record from the star wave has viaStar after the star event', function () {
+      var g = mkc(2);
+      starSetup(g);
+      expect(types(E.hardDrop(g))).toEqual(['lock', 'clear']);
+      var ev = E.step(g, K.SETTLE_MS);
+      expect(types(ev)).toEqual(['collapse', 'star', 'record']);
+      expect(ev[2]).toEqual({ type: 'record', collected: 3, viaStar: true });
+    });
+
+    it('collect mode never emits record', function () {
+      var g = mk(1);
+      g.collected = 4;
+      setupClear(g, 2);
+      expect(types(E.hardDrop(g))).toEqual(['lock', 'clear', 'time']);
+    });
+  });
 })(window.Ailand);
