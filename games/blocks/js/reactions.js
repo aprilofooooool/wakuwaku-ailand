@@ -5,6 +5,7 @@
   var MULTI = ['excited', 'surprised'];
   var MINE = ['joy', 'cheer', 'love'];
   var GOAL = ['excited', 'cheer'];
+  var STAR = ['excited', 'cheer'];
 
   // Chooses the face for a clear. Same emotion never 3 times in a row (a pool of one may repeat).
   function create(rng) {
@@ -16,6 +17,9 @@
       return { emotion: variety.pick('clear', ['joy']), situation: null };
     }
 
+    // The star comeback: a happy, excited face.
+    function forStar() { return { emotion: variety.pick('star', STAR), situation: 'star' }; }
+
     // 'over' is the only place a worried face may appear.
     function forResult(kind) {
       if (kind === 'over') { return 'worried'; }
@@ -24,21 +28,23 @@
 
     function reset() { variety.reset(); }
 
-    return { forClear: forClear, forResult: forResult, reset: reset };
+    return { forClear: forClear, forStar: forStar, forResult: forResult, reset: reset };
   }
 
-  // Picks one screen effect for the events of a single lock. Priority: goal, quad, multi, mine, single.
+  // Picks one screen effect for the events of a single lock. Priority: goal, star, quad, multi, mine, single.
   function screenFx(events) {
-    var maxRows = 0, mine = false, goal = false, i, e;
+    var maxRows = 0, mine = false, goal = false, star = false, i, e;
     for (i = 0; i < events.length; i++) {
       e = events[i];
       if (e.type === 'goal') { goal = true; }
+      if (e.type === 'star') { star = true; }
       if (e.type === 'clear') {
         if (e.rows.length > maxRows) { maxRows = e.rows.length; }
         if (e.mine > 0) { mine = true; }
       }
     }
     if (goal) { return 'goal'; }
+    if (star) { return 'star'; }
     if (maxRows >= 4) { return 'quad'; }
     if (maxRows >= 2) { return 'multi'; }
     if (maxRows >= 1 && mine) { return 'mine'; }

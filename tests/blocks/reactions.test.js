@@ -52,6 +52,14 @@
       r.reset();
       expect(r.forClear(clear(1, 1)).emotion).toBe('joy');
     });
+    it('forStar is excited or cheer with the star situation', function () {
+      var i, x;
+      for (i = 0; i < 50; i++) {
+        x = R.create(A.core.Rng.mulberry32(i)).forStar();
+        expect(x.situation).toBe('star');
+        expect(['excited', 'cheer'].indexOf(x.emotion) >= 0).toBe(true);
+      }
+    });
     it('result faces', function () {
       [0, 0.5, 0.99].forEach(function (v) {
         var r = R.create(function () { return v; });
@@ -70,6 +78,8 @@
       expect(R.screenFx([lock, clear(3, 0)])).toBe('multi');
       expect(R.screenFx([lock, clear(1, 1)])).toBe('mine');
       expect(R.screenFx([lock, clear(1, 0)])).toBe('single');
+      expect(R.screenFx([lock, clear(4, 2), { type: 'star' }])).toBe('star');
+      expect(R.screenFx([{ type: 'star' }, { type: 'goal', collected: 5, jar: 5 }])).toBe('goal');
       expect(R.screenFx([lock])).toBe(null);
       expect(R.screenFx([])).toBe(null);
     });

@@ -18,6 +18,14 @@
       seq(c, d, t, [523, 659, 784, 1047, 1319], 0.07, 0.16, 'triangle', 0.4);
       note(c, d, t, 2093, 0.3, 0.35, 'sine', 0.12);
     },
+    // Star comeback: a long rising fanfare (longer than quad) with a high shimmer.
+    'blocks-star': function (c, d, t) {
+      seq(c, d, t, [523, 659, 784, 1047, 1319, 1568], 0.09, 0.2, 'triangle', 0.4);
+      note(c, d, t, 2093, 0.5, 0.6, 'sine', 0.14);
+      note(c, d, t, 2637, 0.62, 0.5, 'sine', 0.1);
+    },
+    // Last 10 seconds: a short soft tick.
+    'blocks-tick': function (c, d, t) { note(c, d, t, 1000, 0, 0.03, 'sine', 0.12); },
     // A face flies to the counter.
     'blocks-collect': function (c, d, t) { note(c, d, t, 880, 0, 0.07, 'sine', 0.25, 1175); },
     'blocks-count': function (c, d, t) { note(c, d, t, 660, 0, 0.12, 'triangle', 0.4); },
@@ -43,7 +51,7 @@
   // 8 bars of 4/4 (32 beats). Plain triangle lead (no bend, no sparkle) in 8ths that dips down and climbs back up,
   // triangle bass alternating root and 5th on each beat, sine stabs on beats 2 and 4,
   // and a "kick, hat hat, snare, hat kick" drum bar. Chords (I-V-vi-IV, I-ii-V-I): G D Em C | G Am D G.
-  // After the "almost full" warning: Bgm.setTempo(ALMOST_BPM).
+  // After the "almost full" warning: Bgm.setTempo(ALMOST_BPM); under 10 s left: Bgm.setTempo(HURRY_BPM).
   var G3 = 196, D3 = 146.83, E3 = 164.81, C3 = 130.81, A2 = 110, D4 = 293.66, B3 = 246.94, A3 = 220;
   var G4 = 392, E4 = 329.63, C4 = 261.63, FS4 = 369.99, B4 = 493.88, C5 = 523.25, D5 = 587.33, E5 = 659.25;
   var FS5 = 739.99, G5 = 783.99, A4 = 440, A5 = 880, B5 = 987.77;
@@ -85,5 +93,5 @@
     steps: steps
   };
 
-  G.Sounds = { register: register, BGM: BGM, ALMOST_BPM: 160, names: Object.keys(SOUNDS) };
+  G.Sounds = { register: register, BGM: BGM, ALMOST_BPM: 160, HURRY_BPM: 172, names: Object.keys(SOUNDS) };
 })(Ailand.games.blocks);

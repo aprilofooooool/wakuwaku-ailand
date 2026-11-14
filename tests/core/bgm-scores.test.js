@@ -93,6 +93,7 @@
       expect(A.games.drop4.Sounds.ENDGAME_BPM).toBe(126);
       expect(A.games.whack.Sounds.FINAL_BPM).toBe(180);
       expect(A.games.blocks.Sounds.ALMOST_BPM > BLOCKS.bpm).toBe(true);
+      expect(A.games.blocks.Sounds.HURRY_BPM > A.games.blocks.Sounds.ALMOST_BPM).toBe(true);
       expect(A.games.drop4.Sounds.ENDGAME_BPM > DROP4.bpm).toBe(true);
       expect(A.games.whack.Sounds.FINAL_BPM > WHACK.bpm).toBe(true);
     });

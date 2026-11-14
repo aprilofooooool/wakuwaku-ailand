@@ -9,6 +9,8 @@
   var GRID = 'rgba(58, 47, 90, 0.08)';
   var MINE_EDGE = '#ffc83a';      // the chosen character's cells get a gold edge (design 1.3: tell them apart at a glance)
   var GHOST_ALPHA = 0.25;
+  var STAR_FILL = '#ffd23a';
+  var STAR_EDGE = '#3a2f5a';
 
   function profileOf(id) { return Ailand.core.Characters.get(id); }
   function imageReady(img) { return !!img && img.complete && img.naturalWidth > 0; }
@@ -24,8 +26,27 @@
     ctx.closePath();
   }
 
-  // One cell at device pixels (x, y), size s.
-  function drawCell(ctx, x, y, s, charId, opts, alpha) {
+  // Gold 5-point star with a dark outline, centered at (cx, cy), outer radius r.
+  function drawStar(ctx, cx, cy, r) {
+    var i, a, rr;
+    ctx.beginPath();
+    for (i = 0; i < 10; i++) {
+      a = -Math.PI / 2 + i * Math.PI / 5;
+      rr = i % 2 === 0 ? r : r * 0.42;
+      if (i === 0) { ctx.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
+      else { ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
+    }
+    ctx.closePath();
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(1.5, r * 0.5);
+    ctx.strokeStyle = STAR_EDGE;
+    ctx.stroke();
+    ctx.fillStyle = STAR_FILL;
+    ctx.fill();
+  }
+
+  // One cell at device pixels (x, y), size s. star: true draws the gold star over the face.
+  function drawCell(ctx, x, y, s, charId, opts, alpha, star) {
     var pf = profileOf(charId);
     if (!pf) { return; }
     var pad = s * 0.05;
@@ -48,6 +69,7 @@
       ctx.textBaseline = 'middle';
       ctx.fillText(pf.face.normal, x + s / 2, y + s / 2, s * 0.9);
     }
+    if (star) { drawStar(ctx, x + s * 0.73, y + s * 0.27, s * 0.225); }
     ctx.globalAlpha = 1;
   }
 
@@ -78,19 +100,19 @@
       if (hide.indexOf(r) >= 0) { continue; }   // cleared rows: their faces are flying away
       for (var c = 0; c < K.COLS; c++) {
         var cell = game.board[r][c];
-        if (cell) { drawCell(ctx, c * s, (r - K.HIDDEN) * s, s, cell.charId, mine, 1); }
+        if (cell) { drawCell(ctx, c * s, (r - K.HIDDEN) * s, s, cell.charId, mine, 1, !!cell.star); }
       }
     }
     if (game.state !== 'falling' || !game.piece) { return; }
     var p = game.piece;
     var ghost = E.ghostY(game);
     if (ghost !== p.y) {
-      pieceCells(p, ghost).forEach(function (q) {
-        if (q[1] >= K.HIDDEN) { drawCell(ctx, q[0] * s, (q[1] - K.HIDDEN) * s, s, p.charId, mine, GHOST_ALPHA); }
+      pieceCells(p, ghost).forEach(function (q, qi) {
+        if (q[1] >= K.HIDDEN) { drawCell(ctx, q[0] * s, (q[1] - K.HIDDEN) * s, s, p.charId, mine, GHOST_ALPHA, p.star === qi); }
       });
     }
-    pieceCells(p, p.y).forEach(function (q) {
-      if (q[1] >= K.HIDDEN) { drawCell(ctx, q[0] * s, (q[1] - K.HIDDEN) * s, s, p.charId, mine, 1); }
+    pieceCells(p, p.y).forEach(function (q, qi) {
+      if (q[1] >= K.HIDDEN) { drawCell(ctx, q[0] * s, (q[1] - K.HIDDEN) * s, s, p.charId, mine, 1, p.star === qi); }
     });
   }
 
@@ -110,7 +132,7 @@
     });
     var ox = (w - (maxX - minX + 1) * s) / 2, oy = (h - (maxY - minY + 1) * s) / 2;
     var mine = { images: o.images, selfId: o.selfId };
-    cs.forEach(function (c) { drawCell(ctx, ox + (c[0] - minX) * s, oy + (c[1] - minY) * s, s, next.charId, mine, 1); });
+    cs.forEach(function (c, ci) { drawCell(ctx, ox + (c[0] - minX) * s, oy + (c[1] - minY) * s, s, next.charId, mine, 1, next.star === ci); });
   }
 
   G.Render = { draw: draw, drawNext: drawNext };
