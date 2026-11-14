@@ -139,6 +139,15 @@
       } finally { t.done(); }
     });
 
+    it('pad buttons run ← ↓ hard ↻ → left to right', function () {
+      var t = make();
+      try {
+        play(t);
+        var acts = Array.prototype.map.call(t.box.querySelectorAll('.bl-pad button'), function (b) { return b.getAttribute('data-action'); });
+        expect(acts.join(',')).toBe('left,soft,hard,rotate,right');
+      } finally { t.done(); }
+    });
+
     it('holding the left button moves the piece and release stops it', function () {
       var t = make();
       try {

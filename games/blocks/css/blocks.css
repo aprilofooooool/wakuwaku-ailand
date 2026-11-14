@@ -106,8 +106,8 @@ body.bl-playing { overflow: hidden; }
 
 .bl-pad { grid-area: pad; display: flex; justify-content: space-between; gap: 10px; }
 .bl-pad-move, .bl-pad-act { display: flex; gap: 6px; }
-.bl-pad-move { flex: 2 1 0; }
-.bl-pad-act { flex: 3 1 0; }
+.bl-pad-move { flex: 3 1 0; }
+.bl-pad-act { flex: 2 1 0; }
 .bl-padbtn { flex: 1 1 0; min-width: 64px; min-height: 68px; padding: 0; font: inherit; font-size: 30px; font-weight: 900; line-height: 1; color: var(--ink); background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-m); box-shadow: var(--shadow-s); cursor: pointer; }
 .bl-padbtn[data-action="hard"] { background: var(--bl-hard); }
 /* Hard drop: the arrow lands on a floor bar (drawn with CSS so every font shows it). */
@@ -115,7 +115,7 @@ body.bl-playing { overflow: hidden; }
 .bl-padbtn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--outline); background: var(--accent-yellow); }
 
 /* Landscape / PC (design 3.3): character and jar left, board in the middle, つぎ and ★ right;
-   ← → under the left side, ↻ ↓ and hard drop under the right side. */
+   ← ↓ hard under the left side, ↻ → under the right side. */
 @media (min-aspect-ratio: 1/1) {
   .bl-game {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);

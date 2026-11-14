@@ -6,8 +6,8 @@
 
   var LEVELS = [['easy', 'かんたん'], ['normal', 'ふつう'], ['hard', 'むずかしい']];
   var PADS = {
-    move: [['left', '←', 'ひだり'], ['right', '→', 'みぎ']],
-    act: [['rotate', '↻', 'まわす'], ['soft', '↓', 'おとす'], ['hard', '↓', 'いっきに おとす']]
+    move: [['left', '←', 'ひだり'], ['soft', '↓', 'おとす'], ['hard', '↓', 'いっきに おとす']],
+    act: [['rotate', '↻', 'まわす'], ['right', '→', 'みぎ']]
   };
   // Keyboard (design 4). Repeats come from the controller, never from the OS key repeat.
   var KEYS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'rotate', ArrowDown: 'soft', ' ': 'hard', Spacebar: 'hard' };
