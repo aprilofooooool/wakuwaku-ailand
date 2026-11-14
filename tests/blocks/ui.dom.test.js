@@ -5,9 +5,9 @@
   var B = A.games.blocks;
   var STEP = A.core.Loop.STEP_MS;
 
-  function fakeStorage(seen) {
+  function fakeStorage(seen, difficulty) {
     var m = {};
-    if (seen) { m[B.Controller.SETTINGS_KEY] = { char: 'mametchi', difficulty: 'easy', seenHowTo: true }; }
+    if (seen) { m[B.Controller.SETTINGS_KEY] = { char: 'mametchi', difficulty: difficulty || 'easy', seenHowTo: true }; }
     return {
       get: function (k, fb) { return Object.prototype.hasOwnProperty.call(m, k) ? m[k] : fb; },
       set: function (k, v) { m[k] = v; },
@@ -20,17 +20,17 @@
     return { start: function () { on = true; }, stop: function () { on = false; }, isRunning: function () { return on; } };
   }
 
-  function make(withLines) {
+  function make(withLines, difficulty) {
     var box = document.createElement('div');
     box.style.cssText = 'position:fixed;left:0;top:0;width:1024px;height:700px;z-index:9999;background:#fff';
     document.body.appendChild(box);
     var bus = A.core.EventBus.create();
-    var controller = B.Controller.create({ bus: bus, storage: fakeStorage(true), seed: function () { return 7; } });
+    var controller = B.Controller.create({ bus: bus, storage: fakeStorage(true, difficulty), seed: function () { return 7; } });
     var deps = { bus: bus, loop: fakeLoop(), rng: function () { return 0.5; } };
     if (withLines) { deps.linePicker = A.core.LinePicker.create({ gameLines: B.Lines, commonLines: A.core.CommonLines, rng: function () { return 0; } }); }
     var ui = B.UI.init(box, controller, deps);
     return {
-      box: box, controller: controller, ui: ui,
+      box: box, bus: bus, controller: controller, ui: ui,
       done: function () { ui.destroy(); box.remove(); }
     };
   }
@@ -38,6 +38,11 @@
     return Array.prototype.filter.call(root.querySelectorAll('button'), function (b) { return b.textContent.trim() === text; })[0];
   }
   function run(t, ms) { for (var s = 0; s < ms; s += STEP) { t.controller.advance(STEP); } }
+  // Like the real loop: advance, then ui.step. The piece is held at the top so nothing locks.
+  function runUi(t, ms) {
+    var g = t.controller.game(), y0 = g.piece.y;
+    for (var s = 0; s < ms; s += STEP) { g.piece.y = y0; t.controller.advance(STEP); t.ui.step(STEP); }
+  }
   // Starts a round and runs the 3-2-1 countdown.
   function play(t) {
     buttonByText(t.box, 'はじめる').click();
@@ -250,12 +255,83 @@
         var say = t.box.querySelector('.bl-say');
         expect(!!say.querySelector('.fx-bubble-line')).toBe(true);
         var g = setupClear(t, 1);
-        g.collected = 8;   // easy goal 12: this clear leaves 3
+        g.collected = 11;   // easy goal 15: this clear leaves 3
         t.controller.press('hard');
         var lines = say.querySelectorAll('.fx-bubble-line:not(.fx-out) .fx-bubble-text');
         expect(lines.length).toBe(1);
         expect(B.Lines.mametchi.almost.indexOf(lines[0].textContent) >= 0).toBe(true);
       } finally { fl.restore(); t.done(); }
+    });
+
+    it('the clock shows the time left in the info column', function () {
+      var t = make(false, 'normal');
+      try {
+        play(t);
+        var clock = t.box.querySelector('.bl-info .bl-clock');
+        expect(!!clock).toBe(true);
+        expect(clock.textContent).toBe('のこり 2:30');
+        runUi(t, 61200);   // 61 s and a few steps: 88.8 s left, shown rounded up
+        expect(clock.textContent).toBe('のこり 1:29');
+      } finally { t.done(); }
+    });
+
+    it('the clock hurries under 10 seconds and calms down above', function () {
+      var t = make(false, 'normal');
+      try {
+        play(t);
+        var clock = t.box.querySelector('.bl-clock');
+        expect(clock.classList.contains('is-hurry')).toBe(false);
+        t.controller.game().timeMs = 9000;
+        runUi(t, STEP);
+        expect(clock.classList.contains('is-hurry')).toBe(true);
+        t.controller.game().timeMs = 20000;
+        runUi(t, STEP);
+        expect(clock.classList.contains('is-hurry')).toBe(false);
+      } finally { t.done(); }
+    });
+
+    it('a time event shows +N next to the clock', function () {
+      var t = make();
+      try {
+        play(t);
+        t.bus.emit('time', { type: 'time', addMs: 6000 });
+        var add = t.box.querySelector('.bl-timeadd');
+        expect(!!add).toBe(true);
+        expect(add.textContent).toBe('+6');
+      } finally { t.done(); }
+    });
+
+    it('time up shows じかんぎれ and a timeup line', function () {
+      var t = make(true);
+      try {
+        play(t);
+        t.controller.game().timeMs = 10;
+        runUi(t, STEP);
+        expect(t.controller.phase()).toBe('result');
+        var card = t.box.querySelector('.bl-result');
+        expect(!!card).toBe(true);
+        expect(card.querySelector('.bl-card-text').textContent).toBe('じかんぎれ');
+        expect(B.Lines.mametchi.timeup.indexOf(card.querySelector('.bl-line').textContent) >= 0).toBe(true);
+        expect(t.box.querySelector('.bl-clock').textContent).toBe('のこり 0:00');
+      } finally { t.done(); }
+    });
+
+    it('settings show the goal and the time; the how-to tells about time and stars', function () {
+      var t = make();
+      try {
+        var levels = t.box.querySelectorAll('.bl-level');
+        expect(levels[0].textContent.indexOf('15こ あつめよう') >= 0).toBe(true);
+        expect(levels[0].textContent.indexOf('3ぷん') >= 0).toBe(true);
+        expect(levels[1].textContent.indexOf('2ぷん30びょう') >= 0).toBe(true);
+        expect(levels[2].textContent.indexOf('50こ あつめよう') >= 0).toBe(true);
+        expect(levels[2].textContent.indexOf('2ぷん') >= 0).toBe(true);
+        buttonByText(t.box, 'あそびかた').click();
+        var body = document.querySelector('.bl-howto-body');
+        expect(!!body).toBe(true);
+        expect(body.textContent.indexOf('じかんが なくなると おしまい') >= 0).toBe(true);
+        expect(body.textContent.indexOf('ほしの ブロックを けすと') >= 0).toBe(true);
+        buttonByText(document.getElementById('modal-root'), 'わかった').click();
+      } finally { t.done(); }
     });
   });
 })(window.Ailand);

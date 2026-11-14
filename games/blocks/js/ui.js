@@ -13,6 +13,7 @@
   var KEYS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'rotate', ArrowDown: 'soft', ' ': 'hard', Spacebar: 'hard' };
   var MOVE_SOUND = { left: 'blocks-move', right: 'blocks-move', rotate: 'blocks-rotate' };
   var BUBBLE_MS = 1600;
+  var TIMEADD_MS = 900;        // the "+N" next to the clock after a time bonus
   var START_BUBBLE_MS = 2000;
   var BUBBLE_FADE_MS = 250;    // core/effects.js bubble fade-out
   var REACT_MS = 1600;         // the chosen character goes back to normal after a reaction
@@ -47,6 +48,22 @@
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   }
   function goalOf(difficulty) { return K.DIFFICULTY[difficulty].goal; }
+  // 180000 -> '3ぷん', 150000 -> '2ぷん30びょう'.
+  function timeOf(difficulty) {
+    var s = Math.round(K.DIFFICULTY[difficulty].timeMs / 1000);
+    return Math.floor(s / 60) + 'ぷん' + (s % 60 ? (s % 60) + 'びょう' : '');
+  }
+  // Whole seconds (rounded up by the caller): 89 -> '1:29', 0 -> '0:00'.
+  function clockOf(sec) { return Math.floor(sec / 60) + ':' + (sec % 60 < 10 ? '0' : '') + (sec % 60); }
+  // A long how-to line: a br after each part; css keeps the words whole.
+  function textLines(parts) {
+    var p = el('p', 'bl-howto-text');
+    parts.forEach(function (t, i) {
+      if (i > 0) { p.appendChild(document.createElement('br')); }
+      p.appendChild(document.createTextNode(t));
+    });
+    return p;
+  }
 
   // Loads every character's normal image once for the board (design 7: before the round starts).
   function loadImages(onLoad) {
@@ -125,7 +142,10 @@
       LEVELS.forEach(function (it) {
         var b = button('bl-choice bl-level', undefined, function () { draft.difficulty = it[0]; renderSettings(); });
         b.appendChild(el('span', 'bl-level-name', it[1]));
-        b.appendChild(el('span', 'bl-level-goal', goalOf(it[0]) + 'こ あつめよう'));
+        var meta = el('span', 'bl-level-meta');
+        meta.appendChild(el('span', 'bl-level-goal', goalOf(it[0]) + 'こ あつめよう'));
+        meta.appendChild(el('span', 'bl-level-time', timeOf(it[0])));
+        b.appendChild(meta);
         b.setAttribute('aria-pressed', String(draft.difficulty === it[0]));
         levels.appendChild(b);
       });
@@ -147,6 +167,8 @@
       body.appendChild(face);
       body.appendChild(el('p', 'bl-howto-text', 'そろえて けすと かおが とんでいくよ'));
       body.appendChild(el('p', 'bl-howto-text', pf.name + 'の かおを ' + goalOf(draft.difficulty) + 'こ あつめたら クリア'));
+      body.appendChild(textLines(['じかんが なくなると おしまい。', 'じぶんの かおを けすと のびるよ']));
+      body.appendChild(textLines(['ほしの ブロックを けすと、', 'ばんの じぶんの かおが ぜんぶ とんでくる！']));
       var acts = el('div', 'bl-menu');
       acts.appendChild(button('btn btn-main', beforeStart ? 'はじめる' : 'わかった', function () {
         m.close();
@@ -180,7 +202,7 @@
       var cg = controller.game();
       game = {
         settings: settings, profile: profileOf(settings.char), goal: cg.goal,
-        cell: 0, dpr: 1, hideRows: [], shown: { star: 0, jar: 0 }, flying: 0, almost: false,
+        cell: 0, dpr: 1, hideRows: [], hideCells: [], clockSec: -1, hurry: false, shown: { star: 0, jar: 0 }, flying: 0, almost: false,
         bubbleUntil: 0, reactToken: 0, lastCollect: 0, pending: null, resultShown: false
       };
       buildGame();
@@ -190,6 +212,7 @@
       window.scrollTo(0, 0);
       applyLayout();
       paintCounts();
+      paintClock();
       reactions.reset();
       say('start', START_BUBBLE_MS);
       startBgm();
@@ -207,6 +230,10 @@
       boardWrap.appendChild(frame);
 
       var info = el('div', 'bl-info');
+      var clock = el('div', 'bl-clock');
+      var clockTime = el('span', 'bl-clocktime');
+      clock.appendChild(el('span', 'bl-clocklabel', 'のこり '));
+      clock.appendChild(clockTime);
       var next = el('div', 'bl-next');
       next.appendChild(el('span', 'bl-label', 'つぎ'));
       var nextCanvas = el('canvas', 'bl-nextcanvas');
@@ -218,6 +245,7 @@
       star.appendChild(el('span', 'bl-starmark', '★'));
       star.appendChild(starFace);
       star.appendChild(starCount);
+      info.appendChild(clock);
       info.appendChild(next);
       info.appendChild(star);
 
@@ -265,6 +293,8 @@
       game.ctx = canvas.getContext('2d');
       game.nextCanvas = nextCanvas;
       game.nextCtx = nextCanvas.getContext('2d');
+      game.clock = clock;
+      game.clockTime = clockTime;
       game.star = star;
       game.starFace = starFace;
       game.starCount = starCount;
@@ -365,7 +395,7 @@
     function redraw() {
       var cg = controller.game();
       if (!game || !cg || !game.cell) { return; }
-      R.draw(game.ctx, cg, { cell: game.cell, dpr: game.dpr, images: images, hideRows: game.hideRows, selfId: game.settings.char });
+      R.draw(game.ctx, cg, { cell: game.cell, dpr: game.dpr, images: images, hideRows: game.hideRows, hideCells: game.hideCells, selfId: game.settings.char });
     }
     function drawNext() {
       var cg = controller.game();
@@ -377,6 +407,25 @@
       game.starCount.textContent = game.shown.star + '／' + game.goal;
       game.jarCount.textContent = 'みんな ' + game.shown.jar;
     }
+
+    // The clock (thrill design): repainted only when the whole seconds change. Under HURRY_MS it turns red,
+    // ticks once a second and the BGM runs at HURRY_BPM.
+    function paintClock() {
+      var cg = controller.game();
+      if (!game || !cg) { return; }
+      var sec = Math.ceil(cg.timeMs / 1000);
+      if (sec === game.clockSec) { return; }
+      var first = game.clockSec < 0;
+      game.clockSec = sec;
+      game.clockTime.textContent = clockOf(sec);
+      var hurry = cg.timeMs <= K.HURRY_MS;
+      if (hurry && sec > 0 && !first) { sfx('blocks-tick'); }
+      if (hurry === game.hurry) { return; }
+      game.hurry = hurry;
+      game.clock.classList.toggle('is-hurry', hurry);
+      if (Sound.isBgmOn() && inPlay() && !controller.isPaused()) { Bgm.setTempo(bpmNow()); }
+    }
+    function bpmNow() { return game.hurry ? G.Sounds.HURRY_BPM : (game.almost ? G.Sounds.ALMOST_BPM : G.Sounds.BGM.bpm); }
 
     // One bubble at a time (design 5.1): a new line waits until the previous one is gone.
     // force (the one-time almost line): replaces the bubble on screen instead of being dropped.
@@ -444,7 +493,7 @@
       if (!game) { Bgm.start(G.Sounds.BGM); return; }
       if (!inPlay() || controller.isPaused()) { return; }
       Bgm.start(G.Sounds.BGM);
-      if (game.almost) { Bgm.setTempo(G.Sounds.ALMOST_BPM); }
+      if (game.hurry || game.almost) { Bgm.setTempo(bpmNow()); }
     }
 
     // ---------- overlay: pause and result ----------
@@ -508,12 +557,12 @@
       paintCounts();
       var pf = game.profile;
       var nodes = [];
-      nodes.push(el('p', 'bl-card-text', r.cleared ? 'クリア！' : 'おしまい'));
+      nodes.push(el('p', 'bl-card-text', r.cleared ? 'クリア！' : (r.timeup ? 'じかんぎれ' : 'おしまい')));
       var hero = el('div', 'bl-hero' + (r.cleared ? ' is-win' : ''));
       var face = el('div', 'bl-heroface');
       faceInto(face, pf, reactions.forResult(r.cleared ? 'goal' : 'over'));
       hero.appendChild(face);
-      hero.appendChild(el('p', 'bl-line', line(r.cleared ? 'clear' : 'over')));
+      hero.appendChild(el('p', 'bl-line', line(r.cleared ? 'clear' : (r.timeup ? 'timeup' : 'over'))));
       nodes.push(hero);
       nodes.push(el('p', 'bl-result-score', pf.name + 'の かお ★' + r.collected + 'こ あつめたよ' + (r.cleared ? '！' : '')));
       nodes.push(el('p', 'bl-result-jar', 'みんなの かお ' + r.jar + 'こ'));
@@ -605,22 +654,44 @@
       redraw();
       sfx(p.rows.length >= 4 ? 'blocks-quad' : (p.rows.length >= 2 ? 'blocks-multi' : 'blocks-line'));
       flyFaces(p.faces);
-      // One screen effect per lock (design 5.3): a clear that reaches the goal leaves the stage to the result.
+      // One screen effect per lock (design 5.3): a clear that reaches the goal leaves the stage to the result,
+      // and a star clear leaves it to the star event that follows.
       var events = [p];
       if (p.collected >= game.goal) { events.push({ type: 'goal' }); }
-      if (G.Reactions.screenFx(events) === 'quad') { Fx.flash(game.frame); }
+      if (!p.star && G.Reactions.screenFx(events) === 'quad') { Fx.flash(game.frame); }
       var r = reactions.forClear(p);
       react(r.emotion);
       if (p.almost) {
         game.almost = true;
         game.star.classList.add('is-almost');
-        if (Sound.isBgmOn()) { Bgm.setTempo(G.Sounds.ALMOST_BPM); }
+        if (Sound.isBgmOn()) { Bgm.setTempo(bpmNow()); }   // under 10 s the hurry tempo stays
         say('almost', BUBBLE_MS, true);
       } else if (r.situation) {
         say(r.situation);
       }
     });
-    on('collapse', function () { game.hideRows = []; redraw(); });
+    // The star: every own face on the board flies to the frame in one wave; their cells hide until the collapse.
+    on('star', function (p) {
+      Fx.showBanner('ほし！', 'is-go', 900);
+      Fx.flash(game.frame);
+      sfx('blocks-star');
+      game.hideCells = p.faces.map(function (f) { return [f.col, f.row]; });
+      redraw();
+      flyFaces(p.faces);
+      react(reactions.forStar().emotion);
+      say('star', BUBBLE_MS, true);
+    });
+    // A time bonus: "+N" next to the clock for a moment (the clock itself repaints on the next step).
+    on('time', function (p) {
+      var n = Math.round(p.addMs / 1000);
+      if (n <= 0) { return; }
+      Array.prototype.forEach.call(game.clock.querySelectorAll('.bl-timeadd'), function (x) { x.parentNode.removeChild(x); });
+      var add = el('span', 'bl-timeadd', '+' + n);
+      add.setAttribute('aria-hidden', 'true');
+      game.clock.appendChild(add);
+      later(function () { if (add.parentNode) { add.parentNode.removeChild(add); } }, TIMEADD_MS);
+    });
+    on('collapse', function () { game.hideRows = []; game.hideCells = []; redraw(); });
     on('danger', function (p) { game.frame.classList.toggle('is-danger', !!p.on); });
     on('result', onResult);
 
@@ -631,8 +702,12 @@
     showSettings();
 
     return {
-      // Redraws the board; called after controller.advance on every loop step.
-      step: function () { if (game && inPlay()) { requestDraw(); } },
+      // Repaints the clock and redraws the board; called after controller.advance on every loop step.
+      step: function () {
+        if (!game) { return; }
+        paintClock();
+        if (inPlay()) { requestDraw(); }
+      },
       showPause: showPause,
       // Tests: removes the UI, its header and listeners.
       destroy: function () {

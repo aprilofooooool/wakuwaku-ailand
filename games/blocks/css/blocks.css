@@ -11,6 +11,8 @@
   --bl-jar: #e6f6ff;
   --bl-lid: #ffb3cf;
   --bl-hard: #ffd1e1;
+  --bl-hurry: #ff5a6e;
+  --bl-hurry-edge: #c8283c;
 }
 
 /* The whole play screen (gaps between pads and panels too) and the buttons: no scroll, pinch or double-tap zoom,
@@ -39,12 +41,14 @@
 .bl-choice:focus-visible, .bl-charbtn:focus-visible, .bl-padbtn:focus-visible { outline: 4px solid var(--accent-blue); outline-offset: 2px; }
 .bl-level { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
 .bl-level-name { font-weight: 900; }
+.bl-level-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .bl-level-goal { font-size: 18px; font-weight: 700; }
+.bl-level-time { font-size: 16px; font-weight: 700; }
 .bl-startpanel { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
 .bl-start, .bl-howto, .bl-card .btn, .bl-menu .btn { min-width: 64px; min-height: 64px; }
 .bl-howto-body { text-align: center; }
 .bl-howto-face { width: 96px; height: 96px; margin: 0 auto 8px; }
-.bl-howto-text { margin: 0 0 12px; font-size: 18px; font-weight: 800; }
+.bl-howto-text { margin: 0 0 12px; font-size: 18px; font-weight: 800; word-break: keep-all; overflow-wrap: anywhere; }
 
 /* ---------- game screen ---------- */
 body.bl-playing { overflow: hidden; }
@@ -68,6 +72,16 @@ body.bl-playing { overflow: hidden; }
 @keyframes bl-flash { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
 
 .bl-info { grid-area: info; display: flex; flex-direction: column; gap: 8px; }
+/* The clock (thrill design): "のこり" and m:ss wrap to two lines in the narrow phone column. */
+.bl-clock { position: relative; display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; column-gap: 4px; padding: 2px 4px; background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-m); box-shadow: var(--shadow-s); line-height: 1.2; white-space: nowrap; }
+.bl-clocklabel { font-size: 16px; font-weight: 800; }
+.bl-clocktime { font-size: 24px; font-weight: 900; font-variant-numeric: tabular-nums; }
+/* Under 10 seconds: red and blinking. */
+.bl-clock.is-hurry { color: #fff; background: var(--bl-hurry); border-color: var(--bl-hurry-edge); animation: bl-hurry 500ms steps(2, jump-none) infinite alternate; }
+@keyframes bl-hurry { from { opacity: 1; } to { opacity: 0.55; } }
+/* "+N" after a time bonus: pops up above the clock, then goes. */
+.bl-timeadd { position: absolute; right: -2px; top: -12px; z-index: 5; padding: 0 6px; font-size: 18px; font-weight: 900; color: var(--ink); background: var(--bl-gold); border: 2px solid var(--outline); border-radius: 10px; pointer-events: none; animation: bl-timeadd 900ms ease-out both; }
+@keyframes bl-timeadd { 0% { opacity: 0; transform: translateY(6px) scale(0.6); } 25% { opacity: 1; transform: translateY(0) scale(1.1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-6px); } }
 .bl-next, .bl-star { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 4px 6px; background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-m); box-shadow: var(--shadow-s); }
 .bl-label { font-size: 18px; font-weight: 900; line-height: 1.2; }
 .bl-nextcanvas { display: block; }
@@ -113,7 +127,7 @@ body.bl-playing { overflow: hidden; }
   .bl-pad-act { grid-area: act; justify-content: center; }
   .bl-padbtn { flex: 0 0 auto; width: 72px; height: 72px; }
   .bl-info { align-items: center; justify-content: center; }
-  .bl-next, .bl-star { width: 100%; max-width: 160px; }
+  .bl-clock, .bl-next, .bl-star { width: 100%; max-width: 160px; box-sizing: border-box; }
   .bl-buddy { justify-content: center; }
   .bl-jar { max-width: 160px; }
   .bl-say { max-width: 11em; }

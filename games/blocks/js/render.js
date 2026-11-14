@@ -37,12 +37,14 @@
       else { ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
     }
     ctx.closePath();
+    ctx.save();
     ctx.lineJoin = 'round';
     ctx.lineWidth = Math.max(1.5, r * 0.5);
     ctx.strokeStyle = STAR_EDGE;
     ctx.stroke();
     ctx.fillStyle = STAR_FILL;
     ctx.fill();
+    ctx.restore();
   }
 
   // One cell at device pixels (x, y), size s. star: true draws the gold star over the face.
@@ -77,13 +79,15 @@
     return P.cells(piece.shape, piece.rot).map(function (c) { return [piece.x + c[0], y + c[1]]; });
   }
 
-  // opts: { cell (CSS px), dpr, images: { charId: Image }, hideRows?: [board rows], selfId? }.
+  // opts: { cell (CSS px), dpr, images: { charId: Image }, hideRows?: [board rows], hideCells?: [[col, row]], selfId? }.
   function draw(ctx, game, opts) {
     var o = opts || {};
     var s = o.cell * (o.dpr || 1);
     var w = K.COLS * s, h = K.ROWS * s;
     var mine = { images: o.images, selfId: o.selfId || game.selfId };
     var hide = o.hideRows || [];
+    var hideCell = {};   // star faces: their cells are flying away
+    (o.hideCells || []).forEach(function (q) { hideCell[q[0] + ',' + q[1]] = true; });
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
     ctx.clearRect(0, 0, w, h);
@@ -100,7 +104,7 @@
       if (hide.indexOf(r) >= 0) { continue; }   // cleared rows: their faces are flying away
       for (var c = 0; c < K.COLS; c++) {
         var cell = game.board[r][c];
-        if (cell) { drawCell(ctx, c * s, (r - K.HIDDEN) * s, s, cell.charId, mine, 1, !!cell.star); }
+        if (cell && !hideCell[c + ',' + r]) { drawCell(ctx, c * s, (r - K.HIDDEN) * s, s, cell.charId, mine, 1, !!cell.star); }
       }
     }
     if (game.state !== 'falling' || !game.piece) { return; }
