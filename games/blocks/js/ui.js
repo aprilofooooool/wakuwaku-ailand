@@ -320,7 +320,8 @@
     }
     function onKeyUp(e) {
       var action = KEYS[e.key];
-      if (action) { delete keysHeld[action]; controller.release(action); }
+      // Only a hold that the keyboard started: a finger on the same pad button keeps repeating.
+      if (action && keysHeld[action]) { delete keysHeld[action]; controller.release(action); }
     }
     // A keyup never arrives when focus leaves the window mid-press: stop those repeats here.
     function onBlur() {
@@ -352,6 +353,14 @@
       redraw();
       drawNext();
     }
+
+    // Loop steps come up to 5 per frame: draw the board at most once per animation frame.
+    var drawFrame = 0;
+    function requestDraw() {
+      if (drawFrame) { return; }
+      drawFrame = window.requestAnimationFrame(function () { drawFrame = 0; redraw(); });
+    }
+    function cancelDraw() { if (drawFrame) { window.cancelAnimationFrame(drawFrame); drawFrame = 0; } }
 
     function redraw() {
       var cg = controller.game();
@@ -524,6 +533,7 @@
     }
 
     function leaveGame() {
+      cancelDraw();
       loop.stop();
       Bgm.stop();
       clearTimers();
@@ -622,7 +632,7 @@
 
     return {
       // Redraws the board; called after controller.advance on every loop step.
-      step: function () { if (game && inPlay()) { redraw(); } },
+      step: function () { if (game && inPlay()) { requestDraw(); } },
       showPause: showPause,
       // Tests: removes the UI, its header and listeners.
       destroy: function () {
