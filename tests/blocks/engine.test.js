@@ -194,4 +194,185 @@
       expect(g.state).toBe('over');
     });
   });
+
+  // Row helpers for line clear tests. An I piece at x=3, y=0 lands flat on row 21 and fills cols 3-6.
+  function fillSides(g, row, ids) {
+    var cols = [0, 1, 2, 7, 8, 9];
+    cols.forEach(function (c, i) { g.board[row][c] = { charId: ids[i] }; });
+  }
+  function setI(g, charId) {
+    g.piece = { shape: 'I', charId: charId, x: 3, y: 0, rot: 0 };
+  }
+  function others(n) { var a = []; for (var i = 0; i < n; i++) { a.push('kuchipatchi'); } return a; }
+  // Sets up one clear on row 21: `mine` faces of 'mametchi' among the 6 side cells, the piece is another character.
+  function setupClear(g, mine) {
+    clearBoard(g);
+    var ids = [];
+    for (var i = 0; i < 6; i++) { ids.push(i < mine ? 'mametchi' : 'kuchipatchi'); }
+    fillSides(g, 21, ids);
+    setI(g, 'kuchipatchi');
+  }
+
+  describe('blocks engine line clear', function () {
+    it('one full row clears, waits 250ms, then collapses', function () {
+      var g = mk(1);
+      setupClear(g, 0);
+      var ev = E.hardDrop(g);
+      expect(types(ev)).toEqual(['lock', 'clear']);
+      expect(ev[1].rows).toEqual([21]);
+      expect(g.state).toBe('settling');
+      expect(types(E.step(g, 249))).toEqual([]);
+      var ev2 = E.step(g, 1);
+      expect(types(ev2)).toEqual(['collapse', 'spawn']);
+      expect(g.state).toBe('falling');
+      expect(g.board[21].every(function (c) { return c === null; })).toBe(true);
+    });
+
+    it('a step-triggered lock also clears', function () {
+      var g = mk(1);
+      setupClear(g, 0);
+      g.piece.y = 20;
+      var ev = E.step(g, 500);
+      expect(types(ev)).toEqual(['lock', 'clear']);
+    });
+
+    it('non-adjacent rows clear and cells keep their faces', function () {
+      var g = mk(1);
+      setupClear(g, 0);
+      for (var c = 0; c < K.COLS; c++) { g.board[19][c] = { charId: 'flowertchi' }; }
+      g.board[20][0] = { charId: 'mimitchi' };
+      g.board[18][1] = { charId: 'mametchi' };
+      g.piece.y = 20;
+      var ev = E.hardDrop(g);
+      expect(ev[1].rows).toEqual([19, 21]);
+      E.step(g, 250);
+      expect(g.board[21][0].charId).toBe('mimitchi');
+      expect(g.board[20][1].charId).toBe('mametchi');
+      expect(g.board[20][0]).toBe(null);
+      expect(g.board[19].every(function (c2) { return c2 === null; })).toBe(true);
+    });
+
+    it("only the chosen character's faces count", function () {
+      var g = mk(1);
+      setupClear(g, 3);
+      var ev = E.hardDrop(g);
+      expect(ev[1].mine).toBe(3);
+      expect(ev[1].collected).toBe(3);
+      expect(g.collected).toBe(3);
+      expect(g.jar).toBe(7);
+      expect(ev[1].faces.length).toBe(10);
+      expect(ev[1].faces.filter(function (f) { return f.mine; }).length).toBe(3);
+      expect(g.lines).toBe(1);
+    });
+
+    it('almost fires once', function () {
+      var g = mk(1);
+      g.collected = 16;
+      setupClear(g, 1);
+      var ev = E.hardDrop(g);
+      expect(ev[1].collected).toBe(17);
+      expect(ev[1].almost).toBe(true);
+      E.step(g, 250);
+      setupClear(g, 1);
+      var ev2 = E.hardDrop(g);
+      expect(ev2[1].collected).toBe(18);
+      expect(ev2[1].almost).toBe(false);
+    });
+
+    it('almost does not fire when the clear jumps straight to the goal', function () {
+      var g = mk(1);
+      g.collected = 11;
+      setupClear(g, 6);
+      var ev = E.hardDrop(g);
+      expect(ev[1].collected).toBe(17);
+      expect(ev[1].almost).toBe(true);
+      var h = mk(1);
+      h.collected = 14;
+      setupClear(h, 6);
+      var ev3 = E.hardDrop(h);
+      expect(ev3[1].collected).toBe(20);
+      expect(ev3[1].almost).toBe(false);
+    });
+
+    it('goal ends after the collapse', function () {
+      var g = mk(1);
+      g.collected = 19;
+      setupClear(g, 1);
+      var ev = E.hardDrop(g);
+      expect(ev[1].almost).toBe(false);
+      var ev2 = E.step(g, 250);
+      expect(types(ev2)).toEqual(['collapse', 'goal']);
+      expect(ev2[1].collected).toBe(20);
+      expect(ev2[1].jar).toBe(g.jar);
+      expect(g.state).toBe('goal');
+      expect(E.step(g, 5000)).toEqual([]);
+    });
+
+    it('goal wins over a blocked spawn', function () {
+      var g = mk(1);
+      g.collected = 19;
+      setupClear(g, 1);
+      g.piece.y = 20;
+      var r, c;
+      for (r = 0; r < 2; r++) { for (c = 3; c <= 6; c++) { g.board[r][c] = { charId: 'mametchi' }; } }
+      E.hardDrop(g);
+      var ev = E.step(g, 250);
+      expect(types(ev)).toEqual(['collapse', 'goal']);
+      expect(g.state).toBe('goal');
+    });
+
+    it('inputs during settle do nothing', function () {
+      var g = mk(1);
+      setupClear(g, 0);
+      E.hardDrop(g);
+      expect(E.move(g, 1)).toBe(false);
+      expect(E.rotate(g)).toBe(false);
+      expect(E.softDrop(g)).toBe(false);
+      expect(E.hardDrop(g)).toEqual([]);
+    });
+
+    it('speed rises every 4 lines down to the floor', function () {
+      var g = mk(1);
+      g.lines = 3;
+      setupClear(g, 0);
+      E.hardDrop(g);
+      expect(g.lines).toBe(4);
+      expect(Math.abs(g.fallMs - 650 * 0.92)).toBeLessThanOrEqual(1);
+      var h = mk(1);
+      h.lines = 1000;
+      setupClear(h, 0);
+      E.hardDrop(h);
+      expect(h.fallMs).toBe(200);
+    });
+
+    it('dangerous looks at the top 4 visible rows', function () {
+      var g = mk(1);
+      clearBoard(g);
+      expect(E.dangerous(g)).toBe(false);
+      g.board[6][0] = { charId: 'mametchi' };
+      expect(E.dangerous(g)).toBe(false);
+      g.board[5][0] = { charId: 'mametchi' };
+      expect(E.dangerous(g)).toBe(true);
+    });
+
+    it('lock wait restarts after the piece falls again', function () {
+      var g = mk(1);
+      clearBoard(g);
+      g.piece = { shape: 'O', charId: 'mametchi', x: 3, y: 8, rot: 0 };
+      g.board[10][4] = { charId: 'mametchi' };
+      g.board[10][5] = { charId: 'mametchi' };
+      for (var i = 0; i < 15; i++) {
+        expect(hasLock(E.step(g, 499))).toBe(false);
+        expect(E.move(g, i % 2 === 0 ? -1 : 1)).toBe(true);
+      }
+      expect(hasLock(E.step(g, 499))).toBe(false);
+      expect(E.move(g, -1)).toBe(true);
+      expect(E.move(g, -1)).toBe(true);
+      expect(g.piece.x).toBe(0);
+      expect(hasLock(E.step(g, 12 * 650))).toBe(false);
+      expect(g.piece.y).toBe(20);
+      expect(hasLock(E.step(g, 499))).toBe(false);
+      expect(hasLock(E.step(g, 1))).toBe(true);
+    });
+  });
 })(window.Ailand);

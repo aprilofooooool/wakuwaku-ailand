@@ -75,8 +75,72 @@
     return [{ type: 'spawn', shape: n.shape, charId: n.charId }];
   }
 
-  // Writes the piece into the board and returns the events. Hook point for line clears (next task):
-  // after the lock event, check full rows here and either settle or spawn.
+  function fullRows(game) {
+    var rows = [];
+    for (var r = 0; r < TOTAL_ROWS; r++) {
+      if (game.board[r].every(function (cell) { return cell !== null; })) { rows.push(r); }
+    }
+    return rows;
+  }
+
+  // Counts faces in the full rows, updates the totals and speed, and starts the settle wait.
+  function startClear(game, rows) {
+    var cfg = K.DIFFICULTY[game.difficulty];
+    var faces = [];
+    var mine = 0, other = 0;
+    rows.forEach(function (r) {
+      for (var c = 0; c < K.COLS; c++) {
+        var isMine = game.board[r][c].charId === game.selfId;
+        if (isMine) { mine++; } else { other++; }
+        faces.push({ col: c, row: r, charId: game.board[r][c].charId, mine: isMine });
+      }
+    });
+    game.collected += mine;
+    game.jar += other;
+    game.lines += rows.length;
+    game.fallMs = Math.max(cfg.minMs, cfg.fallMs * Math.pow(K.SPEEDUP, Math.floor(game.lines / K.SPEEDUP_LINES)));
+    var left = game.goal - game.collected;
+    var almost = false;
+    if (!game._almostDone && left <= K.ALMOST) {
+      game._almostDone = true;
+      almost = left > 0;
+    }
+    game.state = 'settling';
+    game._settle = { rows: rows, acc: 0 };
+    return [{ type: 'clear', rows: rows, faces: faces, mine: mine, collected: game.collected, almost: almost }];
+  }
+
+  // Removes the cleared rows, drops everything above, then ends with goal, spawn or over.
+  function finishSettle(game) {
+    var rows = game._settle.rows;
+    game._settle = null;
+    for (var i = rows.length - 1; i >= 0; i--) { game.board.splice(rows[i], 1); }
+    for (var n = 0; n < rows.length; n++) {
+      var row = [];
+      for (var c = 0; c < K.COLS; c++) { row.push(null); }
+      game.board.unshift(row);
+    }
+    var events = [{ type: 'collapse', rows: rows }];
+    if (game.collected >= game.goal) {
+      game.state = 'goal';
+      events.push({ type: 'goal', collected: game.collected, jar: game.jar });
+      return events;
+    }
+    game.state = 'falling';
+    return events.concat(spawn(game));
+  }
+
+  // True when a settled cell sits in the top DANGER_ROWS visible rows (design 3.3).
+  function dangerous(game) {
+    for (var r = 0; r < K.HIDDEN + K.DANGER_ROWS; r++) {
+      for (var c = 0; c < K.COLS; c++) {
+        if (game.board[r][c] !== null) { return true; }
+      }
+    }
+    return false;
+  }
+
+  // Writes the piece into the board and returns the events (lock, then clear, spawn or over).
   function lock(game) {
     var p = game.piece;
     var cells = P.cells(p.shape, p.rot).map(function (c) { return [p.x + c[0], p.y + c[1]]; });
@@ -91,6 +155,8 @@
       events.push({ type: 'over' });
       return events;
     }
+    var full = fullRows(game);
+    if (full.length > 0) { return events.concat(startClear(game, full)); }
     return events.concat(spawn(game));
   }
 
@@ -113,7 +179,9 @@
       _charBag: createBag(rng, CHARS),
       _fallAcc: 0,
       _lockAcc: 0,
-      _resets: 0
+      _resets: 0,
+      _settle: null,
+      _almostDone: false
     };
     drawNext(game);
     spawn(game);
@@ -148,6 +216,7 @@
     if (game.state !== 'falling' || !canDown(game)) { return false; }
     game.piece = moved(game.piece, 0, 1);
     game._fallAcc = 0;
+    game._lockAcc = 0;
     return true;
   }
 
@@ -160,6 +229,10 @@
   function step(game, ms) {
     var events = [];
     var left = ms;
+    if (game.state === 'settling') {
+      game._settle.acc += ms;
+      return game._settle.acc >= K.SETTLE_MS ? finishSettle(game) : events;
+    }
     while (game.state === 'falling' && left > 0) {
       if (!canDown(game)) {
         game._lockAcc += left;
@@ -171,6 +244,7 @@
       if (left >= need) {
         left -= need;
         game._fallAcc = 0;
+        game._lockAcc = 0;
         game.piece = moved(game.piece, 0, 1);
       } else {
         game._fallAcc += left;
@@ -188,6 +262,7 @@
     softDrop: softDrop,
     hardDrop: hardDrop,
     step: step,
-    ghostY: ghostY
+    ghostY: ghostY,
+    dangerous: dangerous
   };
 })(Ailand.games.blocks);
