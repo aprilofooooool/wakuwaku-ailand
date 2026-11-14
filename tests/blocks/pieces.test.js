@@ -24,6 +24,10 @@
         }
       });
     });
+    it('rotation is clockwise (y down): T points right after one turn', function () {
+      expect(key(P.cells('T', 1))).toBe(key([[1, 0], [1, 1], [1, 2], [2, 1]]));
+    });
+
     it('rotation 0 fits in the top two rows', function () {
       P.SHAPES.forEach(function (s) {
         P.cells(s, 0).forEach(function (c) { expect(c[1] <= 1).toBeTruthy(); });

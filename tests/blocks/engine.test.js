@@ -305,13 +305,16 @@
       expect(ev2[1].almost).toBe(false);
     });
 
-    it('almost does not fire when the clear jumps straight to the goal', function () {
+    it('almost fires when one clear crosses into the last ALMOST', function () {
       var g = mk(1);
       g.collected = 11;
       setupClear(g, 6);
       var ev = E.hardDrop(g);
       expect(ev[1].collected).toBe(17);
       expect(ev[1].almost).toBe(true);
+    });
+
+    it('almost does not fire when the clear jumps straight to the goal', function () {
       var h = mk(1);
       h.collected = 14;
       setupClear(h, 6);

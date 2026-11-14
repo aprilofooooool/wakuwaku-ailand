@@ -152,6 +152,36 @@
       expect(count(o.log, 'over')).toBe(1);
       expect(o.ctl.press('left')).toBe(false);
     });
+    it('again starts fresh: held keys, danger and result are reset', function () {
+      var t = make();
+      toPlaying(t);
+      var g = t.ctl.game();
+      g.board[5][0] = { charId: 'x' };
+      t.ctl.advance(STEP);
+      expect(count(t.log, 'danger')).toBe(1);
+      g.board[2][4] = { charId: 'x' };
+      g.board[2][5] = { charId: 'x' };
+      g.piece = { shape: 'O', charId: 'mametchi', x: 3, y: 0, rot: 0 };
+      t.ctl.press('hard');
+      expect(t.ctl.phase()).toBe('result');
+      t.ctl.start(SET);
+      expect(t.ctl.phase()).toBe('countdown');
+      var r = t.ctl.getResult();
+      expect(r.cleared).toBe(false);
+      expect(r.collected).toBe(0);
+      expect(r.jar).toBe(0);
+      while (t.ctl.phase() === 'countdown') { t.ctl.advance(STEP); }
+      setO(t);
+      t.ctl.press('left');
+      t.ctl.start(SET);   // a held button from the last round must not repeat in the new one
+      while (t.ctl.phase() === 'countdown') { t.ctl.advance(STEP); }
+      setO(t);
+      var x0 = t.ctl.game().piece.x;
+      t.ctl.advance(300);
+      expect(t.ctl.game().piece.x).toBe(x0);
+      // the new board is empty: no danger change is emitted (the old "on" state was dropped)
+      expect(count(t.log, 'danger')).toBe(1);
+    });
     it('danger is emitted only on change', function () {
       var t = make();
       toPlaying(t);
