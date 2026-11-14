@@ -735,14 +735,66 @@
       expect(mkc(7).best).toBe(7);
     });
 
-    it('challenge has no goal and no time, and time never runs out', function () {
+    it('challenge has no goal and a 3 minute clock for every difficulty', function () {
+      ['easy', 'normal', 'hard'].forEach(function (d) {
+        var g = E.create({ difficulty: d, selfId: 'mametchi', seed: 1, mode: 'challenge', best: 0 });
+        expect(g.mode).toBe('challenge');
+        expect(g.goal).toBe(null);
+        expect(g.timeMs).toBe(180000);
+        expect(g.elapsedMs).toBe(0);
+      });
+    });
+
+    it('step lowers the clock and raises elapsedMs while falling (both modes)', function () {
       var g = mkc(0);
-      expect(g.mode).toBe('challenge');
-      expect(g.goal).toBe(null);
-      expect(g.timeMs).toBe(null);
-      var ev = E.step(g, 600000);
-      expect(g.timeMs).toBe(null);
-      expect(ev.some(function (e) { return e.type === 'over'; })).toBe(false);
+      E.step(g, 1000);
+      expect(g.timeMs).toBe(179000);
+      expect(g.elapsedMs).toBe(1000);
+      var c = mk(1);
+      E.step(c, 1000);
+      expect(c.timeMs).toBe(149000);
+      expect(c.elapsedMs).toBe(1000);
+    });
+
+    it('a collect clear that adds time leaves elapsedMs alone', function () {
+      var g = mk(1);
+      setupClear(g, 2);
+      E.hardDrop(g);
+      expect(g.elapsedMs).toBe(0);
+    });
+
+    it('challenge faces and star wave add no time and emit no time event', function () {
+      var g = mkc(0);
+      setupClear(g, 2);
+      expect(types(E.hardDrop(g))).toEqual(['lock', 'clear']);
+      expect(g.timeMs).toBe(180000);
+      var s = mkc(0);
+      starSetup(s);
+      E.hardDrop(s);
+      var ev = E.step(s, K.SETTLE_MS);
+      expect(types(ev)).toEqual(['collapse', 'star']);
+      expect(s.timeMs).toBe(180000 - K.SETTLE_MS);
+    });
+
+    it('challenge running out of time while falling ends the game', function () {
+      var g = mkc(0);
+      g.timeMs = 500;
+      var ev = E.step(g, 600);
+      expect(g.state).toBe('over');
+      expect(g.overReason).toBe('timeup');
+      expect(ev[ev.length - 1]).toEqual({ type: 'over', reason: 'timeup' });
+    });
+
+    it('challenge clear in progress counts, then time up', function () {
+      var g = mkc(0);
+      setupClear(g, 2);
+      E.hardDrop(g);
+      g.timeMs = 100;
+      var ev = E.step(g, 300);
+      expect(g.collected).toBe(2);
+      expect(g.state).toBe('over');
+      expect(types(ev)).toEqual(['collapse', 'over']);
+      expect(ev[1].reason).toBe('timeup');
     });
 
     it('a clear adds the own faces, emits no time and never reaches goal', function () {

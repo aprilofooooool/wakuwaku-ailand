@@ -20,6 +20,7 @@
     STAR_MAX: 18,
     STAR_SETTLE_MS: 600,
     HURRY_MS: 10000,
+    CHALLENGE_MS: 180000,
     DIFFICULTY: {
       easy: { fallMs: 900, minMs: 350, goal: 15, timeMs: 180000, faceMs: 3000 },
       normal: { fallMs: 650, minMs: 200, goal: 30, timeMs: 150000, faceMs: 3000 },

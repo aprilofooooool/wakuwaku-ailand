@@ -133,7 +133,7 @@
     game.state = 'settling';
     game._settle = { kind: 'rows', rows: rows, star: star, acc: 0 };
     var events = [{ type: 'clear', rows: rows, faces: faces, mine: mine, collected: game.collected, almost: almost, star: star }];
-    if (game.timeMs !== null && mine > 0) {
+    if (game.mode !== 'challenge' && game.timeMs !== null && mine > 0) {
       game.timeMs += mine * cfg.faceMs;
       events.push({ type: 'time', addMs: mine * cfg.faceMs });
     }
@@ -173,7 +173,7 @@
     var almost = checkAlmost(game);
     game._settle = { kind: 'star', faces: faces, acc: 0 };
     var events = [{ type: 'star', faces: faces, collected: game.collected, almost: almost }];
-    if (game.timeMs !== null) {
+    if (game.mode !== 'challenge' && game.timeMs !== null) {
       var addMs = K.STAR_MS + faces.length * cfg.faceMs;
       game.timeMs += addMs;
       events.push({ type: 'time', addMs: addMs });
@@ -262,7 +262,8 @@
       next: null,
       selfId: opts.selfId,
       goal: challenge ? null : cfg.goal,
-      timeMs: challenge ? null : cfg.timeMs,
+      timeMs: challenge ? K.CHALLENGE_MS : cfg.timeMs,
+      elapsedMs: 0,
       overReason: null,
       collected: 0,
       jar: 0,
@@ -327,7 +328,10 @@
   function step(game, ms) {
     var events = [];
     var left = ms;
-    if (game.timeMs !== null && (game.state === 'falling' || game.state === 'settling')) { game.timeMs = Math.max(0, game.timeMs - ms); }
+    if (game.state === 'falling' || game.state === 'settling') {
+      game.elapsedMs += ms;
+      if (game.timeMs !== null) { game.timeMs = Math.max(0, game.timeMs - ms); }
+    }
     if (game.state === 'falling' && game.timeMs !== null && game.timeMs <= 0) { return timeUp(game); }
     if (game.state === 'settling') {
       game._settle.acc += ms;
