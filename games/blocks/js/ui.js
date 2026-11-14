@@ -606,7 +606,7 @@
       hero.appendChild(el('p', 'bl-line', line(r.cleared ? 'clear' : (record ? 'record' : (r.timeup ? 'timeup' : 'over')))));
       nodes.push(hero);
       nodes.push(el('p', 'bl-result-score', pf.name + 'の かお ★' + r.collected + 'こ あつめたよ' + (win ? '！' : '')));
-      if (game.challenge) { nodes.push(el('p', 'bl-result-best', 'さいこう ' + r.best)); }
+      if (game.challenge) { nodes.push(el('p', 'bl-result-best', r.best > 0 ? 'さいこう ' + r.best : 'きろく なし')); }
       nodes.push(el('p', 'bl-result-jar', 'みんなの かお ' + r.jar + 'こ'));
       var acts = el('div', 'bl-result-actions');
       acts.appendChild(button('btn btn-main bl-again', 'もういっかい', again));

@@ -820,6 +820,20 @@
       expect(ev[2]).toEqual({ type: 'record', collected: 3, viaStar: true });
     });
 
+    it('a star row that first passes the best leaves the record to the star wave', function () {
+      var g = mkc(1);
+      starSetup(g);
+      g.board[21][1] = { charId: 'mametchi' };   // the star row now holds 2 own faces: collected 2 > best 1
+      var ev = E.hardDrop(g);
+      expect(types(ev)).toEqual(['lock', 'clear']);
+      expect(ev[1].star).toBe(true);
+      expect(ev[1].collected).toBe(2);
+      var ev2 = E.step(g, K.SETTLE_MS);
+      expect(types(ev2)).toEqual(['collapse', 'star', 'record']);
+      expect(ev2[2].viaStar).toBe(true);
+      expect(ev2[2].collected).toBe(ev2[1].collected);
+    });
+
     it('collect mode never emits record', function () {
       var g = mk(1);
       g.collected = 4;

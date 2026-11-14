@@ -15,7 +15,7 @@
     var game = null, settings = null;
     var curPhase = 'idle', pausedBy = null;
     var cd = 0, counted = 0, dangerOn = false, result = null;
-    var startBest = 0;
+    var startBest = 0, savedBest = 0;   // savedBest = best stored for this round's difficulty (avoids a storage read every frame)
     var held = {}, seq = 0;   // held[action] = { t, next, order }
 
     function load() {
@@ -34,13 +34,13 @@
 
     function bestOf(difficulty) {
       var b = storage.get(BEST_KEY, null);
-      var v = b && typeof b === 'object' ? b[difficulty] : 0;
+      var v = b && typeof b === 'object' && !Array.isArray(b) ? b[difficulty] : 0;
       return typeof v === 'number' && v > 0 ? v : 0;
     }
 
     function saveBest(difficulty, n) {
       var b = storage.get(BEST_KEY, null);
-      b = b && typeof b === 'object' ? b : {};
+      b = b && typeof b === 'object' && !Array.isArray(b) ? b : {};
       b[difficulty] = n;
       storage.set(BEST_KEY, b);
     }
@@ -64,7 +64,7 @@
         bus.emit(e.type, e);
         if (e.type === 'goal' || e.type === 'over') { ended = true; }
       });
-      if (game.mode === 'challenge' && game.collected > bestOf(settings.difficulty)) { saveBest(settings.difficulty, game.collected); }
+      if (game.mode === 'challenge' && game.collected > savedBest) { savedBest = game.collected; saveBest(settings.difficulty, savedBest); }
       var d = E.dangerous(game);
       if (d !== dangerOn) { dangerOn = d; bus.emit('danger', { on: d }); }
       if (ended) {
@@ -146,6 +146,7 @@
         };
         save(settings);
         startBest = settings.mode === 'challenge' ? bestOf(settings.difficulty) : 0;
+        savedBest = startBest;
         game = E.create({ difficulty: settings.difficulty, selfId: settings.char, seed: deps.seed(), mode: settings.mode, best: startBest });
         held = {}; result = null; pausedBy = null; dangerOn = false;
         cd = 0; counted = 0;

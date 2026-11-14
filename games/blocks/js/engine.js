@@ -137,7 +137,7 @@
       game.timeMs += mine * cfg.faceMs;
       events.push({ type: 'time', addMs: mine * cfg.faceMs });
     }
-    return events.concat(checkRecord(game, false));
+    return events.concat(star ? [] : checkRecord(game, false));   // star rows: the star wave follows and emits the record (viaStar)
   }
 
   function timeUp(game) {

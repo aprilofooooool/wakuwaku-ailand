@@ -604,6 +604,26 @@
       } finally { t.done(); }
     });
 
+    it('challenge result with no best yet shows きろく なし', function () {
+      var t = make(true, 'easy', { mode: 'challenge' });
+      try {
+        play(t);
+        t.bus.emit('result', challengeResult({ collected: 0, best: 0, newRecord: false }));
+        expect(t.box.querySelector('.bl-result .bl-result-best').textContent).toBe('きろく なし');
+      } finally { t.done(); }
+    });
+
+    it('the record line survives a star clear: star then record via the star', function () {
+      var t = make(true, 'easy', { mode: 'challenge', best: { easy: 10 } }), bn = holdBanners(), fl = holdFlights();
+      try {
+        play(t);
+        t.bus.emit('clear', { type: 'clear', rows: [21], faces: [], mine: 2, collected: 11, star: true, almost: false });
+        t.bus.emit('star', { type: 'star', faces: [], collected: 12, almost: false });
+        t.bus.emit('record', { type: 'record', collected: 12, viaStar: true });
+        expect(B.Lines.mametchi.record.indexOf(bubbleText(t)) >= 0).toBe(true);
+      } finally { fl.restore(); bn.restore(); t.done(); }
+    });
+
     it('challenge result without a record: おしまい and an over line', function () {
       var t = make(true, 'easy', { mode: 'challenge', best: { easy: 30 } });
       try {

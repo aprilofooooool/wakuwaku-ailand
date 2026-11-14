@@ -278,11 +278,18 @@
       expect(t.ctl.game().mode).toBe('challenge');
     });
     it('bestOf reads safely', function () {
-      [undefined, 'x', { easy: -3 }, { easy: '7' }].forEach(function (b) {
+      [undefined, 'x', { easy: -3 }, { easy: '7' }, [5]].forEach(function (b) {
         expect(make(b === undefined ? {} : { 'best.v1': b }).ctl.bestOf('easy')).toBe(0);
       });
       expect(make({ 'best.v1': { easy: 7 } }).ctl.bestOf('easy')).toBe(7);
       expect(Ctl.BEST_KEY).toBe('best.v1');
+    });
+    it('an array best.v1 is replaced by an object on the first save', function () {
+      var t = challengeStart([5]);
+      collectSome(t);
+      var b = t.storage.m['best.v1'];
+      expect(Array.isArray(b)).toBe(false);
+      expect(b.easy).toBe(t.ctl.game().collected);
     });
     it('challenge saves a new best on the fly and keeps other difficulties', function () {
       var t = challengeStart({ easy: 2, normal: 9, hard: 4 });
