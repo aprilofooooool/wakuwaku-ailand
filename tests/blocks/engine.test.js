@@ -62,10 +62,10 @@
   });
 
   describe('blocks engine movement', function () {
-    it('starts with a piece at x=3, y=0, rot=0', function () {
+    it('starts with a piece at x=3, y=HIDDEN, rot=0', function () {
       var g = mk(1);
       expect(g.piece.x).toBe(3);
-      expect(g.piece.y).toBe(0);
+      expect(g.piece.y).toBe(K.HIDDEN);
       expect(g.piece.rot).toBe(0);
       expect(g.state).toBe('falling');
       expect(g.board.length).toBe(K.ROWS + K.HIDDEN);
@@ -84,8 +84,8 @@
       // a block right next to the piece on its right
       var g2 = mk(1);
       var maxX = Math.max.apply(null, P.cells(g2.piece.shape, g2.piece.rot).map(function (c) { return g2.piece.x + c[0]; }));
-      g2.board[0][maxX + 1] = { charId: 'mametchi' };
-      g2.board[1][maxX + 1] = { charId: 'mametchi' };
+      g2.board[g2.piece.y][maxX + 1] = { charId: 'mametchi' };
+      g2.board[g2.piece.y + 1][maxX + 1] = { charId: 'mametchi' };
       var before = g2.piece.x;
       expect(E.move(g2, 1)).toBe(false);
       expect(g2.piece.x).toBe(before);
@@ -93,23 +93,25 @@
 
     it('gravity drops one row per fallMs', function () {
       var g = mk(1);
+      var y0 = g.piece.y;
       E.step(g, 649);
-      expect(g.piece.y).toBe(0);
+      expect(g.piece.y).toBe(y0);
       E.step(g, 1);
-      expect(g.piece.y).toBe(1);
+      expect(g.piece.y).toBe(y0 + 1);
       E.step(g, 1300);
-      expect(g.piece.y).toBe(3);
+      expect(g.piece.y).toBe(y0 + 3);
     });
 
     it('softDrop moves one row and resets the gravity timer', function () {
       var g = mk(1);
+      var y0 = g.piece.y;
       E.step(g, 600);
       expect(E.softDrop(g)).toBe(true);
-      expect(g.piece.y).toBe(1);
+      expect(g.piece.y).toBe(y0 + 1);
       E.step(g, 649);
-      expect(g.piece.y).toBe(1);
+      expect(g.piece.y).toBe(y0 + 1);
       E.step(g, 1);
-      expect(g.piece.y).toBe(2);
+      expect(g.piece.y).toBe(y0 + 2);
     });
 
     it('rotate changes rot and everything fails when not falling', function () {
@@ -162,8 +164,31 @@
       expect(ev[0].type).toBe('lock');
       expect(Math.max.apply(null, ev[0].cells.map(function (c) { return c[1]; }))).toBe(expectBottom);
       expect(ev[1].type).toBe('spawn');
-      expect(g.piece.y).toBe(0);
+      expect(g.piece.y).toBe(K.HIDDEN);
       expect(g.state).toBe('falling');
+    });
+
+    it('new piece appears in the visible rows', function () {
+      var g = mk(1);
+      for (var i = 0; i < 3; i++) {
+        P.cells(g.piece.shape, g.piece.rot).forEach(function (c) { expect(g.piece.y + c[1] >= K.HIDDEN).toBe(true); });
+        E.hardDrop(g);
+      }
+    });
+
+    it('spawn shifts only as far as it fits', function () {
+      // O at x=3 covers cols 4-5 and rows y, y+1. The current piece is a vertical I at col 0, out of the way.
+      [[3, 1], [2, 0]].forEach(function (t) {
+        var g = mk(1);
+        clearBoard(g);
+        g.board[t[0]][4] = { charId: 'mametchi' };
+        g.piece = { shape: 'I', charId: 'mametchi', x: -2, y: 0, rot: 1 };
+        g.next = { shape: 'O', charId: 'kuchipatchi' };
+        var ev = E.hardDrop(g);
+        expect(types(ev)).toEqual(['lock', 'spawn']);
+        expect(g.piece.shape).toBe('O');
+        expect(g.piece.y).toBe(t[1]);
+      });
     });
 
     it('locked cells carry the piece charId', function () {
@@ -188,6 +213,7 @@
     it('locking entirely in the hidden rows ends the game', function () {
       var g = mk(1);
       g.piece.shape = 'I';
+      g.piece.y = 0;
       for (var c = 0; c < K.COLS; c++) { g.board[2][c] = { charId: 'mametchi' }; }
       var ev = E.hardDrop(g);
       expect(types(ev)).toEqual(['lock', 'over']);

@@ -72,6 +72,8 @@
       game.state = 'over';
       return [{ type: 'over' }];
     }
+    // Lower it below the hidden rows at once while it fits, so it is visible right away (design 2.1).
+    for (var i = 0; i < K.HIDDEN && fits(game, moved(game.piece, 0, 1)); i++) { game.piece = moved(game.piece, 0, 1); }
     return [{ type: 'spawn', shape: n.shape, charId: n.charId }];
   }
 
