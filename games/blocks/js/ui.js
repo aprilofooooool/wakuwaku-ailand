@@ -5,6 +5,7 @@
   var C = Ailand.core, K = G.Constants, L = G.Layout, R = G.Render, Fx = G.Fx, Sound = C.Sound, Bgm = C.Bgm;
 
   var LEVELS = [['easy', 'かんたん'], ['normal', 'ふつう'], ['hard', 'むずかしい']];
+  var MODES = [['collect', 'かおあつめ'], ['challenge', 'きろくチャレンジ']];
   var PADS = {
     move: [['left', '←', 'ひだり'], ['soft', '↓', 'おとす'], ['hard', '↓', 'いっきに おとす']],
     act: [['rotate', '↻', 'まわす'], ['right', '→', 'みぎ']]
@@ -137,14 +138,29 @@
       });
       p1.appendChild(list);
 
+      var pm = panel('あそびかた');
+      var modes = el('div', 'bl-choices bl-modes');
+      MODES.forEach(function (it) {
+        var b = button('bl-choice bl-mode', it[1], function () { draft.mode = it[0]; renderSettings(); });
+        b.setAttribute('aria-pressed', String(draft.mode === it[0]));
+        modes.appendChild(b);
+      });
+      pm.appendChild(modes);
+
+      var challenge = draft.mode === 'challenge';
       var p2 = panel('むずかしさ');
       var levels = el('div', 'bl-levels');
       LEVELS.forEach(function (it) {
         var b = button('bl-choice bl-level', undefined, function () { draft.difficulty = it[0]; renderSettings(); });
         b.appendChild(el('span', 'bl-level-name', it[1]));
         var meta = el('span', 'bl-level-meta');
-        meta.appendChild(el('span', 'bl-level-goal', goalOf(it[0]) + 'こ あつめよう'));
-        meta.appendChild(el('span', 'bl-level-time', timeOf(it[0])));
+        if (challenge) {
+          var best = controller.bestOf(it[0]);
+          meta.appendChild(el('span', 'bl-level-best', best > 0 ? 'さいこう ' + best + 'こ' : 'きろく なし'));
+        } else {
+          meta.appendChild(el('span', 'bl-level-goal', goalOf(it[0]) + 'こ あつめよう'));
+          meta.appendChild(el('span', 'bl-level-time', timeOf(it[0])));
+        }
         b.appendChild(meta);
         b.setAttribute('aria-pressed', String(draft.difficulty === it[0]));
         levels.appendChild(b);
@@ -166,8 +182,13 @@
       faceInto(face, pf, 'joy');
       body.appendChild(face);
       body.appendChild(el('p', 'bl-howto-text', 'そろえて けすと かおが とんでいくよ'));
-      body.appendChild(el('p', 'bl-howto-text', pf.name + 'の かおを ' + goalOf(draft.difficulty) + 'こ あつめたら クリア'));
-      body.appendChild(textLines(['じかんが なくなると おしまい。', 'じぶんの かおを けすと のびるよ']));
+      if (draft.mode === 'challenge') {
+        body.appendChild(textLines([pf.name + 'の かおを たくさん あつめて、', 'さいこうきろくを こえよう！']));
+        body.appendChild(textLines(['じかんは ないよ。', 'うえまで つまったら おしまい']));
+      } else {
+        body.appendChild(el('p', 'bl-howto-text', pf.name + 'の かおを ' + goalOf(draft.difficulty) + 'こ あつめたら クリア'));
+        body.appendChild(textLines(['じかんが なくなると おしまい。', 'じぶんの かおを けすと のびるよ']));
+      }
       body.appendChild(textLines(['ほしの ブロックを けすと、', 'ばんの じぶんの かおが ぜんぶ とんでくる！']));
       var acts = el('div', 'bl-menu');
       acts.appendChild(button('btn btn-main', beforeStart ? 'はじめる' : 'わかった', function () {
@@ -191,7 +212,7 @@
 
     function startGame() {
       if (controller.needsHowTo()) { showHowTo(true); return; }
-      var s = { char: draft.char, difficulty: draft.difficulty };
+      var s = { char: draft.char, difficulty: draft.difficulty, mode: draft.mode };
       controller.start(s);
       beginRound(s);
     }
@@ -201,7 +222,7 @@
       Fx.stop();
       var cg = controller.game();
       game = {
-        settings: settings, profile: profileOf(settings.char), goal: cg.goal,
+        settings: settings, profile: profileOf(settings.char), goal: cg.goal, challenge: cg.mode === 'challenge', best: cg.best,
         cell: 0, dpr: 1, hideRows: [], hideCells: [], clockSec: -1, hurry: false, shown: { star: 0, jar: 0 }, flying: 0, almost: false,
         bubbleUntil: 0, reactToken: 0, lastCollect: 0, pending: null, resultShown: false
       };
@@ -242,9 +263,13 @@
       var starFace = el('div', 'bl-starface');
       faceInto(starFace, game.profile, 'normal');
       var starCount = el('div', 'bl-starcount');
+      var best = el('div', 'bl-best');
+      best.hidden = !game.challenge || game.best <= 0;   // no best yet: hidden for the whole round (spec 4.3)
+      clock.hidden = game.challenge;                     // the challenge has no time
       star.appendChild(el('span', 'bl-starmark', '★'));
       star.appendChild(starFace);
       star.appendChild(starCount);
+      star.appendChild(best);
       info.appendChild(clock);
       info.appendChild(next);
       info.appendChild(star);
@@ -298,6 +323,7 @@
       game.star = star;
       game.starFace = starFace;
       game.starCount = starCount;
+      game.bestEl = best;
       game.face = face;
       game.mark = mark;
       game.say = sayEl;
@@ -404,7 +430,9 @@
     }
 
     function paintCounts() {
-      game.starCount.textContent = game.shown.star + '／' + game.goal;
+      game.starCount.textContent = game.challenge ? String(game.shown.star) : game.shown.star + '／' + game.goal;
+      // After a new record the best follows the score (spec 4.3).
+      if (game.challenge) { game.bestEl.textContent = 'さいこう ' + Math.max(game.best, game.shown.star); }
       game.jarCount.textContent = 'みんな ' + game.shown.jar;
     }
 
@@ -412,7 +440,7 @@
     // ticks once a second and the BGM runs at HURRY_BPM.
     function paintClock() {
       var cg = controller.game();
-      if (!game || !cg) { return; }
+      if (!game || !cg || game.challenge) { return; }   // the challenge has no clock (timeMs is null)
       var sec = Math.ceil(cg.timeMs / 1000);
       if (sec === game.clockSec) { return; }
       var first = game.clockSec < 0;
@@ -432,7 +460,7 @@
       game.almost = true;
       game.star.classList.add('is-almost');
       if (Sound.isBgmOn()) { Bgm.setTempo(bpmNow()); }   // under 10 s the hurry tempo stays
-      say('almost', BUBBLE_MS, true);
+      say(game.challenge ? 'nearRecord' : 'almost', BUBBLE_MS, true);
     }
 
     // One bubble at a time (design 5.1): a new line waits until the previous one is gone.
@@ -566,27 +594,31 @@
       game.shown.jar = r.jar;
       paintCounts();
       var pf = game.profile;
+      // Challenge (spec 4.4): a new record is shown like a clear; otherwise the usual おしまい.
+      var record = game.challenge && !!r.newRecord;
+      var win = r.cleared || record;
       var nodes = [];
-      nodes.push(el('p', 'bl-card-text', r.cleared ? 'クリア！' : (r.timeup ? 'じかんぎれ' : 'おしまい')));
-      var hero = el('div', 'bl-hero' + (r.cleared ? ' is-win' : ''));
+      nodes.push(el('p', 'bl-card-text', r.cleared ? 'クリア！' : (record ? 'しんきろく！' : (r.timeup ? 'じかんぎれ' : 'おしまい'))));
+      var hero = el('div', 'bl-hero' + (win ? ' is-win' : ''));
       var face = el('div', 'bl-heroface');
-      faceInto(face, pf, reactions.forResult(r.cleared ? 'goal' : 'over'));
+      faceInto(face, pf, reactions.forResult(win ? 'goal' : 'over'));
       hero.appendChild(face);
-      hero.appendChild(el('p', 'bl-line', line(r.cleared ? 'clear' : (r.timeup ? 'timeup' : 'over'))));
+      hero.appendChild(el('p', 'bl-line', line(r.cleared ? 'clear' : (record ? 'record' : (r.timeup ? 'timeup' : 'over')))));
       nodes.push(hero);
-      nodes.push(el('p', 'bl-result-score', pf.name + 'の かお ★' + r.collected + 'こ あつめたよ' + (r.cleared ? '！' : '')));
+      nodes.push(el('p', 'bl-result-score', pf.name + 'の かお ★' + r.collected + 'こ あつめたよ' + (win ? '！' : '')));
+      if (game.challenge) { nodes.push(el('p', 'bl-result-best', 'さいこう ' + r.best)); }
       nodes.push(el('p', 'bl-result-jar', 'みんなの かお ' + r.jar + 'こ'));
       var acts = el('div', 'bl-result-actions');
       acts.appendChild(button('btn btn-main bl-again', 'もういっかい', again));
       acts.appendChild(button('btn btn-sub bl-tosettings', 'せっていに もどる', showSettings));
       nodes.push(acts);
       showOverlay('bl-result', nodes);
-      sfx(r.cleared ? 'blocks-goal' : 'blocks-over');
-      if (r.cleared) { Fx.confetti(); }
+      sfx(win ? 'blocks-goal' : 'blocks-over');
+      if (win) { Fx.confetti(); }
     }
 
     function again() {
-      var s = { char: game.settings.char, difficulty: game.settings.difficulty };
+      var s = { char: game.settings.char, difficulty: game.settings.difficulty, mode: game.settings.mode };
       controller.start(s);
       beginRound(s);
     }
@@ -667,7 +699,7 @@
       // One screen effect per lock (design 5.3): a clear that reaches the goal leaves the stage to the result,
       // and a star clear leaves it to the star event that follows.
       var events = [p];
-      if (p.collected >= game.goal) { events.push({ type: 'goal' }); }
+      if (!game.challenge && p.collected >= game.goal) { events.push({ type: 'goal' }); }
       if (!p.star && G.Reactions.screenFx(events) === 'quad') { Fx.flash(game.frame); }
       var r = reactions.forClear(p);
       react(r.emotion);
@@ -697,6 +729,12 @@
       add.setAttribute('aria-hidden', 'true');
       game.clock.appendChild(add);
       later(function () { if (add.parentNode) { add.parentNode.removeChild(add); } }, TIMEADD_MS);
+    });
+    // A new record (spec 3.3), once per round. With a star wave the banner and sound stay the star's.
+    on('record', function (p) {
+      if (!p.viaStar) { Fx.showBanner('しんきろく！', 'is-go', 900); sfx('blocks-record'); }
+      react(reactions.forRecord().emotion);
+      say('record', BUBBLE_MS, true);
     });
     on('collapse', function () { game.hideRows = []; game.hideCells = []; redraw(); });
     on('danger', function (p) { game.frame.classList.toggle('is-danger', !!p.on); });

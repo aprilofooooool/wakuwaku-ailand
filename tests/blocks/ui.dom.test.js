@@ -5,9 +5,12 @@
   var B = A.games.blocks;
   var STEP = A.core.Loop.STEP_MS;
 
-  function fakeStorage(seen, difficulty) {
+  // extra (optional): { mode, best } — the saved mode and the saved best.v1 object.
+  function fakeStorage(seen, difficulty, extra) {
     var m = {};
     if (seen) { m[B.Controller.SETTINGS_KEY] = { char: 'mametchi', difficulty: difficulty || 'easy', seenHowTo: true }; }
+    if (seen && extra && extra.mode) { m[B.Controller.SETTINGS_KEY].mode = extra.mode; }
+    if (extra && extra.best) { m[B.Controller.BEST_KEY] = extra.best; }
     return {
       get: function (k, fb) { return Object.prototype.hasOwnProperty.call(m, k) ? m[k] : fb; },
       set: function (k, v) { m[k] = v; },
@@ -20,12 +23,12 @@
     return { start: function () { on = true; }, stop: function () { on = false; }, isRunning: function () { return on; } };
   }
 
-  function make(withLines, difficulty) {
+  function make(withLines, difficulty, extra) {
     var box = document.createElement('div');
     box.style.cssText = 'position:fixed;left:0;top:0;width:1024px;height:700px;z-index:9999;background:#fff';
     document.body.appendChild(box);
     var bus = A.core.EventBus.create();
-    var controller = B.Controller.create({ bus: bus, storage: fakeStorage(true, difficulty), seed: function () { return 7; } });
+    var controller = B.Controller.create({ bus: bus, storage: fakeStorage(true, difficulty, extra), seed: function () { return 7; } });
     var deps = { bus: bus, loop: fakeLoop(), rng: function () { return 0.5; } };
     if (withLines) { deps.linePicker = A.core.LinePicker.create({ gameLines: B.Lines, commonLines: A.core.CommonLines, rng: function () { return 0; } }); }
     var ui = B.UI.init(box, controller, deps);
@@ -77,6 +80,23 @@
   function boxOf(el) { return el.getBoundingClientRect(); }
   function overlaps(a, b) { return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom; }
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  // The text of the bubble line on screen (not the one fading out).
+  function bubbleText(t) {
+    var lines = t.box.querySelectorAll('.bl-say .fx-bubble-line:not(.fx-out) .fx-bubble-text');
+    return lines.length ? lines[lines.length - 1].textContent : '';
+  }
+  // Replaces Fx.showBanner: records the banner texts. Returns { texts, restore }.
+  function holdBanners() {
+    var show = B.Fx.showBanner, texts = [];
+    B.Fx.showBanner = function (text) { texts.push(text); };
+    return { texts: texts, restore: function () { B.Fx.showBanner = show; } };
+  }
+  function challengeResult(o) {
+    var r = { cleared: false, timeup: false, collected: 0, goal: null, jar: 3, char: 'mametchi', mode: 'challenge', best: 0, newRecord: false };
+    Object.keys(o).forEach(function (k) { r[k] = o[k]; });
+    r.type = 'result';
+    return r;
+  }
   // Loads the real game page in a w x h iframe, starts a round (how-to skipped, saved settings restored after) and calls check(doc).
   function inFrame(w, h, check) {
     var frame = document.createElement('iframe');
@@ -425,6 +445,176 @@
         expect(body.textContent.indexOf('じかんが なくなると おしまい') >= 0).toBe(true);
         expect(body.textContent.indexOf('ほしの ブロックを けすと') >= 0).toBe(true);
         buttonByText(document.getElementById('modal-root'), 'わかった').click();
+      } finally { t.done(); }
+    });
+
+    // ---------- きろくチャレンジ (challenge spec 4) ----------
+
+    it('settings: the あそびかた panel switches the level text to the best', function () {
+      var t = make(false, 'easy', { best: { easy: 23 } });
+      try {
+        var s = t.box.querySelector('.bl-settings-screen');
+        var titles = Array.prototype.map.call(s.querySelectorAll('.bl-panel h2'), function (h) { return h.textContent; });
+        expect(titles.indexOf('あそびかた') >= 0).toBe(true);
+        expect(titles.indexOf('あそびかた') < titles.indexOf('むずかしさ')).toBe(true);
+        var collect = buttonByText(s, 'かおあつめ'), challenge = buttonByText(s, 'きろくチャレンジ');
+        expect(collect.getAttribute('aria-pressed')).toBe('true');
+        expect(challenge.getAttribute('aria-pressed')).toBe('false');
+        challenge.click();
+        s = t.box.querySelector('.bl-settings-screen');
+        expect(buttonByText(s, 'きろくチャレンジ').getAttribute('aria-pressed')).toBe('true');
+        expect(buttonByText(s, 'かおあつめ').getAttribute('aria-pressed')).toBe('false');
+        var levels = s.querySelectorAll('.bl-level');
+        expect(levels[0].textContent.indexOf('さいこう 23こ') >= 0).toBe(true);
+        expect(levels[1].textContent.indexOf('きろく なし') >= 0).toBe(true);
+        expect(levels[2].textContent.indexOf('きろく なし') >= 0).toBe(true);
+        expect(levels[0].textContent.indexOf('ぷん')).toBe(-1);
+        expect(levels[0].textContent.indexOf('あつめよう')).toBe(-1);
+        Array.prototype.forEach.call(s.querySelectorAll('button'), function (b) {
+          var r = b.getBoundingClientRect();
+          expect(r.width >= 64 && r.height >= 64).toBe(true);
+        });
+        buttonByText(s, 'かおあつめ').click();
+        expect(t.box.querySelectorAll('.bl-level')[0].textContent.indexOf('15こ あつめよう') >= 0).toBe(true);
+      } finally { t.done(); }
+    });
+
+    it('how-to in challenge tells about no time, the top and the best', function () {
+      var t = make(false, 'easy', { mode: 'challenge' });
+      try {
+        buttonByText(t.box, 'あそびかた').click();
+        var text = document.querySelector('.bl-howto-body').textContent;
+        expect(text.indexOf('じかんは ない') >= 0).toBe(true);
+        expect(text.indexOf('つまったら おしまい') >= 0).toBe(true);
+        expect(text.indexOf('さいこうきろく') >= 0).toBe(true);
+        expect(text.indexOf('じかんが なくなると')).toBe(-1);
+        buttonByText(document.getElementById('modal-root'), 'わかった').click();
+      } finally { t.done(); }
+    });
+
+    it('challenge play: no clock, ★ N without a goal, the best hidden when 0', function () {
+      var t = make(false, 'easy', { mode: 'challenge' });
+      try {
+        play(t);
+        expect(t.controller.game().mode).toBe('challenge');
+        expect(t.box.querySelector('.bl-clock').hidden).toBe(true);
+        expect(getComputedStyle(t.box.querySelector('.bl-clock')).display).toBe('none');
+        expect(t.box.querySelector('.bl-starcount').textContent).toBe('0');
+        expect(t.box.querySelector('.bl-star').textContent.indexOf('／')).toBe(-1);
+        expect(t.box.querySelector('.bl-best').hidden).toBe(true);
+        runUi(t, STEP * 5);   // the clock does not tick or blink
+        expect(t.box.querySelector('.bl-clock').classList.contains('is-hurry')).toBe(false);
+      } finally { t.done(); }
+    });
+
+    it('challenge play with a best shows さいこう M and follows the score past it', function () {
+      var t = make(false, 'easy', { mode: 'challenge', best: { easy: 23 } });
+      try {
+        play(t);
+        var best = t.box.querySelector('.bl-best');
+        expect(best.hidden).toBe(false);
+        expect(getComputedStyle(best).display === 'none').toBe(false);
+        expect(best.textContent).toBe('さいこう 23');
+        // The shown score jumps to the final count with the result: the best follows it past 23.
+        t.bus.emit('result', challengeResult({ collected: 25, best: 25, newRecord: true }));
+        expect(t.box.querySelector('.bl-starcount').textContent).toBe('25');
+        expect(best.textContent).toBe('さいこう 25');
+      } finally { t.done(); }
+    });
+
+    it('record shows the しんきろく！ banner and a record line; via a star only the line', function () {
+      var t = make(true, 'easy', { mode: 'challenge', best: { easy: 10 } }), bn = holdBanners();
+      try {
+        play(t);
+        t.bus.emit('record', { type: 'record', collected: 11, viaStar: false });
+        expect(bn.texts.indexOf('しんきろく！') >= 0).toBe(true);
+        expect(B.Lines.mametchi.record.indexOf(bubbleText(t)) >= 0).toBe(true);
+        bn.texts.length = 0;
+        t.bus.emit('record', { type: 'record', collected: 12, viaStar: true });
+        expect(bn.texts.length).toBe(0);
+        expect(B.Lines.mametchi.record.indexOf(bubbleText(t)) >= 0).toBe(true);
+      } finally { bn.restore(); t.done(); }
+    });
+
+    it('almost in challenge says a nearRecord line and raises the tempo', function () {
+      var Bgm = A.core.Bgm, Sound = A.core.Sound, S = B.Sounds;
+      var start = Bgm.start, stop = Bgm.stop, isOn = Sound.isBgmOn;
+      Bgm.start = function (sc) { Bgm.setTempo(sc.bpm); };
+      Bgm.stop = function () {};
+      Sound.isBgmOn = function () { return true; };
+      var t = null, fl = holdFlights();
+      try {
+        t = make(true, 'easy', { mode: 'challenge', best: { easy: 10 } });
+        play(t);
+        expect(Bgm.getTempo()).toBe(S.BGM.bpm);
+        var g = setupClear(t, 1);
+        g.collected = 6;   // this clear makes 7: 3 left to the best
+        t.controller.press('hard');
+        expect(B.Lines.mametchi.nearRecord.indexOf(bubbleText(t)) >= 0).toBe(true);
+        expect(t.box.querySelector('.bl-star').classList.contains('is-almost')).toBe(true);
+        expect(Bgm.getTempo()).toBe(S.ALMOST_BPM);
+        runUi(t, STEP * 3);   // no clock: the tempo stays
+        expect(Bgm.getTempo()).toBe(S.ALMOST_BPM);
+      } finally {
+        fl.restore();
+        if (t) { t.done(); }
+        Bgm.start = start;
+        Bgm.stop = stop;
+        Sound.isBgmOn = isOn;
+        Bgm.stop();
+      }
+    });
+
+    it('challenge result with a new record: しんきろく！, ★25こ, さいこう 25 and a record line', function () {
+      var t = make(true, 'easy', { mode: 'challenge', best: { easy: 20 } });
+      try {
+        play(t);
+        t.bus.emit('result', challengeResult({ collected: 25, best: 25, newRecord: true }));
+        var card = t.box.querySelector('.bl-result');
+        expect(!!card).toBe(true);
+        expect(card.querySelector('.bl-card-text').textContent).toBe('しんきろく！');
+        expect(card.querySelector('.bl-result-score').textContent.indexOf('★25こ') >= 0).toBe(true);
+        expect(card.querySelector('.bl-result-best').textContent).toBe('さいこう 25');
+        expect(card.querySelector('.bl-hero').classList.contains('is-win')).toBe(true);
+        expect(B.Lines.mametchi.record.indexOf(card.querySelector('.bl-line').textContent) >= 0).toBe(true);
+      } finally { t.done(); }
+    });
+
+    it('challenge result without a record: おしまい and an over line', function () {
+      var t = make(true, 'easy', { mode: 'challenge', best: { easy: 30 } });
+      try {
+        play(t);
+        t.bus.emit('result', challengeResult({ collected: 25, best: 30, newRecord: false }));
+        var card = t.box.querySelector('.bl-result');
+        expect(card.querySelector('.bl-card-text').textContent).toBe('おしまい');
+        expect(card.querySelector('.bl-result-best').textContent).toBe('さいこう 30');
+        expect(card.querySelector('.bl-hero').classList.contains('is-win')).toBe(false);
+        expect(B.Lines.mametchi.over.indexOf(card.querySelector('.bl-line').textContent) >= 0).toBe(true);
+      } finally { t.done(); }
+    });
+
+    it('collect result has no さいこう line', function () {
+      var t = make(true);
+      try {
+        play(t);
+        t.controller.game().timeMs = 10;
+        runUi(t, STEP);
+        expect(!!t.box.querySelector('.bl-result')).toBe(true);
+        expect(t.box.querySelector('.bl-result-best')).toBe(null);
+        expect(t.box.querySelector('.bl-best').hidden).toBe(true);
+      } finally { t.done(); }
+    });
+
+    it('もういっかい keeps the challenge and the difficulty', function () {
+      var t = make(false, 'normal', { mode: 'challenge' });
+      try {
+        play(t);
+        t.bus.emit('result', challengeResult({ collected: 0 }));
+        buttonByText(t.box, 'もういっかい').click();
+        var g = t.controller.game();
+        expect(g.mode).toBe('challenge');
+        expect(g.difficulty).toBe('normal');
+        expect(t.box.querySelector('.bl-clock').hidden).toBe(true);
       } finally { t.done(); }
     });
   });
