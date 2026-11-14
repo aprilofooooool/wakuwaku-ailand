@@ -3,7 +3,8 @@
   var describe = A.Test.describe, it = A.Test.it, expect = A.Test.expect;
   var Ctl = A.games.blocks.Controller;
   var STEP = 1000 / 60;
-  var SET = { char: 'mametchi', difficulty: 'easy', seenHowTo: false };
+  var SET = { char: 'mametchi', difficulty: 'easy', mode: 'collect', seenHowTo: false };
+  var CH = { char: 'mametchi', difficulty: 'easy', mode: 'challenge', seenHowTo: false };
 
   function fakeStorage(init) {
     var m = init || {};
@@ -222,7 +223,7 @@
     });
     it('start saves the settings', function () {
       var t = make();
-      var s = { char: 'flowertchi', difficulty: 'normal', seenHowTo: true };
+      var s = { char: 'flowertchi', difficulty: 'normal', mode: 'collect', seenHowTo: true };
       t.ctl.start(s);
       expect(JSON.stringify(t.storage.m['settings.v1'])).toBe(JSON.stringify(s));
       expect(t.ctl.game().selfId).toBe('flowertchi');
@@ -244,6 +245,110 @@
       var res = t.ctl.getResult();
       expect(res.cleared).toBe(false);
       expect(res.timeup).toBe(true);
+    });
+    function challengeStart(best) {
+      var init = best === undefined ? {} : { 'best.v1': best };
+      var t = make(init);
+      t.ctl.start(CH);
+      while (t.ctl.phase() === 'countdown') { t.ctl.advance(STEP); }
+      return t;
+    }
+    // Clears one row holding own faces with collected pre-set to 2, so collected becomes > 2.
+    function collectSome(t) {
+      var g = t.ctl.game();
+      g.collected = 2;
+      for (var c = 0; c < 10; c++) { if (c !== 4 && c !== 5) { g.board[21][c] = { charId: 'mametchi' }; } }
+      g.piece = { shape: 'O', charId: 'mametchi', x: 3, y: 0, rot: 0 };
+      t.ctl.press('hard');
+      t.ctl.advance(300);
+    }
+    function blockEnd(t) {
+      var g = t.ctl.game();
+      g.board[2][4] = { charId: 'x' };
+      g.board[2][5] = { charId: 'x' };
+      g.piece = { shape: 'O', charId: 'mametchi', x: 3, y: 0, rot: 0 };
+      t.ctl.press('hard');
+    }
+    it('mode setting loads, falls back and saves', function () {
+      expect(make().ctl.loadSettings().mode).toBe('collect');
+      expect(make({ 'settings.v1': { mode: 'x' } }).ctl.loadSettings().mode).toBe('collect');
+      var t = make();
+      t.ctl.start(CH);
+      expect(t.storage.m['settings.v1'].mode).toBe('challenge');
+      expect(t.ctl.game().mode).toBe('challenge');
+    });
+    it('bestOf reads safely', function () {
+      [undefined, 'x', { easy: -3 }, { easy: '7' }].forEach(function (b) {
+        expect(make(b === undefined ? {} : { 'best.v1': b }).ctl.bestOf('easy')).toBe(0);
+      });
+      expect(make({ 'best.v1': { easy: 7 } }).ctl.bestOf('easy')).toBe(7);
+      expect(Ctl.BEST_KEY).toBe('best.v1');
+    });
+    it('challenge saves a new best on the fly and keeps other difficulties', function () {
+      var t = challengeStart({ easy: 2, normal: 9, hard: 4 });
+      collectSome(t);
+      var g = t.ctl.game();
+      expect(g.collected > 2).toBe(true);
+      expect(t.ctl.phase()).toBe('playing');
+      var b = t.storage.m['best.v1'];
+      expect(b.easy).toBe(g.collected);
+      expect(b.normal).toBe(9);
+      expect(b.hard).toBe(4);
+      t.ctl.quit();
+      expect(t.storage.m['best.v1'].easy).toBe(g.collected);
+    });
+    it('challenge result compares with the best at round start', function () {
+      var t = challengeStart({ easy: 2 });
+      collectSome(t);
+      var c = t.ctl.game().collected;
+      blockEnd(t);
+      var r = t.ctl.getResult();
+      expect(r.mode).toBe('challenge');
+      expect(r.newRecord).toBe(true);
+      expect(r.best).toBe(c);
+      expect(r.cleared).toBe(false);
+      expect(r.timeup).toBe(false);
+      var u = challengeStart({ easy: 99 });
+      collectSome(u);
+      blockEnd(u);
+      var q = u.ctl.getResult();
+      expect(q.newRecord).toBe(false);
+      expect(q.best).toBe(99);
+      expect(u.storage.m['best.v1'].easy).toBe(99);
+    });
+    it('challenge newRecord needs at least 1 collected', function () {
+      var t = challengeStart();
+      var g = t.ctl.game();
+      g.collected = 1;
+      blockEnd(t);
+      expect(t.ctl.getResult().newRecord).toBe(true);
+      var u = challengeStart();
+      blockEnd(u);
+      expect(u.ctl.getResult().newRecord).toBe(false);
+      expect(u.ctl.getResult().best).toBe(0);
+    });
+    it('again in challenge passes the saved best to the engine', function () {
+      var t = challengeStart({ easy: 2 });
+      collectSome(t);
+      var c = t.ctl.game().collected;
+      blockEnd(t);
+      t.ctl.start(CH);
+      expect(t.ctl.game().best).toBe(c);
+    });
+    it('collect mode never writes best.v1; result has mode fields', function () {
+      var t = make();
+      toPlaying(t);
+      var g = t.ctl.game();
+      g.collected = 5;
+      blockEnd(t);
+      expect(t.storage.has('best.v1')).toBe(false);
+      var r = t.ctl.getResult();
+      expect(r.mode).toBe('collect');
+      expect(r.best).toBe(0);
+      expect(r.newRecord).toBe(false);
+      var n = make();
+      expect(n.ctl.getResult().mode).toBe('collect');
+      expect(n.ctl.getResult().newRecord).toBe(false);
     });
   });
 })(Ailand);

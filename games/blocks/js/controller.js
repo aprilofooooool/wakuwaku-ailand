@@ -2,17 +2,20 @@
   'use strict';
   var K = G.Constants, E = G.Engine;
   var SETTINGS_KEY = 'settings.v1';
+  var BEST_KEY = 'best.v1';
 
-  function defaults() { return { char: 'mametchi', difficulty: 'easy', seenHowTo: false }; }
+  function defaults() { return { char: 'mametchi', difficulty: 'easy', mode: 'collect', seenHowTo: false }; }
 
   function validChar(id) { return typeof id === 'string' && !!Ailand.core.Characters.get(id); }
   function validDifficulty(d) { return typeof d === 'string' && Object.prototype.hasOwnProperty.call(K.DIFFICULTY, d); }
+  function validMode(m) { return m === 'collect' || m === 'challenge'; }
 
   function create(deps) {
     var bus = deps.bus, storage = deps.storage;
     var game = null, settings = null;
     var curPhase = 'idle', pausedBy = null;
     var cd = 0, counted = 0, dangerOn = false, result = null;
+    var startBest = 0;
     var held = {}, seq = 0;   // held[action] = { t, next, order }
 
     function load() {
@@ -22,15 +25,36 @@
       return {
         char: validChar(s.char) ? s.char : d.char,
         difficulty: validDifficulty(s.difficulty) ? s.difficulty : d.difficulty,
+        mode: validMode(s.mode) ? s.mode : d.mode,
         seenHowTo: s.seenHowTo === true
       };
     }
 
-    function save(s) { storage.set(SETTINGS_KEY, { char: s.char, difficulty: s.difficulty, seenHowTo: s.seenHowTo }); }
+    function save(s) { storage.set(SETTINGS_KEY, { char: s.char, difficulty: s.difficulty, mode: s.mode, seenHowTo: s.seenHowTo }); }
+
+    function bestOf(difficulty) {
+      var b = storage.get(BEST_KEY, null);
+      var v = b && typeof b === 'object' ? b[difficulty] : 0;
+      return typeof v === 'number' && v > 0 ? v : 0;
+    }
+
+    function saveBest(difficulty, n) {
+      var b = storage.get(BEST_KEY, null);
+      b = b && typeof b === 'object' ? b : {};
+      b[difficulty] = n;
+      storage.set(BEST_KEY, b);
+    }
 
     function getResult() {
-      if (!game) { return { cleared: false, timeup: false, collected: 0, goal: 0, jar: 0, char: settings ? settings.char : defaults().char }; }
-      return { cleared: game.state === 'goal', timeup: game.overReason === 'timeup', collected: game.collected, goal: game.goal, jar: game.jar, char: game.selfId };
+      if (!game) {
+        return { cleared: false, timeup: false, collected: 0, goal: 0, jar: 0, char: settings ? settings.char : defaults().char,
+          mode: settings ? settings.mode : defaults().mode, best: 0, newRecord: false };
+      }
+      var ch = game.mode === 'challenge';
+      return {
+        cleared: game.state === 'goal', timeup: game.overReason === 'timeup', collected: game.collected, goal: game.goal, jar: game.jar, char: game.selfId,
+        mode: game.mode, best: ch ? Math.max(startBest, game.collected) : 0, newRecord: ch && game.collected >= 1 && game.collected > startBest
+      };
     }
 
     // Emits engine events, then danger changes, then ends the round on goal or over.
@@ -40,6 +64,7 @@
         bus.emit(e.type, e);
         if (e.type === 'goal' || e.type === 'over') { ended = true; }
       });
+      if (game.mode === 'challenge' && game.collected > bestOf(settings.difficulty)) { saveBest(settings.difficulty, game.collected); }
       var d = E.dangerous(game);
       if (d !== dangerOn) { dangerOn = d; bus.emit('danger', { on: d }); }
       if (ended) {
@@ -104,6 +129,7 @@
 
     return {
       loadSettings: load,
+      bestOf: bestOf,
       needsHowTo: function () { return !load().seenHowTo; },
       markHowToSeen: function () {
         var s = load();
@@ -115,10 +141,12 @@
         settings = {
           char: validChar(s && s.char) ? s.char : cur.char,
           difficulty: validDifficulty(s && s.difficulty) ? s.difficulty : cur.difficulty,
+          mode: validMode(s && s.mode) ? s.mode : cur.mode,
           seenHowTo: s && typeof s.seenHowTo === 'boolean' ? s.seenHowTo : cur.seenHowTo
         };
         save(settings);
-        game = E.create({ difficulty: settings.difficulty, selfId: settings.char, seed: deps.seed() });
+        startBest = settings.mode === 'challenge' ? bestOf(settings.difficulty) : 0;
+        game = E.create({ difficulty: settings.difficulty, selfId: settings.char, seed: deps.seed(), mode: settings.mode, best: startBest });
         held = {}; result = null; pausedBy = null; dangerOn = false;
         cd = 0; counted = 0;
         curPhase = 'countdown';
@@ -150,5 +178,5 @@
     };
   }
 
-  G.Controller = { create: create, SETTINGS_KEY: SETTINGS_KEY };
+  G.Controller = { create: create, SETTINGS_KEY: SETTINGS_KEY, BEST_KEY: BEST_KEY };
 })(Ailand.games.blocks);
