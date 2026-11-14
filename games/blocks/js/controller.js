@@ -2,7 +2,8 @@
   'use strict';
   var K = G.Constants, E = G.Engine;
   var SETTINGS_KEY = 'settings.v1';
-  var BEST_KEY = 'best.v1';
+  var BEST_KEY = 'best.v2';
+  var TIME_KEY = 'time.v1';
 
   function defaults() { return { char: 'mametchi', difficulty: 'easy', mode: 'collect', seenHowTo: false }; }
 
@@ -15,7 +16,7 @@
     var game = null, settings = null;
     var curPhase = 'idle', pausedBy = null;
     var cd = 0, counted = 0, dangerOn = false, result = null;
-    var startBest = 0, savedBest = 0;   // savedBest = best stored for this round's difficulty (avoids a storage read every frame)
+    var startBest = 0, savedBest = 0, startBestTime = 0;   // savedBest = best stored for this round's difficulty (avoids a storage read every frame)
     var held = {}, seq = 0;   // held[action] = { t, next, order }
 
     function load() {
@@ -45,15 +46,34 @@
       storage.set(BEST_KEY, b);
     }
 
+    function bestTimeOf(difficulty) {
+      var b = storage.get(TIME_KEY, null);
+      var v = b && typeof b === 'object' && !Array.isArray(b) ? b[difficulty] : 0;
+      return typeof v === 'number' && v > 0 ? v : 0;
+    }
+
+    function saveTime(difficulty, sec) {
+      var b = storage.get(TIME_KEY, null);
+      b = b && typeof b === 'object' && !Array.isArray(b) ? b : {};
+      b[difficulty] = sec;
+      storage.set(TIME_KEY, b);
+    }
+
+    function timeSecOf() { return Math.ceil(game.elapsedMs / 1000); }
+
     function getResult() {
       if (!game) {
         return { cleared: false, timeup: false, collected: 0, goal: 0, jar: 0, char: settings ? settings.char : defaults().char,
-          mode: settings ? settings.mode : defaults().mode, best: 0, newRecord: false };
+          mode: settings ? settings.mode : defaults().mode, best: 0, newRecord: false, timeSec: 0, bestTime: 0, newTime: false };
       }
       var ch = game.mode === 'challenge';
+      var sec = timeSecOf();
+      var clear = !ch && game.state === 'goal';
+      var newTime = clear && (startBestTime === 0 || sec < startBestTime);
       return {
         cleared: game.state === 'goal', timeup: game.overReason === 'timeup', collected: game.collected, goal: game.goal, jar: game.jar, char: game.selfId,
-        mode: game.mode, best: ch ? Math.max(startBest, game.collected) : 0, newRecord: ch && game.collected >= 1 && game.collected > startBest
+        mode: game.mode, best: ch ? Math.max(startBest, game.collected) : 0, newRecord: ch && game.collected >= 1 && game.collected > startBest,
+        timeSec: sec, bestTime: newTime ? sec : startBestTime, newTime: newTime
       };
     }
 
@@ -64,6 +84,10 @@
         bus.emit(e.type, e);
         if (e.type === 'goal' || e.type === 'over') { ended = true; }
       });
+      if (game.mode === 'collect' && game.state === 'goal') {
+        var sec = timeSecOf();
+        if (startBestTime === 0 || sec < startBestTime) { saveTime(settings.difficulty, sec); }
+      }
       if (game.mode === 'challenge' && game.collected > savedBest) { savedBest = game.collected; saveBest(settings.difficulty, savedBest); }
       var d = E.dangerous(game);
       if (d !== dangerOn) { dangerOn = d; bus.emit('danger', { on: d }); }
@@ -130,6 +154,7 @@
     return {
       loadSettings: load,
       bestOf: bestOf,
+      bestTimeOf: bestTimeOf,
       needsHowTo: function () { return !load().seenHowTo; },
       markHowToSeen: function () {
         var s = load();
@@ -147,6 +172,7 @@
         save(settings);
         startBest = settings.mode === 'challenge' ? bestOf(settings.difficulty) : 0;
         savedBest = startBest;
+        startBestTime = settings.mode === 'collect' ? bestTimeOf(settings.difficulty) : 0;
         game = E.create({ difficulty: settings.difficulty, selfId: settings.char, seed: deps.seed(), mode: settings.mode, best: startBest });
         held = {}; result = null; pausedBy = null; dangerOn = false;
         cd = 0; counted = 0;
@@ -179,5 +205,5 @@
     };
   }
 
-  G.Controller = { create: create, SETTINGS_KEY: SETTINGS_KEY, BEST_KEY: BEST_KEY };
+  G.Controller = { create: create, SETTINGS_KEY: SETTINGS_KEY, BEST_KEY: BEST_KEY, TIME_KEY: TIME_KEY };
 })(Ailand.games.blocks);

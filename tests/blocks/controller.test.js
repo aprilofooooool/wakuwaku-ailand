@@ -247,7 +247,7 @@
       expect(res.timeup).toBe(true);
     });
     function challengeStart(best) {
-      var init = best === undefined ? {} : { 'best.v1': best };
+      var init = best === undefined ? {} : { 'best.v2': best };
       var t = make(init);
       t.ctl.start(CH);
       while (t.ctl.phase() === 'countdown') { t.ctl.advance(STEP); }
@@ -279,15 +279,104 @@
     });
     it('bestOf reads safely', function () {
       [undefined, 'x', { easy: -3 }, { easy: '7' }, [5]].forEach(function (b) {
-        expect(make(b === undefined ? {} : { 'best.v1': b }).ctl.bestOf('easy')).toBe(0);
+        expect(make(b === undefined ? {} : { 'best.v2': b }).ctl.bestOf('easy')).toBe(0);
       });
-      expect(make({ 'best.v1': { easy: 7 } }).ctl.bestOf('easy')).toBe(7);
-      expect(Ctl.BEST_KEY).toBe('best.v1');
+      expect(make({ 'best.v2': { easy: 7 } }).ctl.bestOf('easy')).toBe(7);
+      expect(Ctl.BEST_KEY).toBe('best.v2');
     });
-    it('an array best.v1 is replaced by an object on the first save', function () {
+    it('best.v1 is ignored', function () {
+      expect(make({ 'best.v1': { easy: 9 } }).ctl.bestOf('easy')).toBe(0);
+    });
+    it('bestTimeOf reads safely', function () {
+      [undefined, 'x', { easy: -1 }, { easy: '7' }, [5]].forEach(function (b) {
+        expect(make(b === undefined ? {} : { 'time.v1': b }).ctl.bestTimeOf('easy')).toBe(0);
+      });
+      expect(make({ 'time.v1': { easy: 83 } }).ctl.bestTimeOf('easy')).toBe(83);
+      expect(Ctl.TIME_KEY).toBe('time.v1');
+    });
+    it('elapsedMs does not grow during countdown or pause', function () {
+      var t = make();
+      t.ctl.start(SET);
+      t.ctl.advance(5000);
+      expect(t.ctl.game().elapsedMs).toBe(0);
+      while (t.ctl.phase() === 'countdown') { t.ctl.advance(STEP); }
+      t.ctl.pause('menu');
+      t.ctl.advance(5000);
+      expect(t.ctl.game().elapsedMs).toBe(0);
+    });
+    // Starts a collect round (easy) and clears it at the given elapsed ms (+ up to 300 ms).
+    function collectClear(init, elapsed) {
+      var t = make(init);
+      toPlaying(t);
+      var g = t.ctl.game();
+      for (var r = 20; r < 22; r++) {
+        for (var c = 0; c < 10; c++) { if (c !== 4 && c !== 5) { g.board[r][c] = { charId: 'mametchi' }; } }
+      }
+      g.goal = 1;
+      g.elapsedMs = elapsed;
+      g.piece = { shape: 'O', charId: 'mametchi', x: 3, y: 0, rot: 0 };
+      t.ctl.press('hard');
+      t.ctl.advance(300);
+      return t;
+    }
+    it('collect clear saves the time', function () {
+      var t = collectClear({}, 82100);
+      expect(t.ctl.phase()).toBe('result');
+      expect(t.storage.m['time.v1'].easy).toBe(83);
+      var r = t.ctl.getResult();
+      expect(r.cleared).toBe(true);
+      expect(r.timeSec).toBe(83);
+      expect(r.bestTime).toBe(83);
+      expect(r.newTime).toBe(true);
+    });
+    it('collect clear keeps a better stored time', function () {
+      var t = collectClear({ 'time.v1': { easy: 80, normal: 50 } }, 82100);
+      expect(t.storage.m['time.v1'].easy).toBe(80);
+      expect(t.storage.m['time.v1'].normal).toBe(50);
+      var r = t.ctl.getResult();
+      expect(r.newTime).toBe(false);
+      expect(r.bestTime).toBe(80);
+      expect(r.timeSec).toBe(83);
+    });
+    it('collect clear replaces a slower stored time only for its difficulty', function () {
+      var t = collectClear({ 'time.v1': { easy: 84, normal: 50 } }, 82100);
+      expect(t.storage.m['time.v1'].easy).toBe(83);
+      expect(t.storage.m['time.v1'].normal).toBe(50);
+      expect(t.ctl.getResult().newTime).toBe(true);
+      expect(t.ctl.getResult().bestTime).toBe(83);
+    });
+    it('collect loss never writes time.v1', function () {
+      var t = make();
+      toPlaying(t);
+      blockEnd(t);
+      expect(t.storage.has('time.v1')).toBe(false);
+      expect(t.ctl.getResult().newTime).toBe(false);
+      var u = make();
+      toPlaying(u);
+      u.ctl.game().timeMs = 100;
+      u.ctl.advance(200);
+      expect(u.ctl.getResult().timeup).toBe(true);
+      expect(u.storage.has('time.v1')).toBe(false);
+      expect(u.ctl.getResult().newTime).toBe(false);
+    });
+    it('challenge never writes time.v1; timeup result keeps best fields', function () {
+      var t = challengeStart({ easy: 2 });
+      collectSome(t);
+      var c = t.ctl.game().collected;
+      t.ctl.game().timeMs = 100;
+      t.ctl.advance(200);
+      expect(t.ctl.phase()).toBe('result');
+      var r = t.ctl.getResult();
+      expect(r.timeup).toBe(true);
+      expect(r.best).toBe(c);
+      expect(r.newRecord).toBe(true);
+      expect(r.newTime).toBe(false);
+      expect(t.storage.has('time.v1')).toBe(false);
+    });
+    it('an array best.v2 is replaced by an object on the first save', function () {
       var t = challengeStart([5]);
       collectSome(t);
-      var b = t.storage.m['best.v1'];
+      var b = t.storage.m['best.v2'];
       expect(Array.isArray(b)).toBe(false);
       expect(b.easy).toBe(t.ctl.game().collected);
     });
@@ -297,12 +386,12 @@
       var g = t.ctl.game();
       expect(g.collected > 2).toBe(true);
       expect(t.ctl.phase()).toBe('playing');
-      var b = t.storage.m['best.v1'];
+      var b = t.storage.m['best.v2'];
       expect(b.easy).toBe(g.collected);
       expect(b.normal).toBe(9);
       expect(b.hard).toBe(4);
       t.ctl.quit();
-      expect(t.storage.m['best.v1'].easy).toBe(g.collected);
+      expect(t.storage.m['best.v2'].easy).toBe(g.collected);
     });
     it('challenge result compares with the best at round start', function () {
       var t = challengeStart({ easy: 2 });
@@ -321,7 +410,7 @@
       var q = u.ctl.getResult();
       expect(q.newRecord).toBe(false);
       expect(q.best).toBe(99);
-      expect(u.storage.m['best.v1'].easy).toBe(99);
+      expect(u.storage.m['best.v2'].easy).toBe(99);
     });
     it('challenge newRecord needs at least 1 collected', function () {
       var t = challengeStart();
@@ -342,13 +431,13 @@
       t.ctl.start(CH);
       expect(t.ctl.game().best).toBe(c);
     });
-    it('collect mode never writes best.v1; result has mode fields', function () {
+    it('collect mode never writes best.v2; result has mode fields', function () {
       var t = make();
       toPlaying(t);
       var g = t.ctl.game();
       g.collected = 5;
       blockEnd(t);
-      expect(t.storage.has('best.v1')).toBe(false);
+      expect(t.storage.has('best.v2')).toBe(false);
       var r = t.ctl.getResult();
       expect(r.mode).toBe('collect');
       expect(r.best).toBe(0);
