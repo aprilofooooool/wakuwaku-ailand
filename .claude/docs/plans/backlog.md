@@ -4,5 +4,5 @@
 
 - 現象：遊び方が顔集め（目標と時間あり）だけで、時間があるときに記録を塗り替える遊びがない。スマホのボタンの並びが ← → ↻ ↓ いっき。
 - 原因：元設計で最高記録・点数を非ゴールにしていた。
-- 方針：`.claude/docs/specs/2026-11-14-blocks-challenge-design.md` のとおり作る。計画は `active/B-6_blocks-challenge/2026-11-14-challenge-plan.md`。
+- 方針：`.claude/docs/specs/2026-11-14-blocks-challenge-design.md` のとおり作る。計画は `active/B-6_blocks-challenge/2026-11-14-challenge-plan.md` と `2026-11-14-timed-plan.md`（3分制・タイム記録）。
 - 関連：B-5（`done/B-5_blocks/`）。ブランチ `feat/blocks-challenge`。
