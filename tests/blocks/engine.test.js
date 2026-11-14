@@ -70,7 +70,7 @@
       expect(g.state).toBe('falling');
       expect(g.board.length).toBe(K.ROWS + K.HIDDEN);
       expect(g.fallMs).toBe(650);
-      expect(g.goal).toBe(20);
+      expect(g.goal).toBe(30);
     });
 
     it('move stops at walls and blocks', function () {
@@ -293,6 +293,7 @@
 
     it('almost fires once', function () {
       var g = mk(1);
+      g.goal = 20;
       g.collected = 16;
       setupClear(g, 1);
       var ev = E.hardDrop(g);
@@ -307,6 +308,7 @@
 
     it('almost fires when one clear crosses into the last ALMOST', function () {
       var g = mk(1);
+      g.goal = 20;
       g.collected = 11;
       setupClear(g, 6);
       var ev = E.hardDrop(g);
@@ -316,6 +318,7 @@
 
     it('almost does not fire when the clear jumps straight to the goal', function () {
       var h = mk(1);
+      h.goal = 20;
       h.collected = 14;
       setupClear(h, 6);
       var ev3 = E.hardDrop(h);
@@ -325,6 +328,7 @@
 
     it('goal ends after the collapse', function () {
       var g = mk(1);
+      g.goal = 20;
       g.collected = 19;
       setupClear(g, 1);
       var ev = E.hardDrop(g);
@@ -339,6 +343,7 @@
 
     it('goal wins over a blocked spawn', function () {
       var g = mk(1);
+      g.goal = 20;
       g.collected = 19;
       setupClear(g, 1);
       g.piece.y = 20;
@@ -402,6 +407,86 @@
       expect(g.piece.y).toBe(20);
       expect(hasLock(E.step(g, 499))).toBe(false);
       expect(hasLock(E.step(g, 1))).toBe(true);
+    });
+  });
+
+  describe('blocks engine time', function () {
+    function mkd(d) { return E.create({ difficulty: d, selfId: 'mametchi', seed: 1 }); }
+    it('create sets timeMs and goal per difficulty', function () {
+      var want = { easy: [180000, 15], normal: [150000, 30], hard: [120000, 50] };
+      Object.keys(want).forEach(function (d) {
+        var g = mkd(d);
+        expect(g.timeMs).toBe(want[d][0]);
+        expect(g.goal).toBe(want[d][1]);
+        expect(g.overReason).toBe(null);
+      });
+    });
+
+    it('step lowers timeMs while falling', function () {
+      var g = mk(1);
+      E.step(g, 1000);
+      expect(g.timeMs).toBe(149000);
+    });
+
+    it('own faces add faceMs after the clear event', function () {
+      ['normal', 'hard'].forEach(function (d) {
+        var g = mkd(d);
+        setupClear(g, 3);
+        var ev = E.hardDrop(g);
+        expect(types(ev)).toEqual(['lock', 'clear', 'time']);
+        expect(ev[2].addMs).toBe(d === 'normal' ? 9000 : 6000);
+        expect(g.timeMs).toBe(K.DIFFICULTY[d].timeMs + ev[2].addMs);
+      });
+    });
+
+    it('a clear without own faces emits no time event', function () {
+      var g = mk(1);
+      setupClear(g, 0);
+      expect(types(E.hardDrop(g))).toEqual(['lock', 'clear']);
+    });
+
+    it('running out of time while falling ends the game', function () {
+      var g = mk(1);
+      g.timeMs = 500;
+      var ev = E.step(g, 600);
+      expect(g.state).toBe('over');
+      expect(g.overReason).toBe('timeup');
+      expect(g.timeMs).toBe(0);
+      expect(ev[ev.length - 1]).toEqual({ type: 'over', reason: 'timeup' });
+    });
+
+    it('blocked spawn gives reason blocked', function () {
+      var g = mk(1);
+      toFloor(g);
+      var r, c;
+      for (r = 0; r < 2; r++) { for (c = 3; c <= 6; c++) { g.board[r][c] = { charId: 'mametchi' }; } }
+      var ev = E.hardDrop(g);
+      expect(ev[ev.length - 1]).toEqual({ type: 'over', reason: 'blocked' });
+      expect(g.overReason).toBe('blocked');
+    });
+
+    it('goal wins over time up while settling', function () {
+      var g = mk(1);
+      setupClear(g, 1);
+      g.goal = g.collected + 1;
+      E.hardDrop(g);
+      g.timeMs = 100;
+      var ev = E.step(g, 300);
+      expect(g.timeMs).toBe(0);
+      expect(g.state).toBe('goal');
+      expect(types(ev)).toEqual(['collapse', 'goal']);
+    });
+
+    it('time up at the end of a settle without the goal ends the game', function () {
+      var g = mk(1);
+      setupClear(g, 0);
+      E.hardDrop(g);
+      g.timeMs = 100;
+      var ev = E.step(g, 300);
+      expect(g.state).toBe('over');
+      expect(g.overReason).toBe('timeup');
+      expect(types(ev)).toEqual(['collapse', 'over']);
+      expect(ev[1].reason).toBe('timeup');
     });
   });
 })(window.Ailand);

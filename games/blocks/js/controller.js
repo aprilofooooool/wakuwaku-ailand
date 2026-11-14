@@ -29,8 +29,8 @@
     function save(s) { storage.set(SETTINGS_KEY, { char: s.char, difficulty: s.difficulty, seenHowTo: s.seenHowTo }); }
 
     function getResult() {
-      if (!game) { return { cleared: false, collected: 0, goal: 0, jar: 0, char: settings ? settings.char : defaults().char }; }
-      return { cleared: game.state === 'goal', collected: game.collected, goal: game.goal, jar: game.jar, char: game.selfId };
+      if (!game) { return { cleared: false, timeup: false, collected: 0, goal: 0, jar: 0, char: settings ? settings.char : defaults().char }; }
+      return { cleared: game.state === 'goal', timeup: game.overReason === 'timeup', collected: game.collected, goal: game.goal, jar: game.jar, char: game.selfId };
     }
 
     // Emits engine events, then danger changes, then ends the round on goal or over.

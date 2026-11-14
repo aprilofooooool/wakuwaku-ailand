@@ -70,7 +70,8 @@
     drawNext(game);
     if (!fits(game, game.piece)) {
       game.state = 'over';
-      return [{ type: 'over' }];
+      game.overReason = 'blocked';
+      return [{ type: 'over', reason: 'blocked' }];
     }
     // Lower it below the hidden rows at once while it fits, so it is visible right away (design 2.1).
     for (var i = 0; i < K.HIDDEN && fits(game, moved(game.piece, 0, 1)); i++) { game.piece = moved(game.piece, 0, 1); }
@@ -109,7 +110,18 @@
     }
     game.state = 'settling';
     game._settle = { rows: rows, acc: 0 };
-    return [{ type: 'clear', rows: rows, faces: faces, mine: mine, collected: game.collected, almost: almost }];
+    var events = [{ type: 'clear', rows: rows, faces: faces, mine: mine, collected: game.collected, almost: almost }];
+    if (mine > 0) {
+      game.timeMs += mine * cfg.faceMs;
+      events.push({ type: 'time', addMs: mine * cfg.faceMs });
+    }
+    return events;
+  }
+
+  function timeUp(game) {
+    game.state = 'over';
+    game.overReason = 'timeup';
+    return [{ type: 'over', reason: 'timeup' }];
   }
 
   // Removes the cleared rows, drops everything above, then ends with goal, spawn or over.
@@ -128,6 +140,7 @@
       events.push({ type: 'goal', collected: game.collected, jar: game.jar });
       return events;
     }
+    if (game.timeMs <= 0) { return events.concat(timeUp(game)); }
     game.state = 'falling';
     return events.concat(spawn(game));
   }
@@ -154,7 +167,8 @@
     var events = [{ type: 'lock', cells: cells }];
     if (allHidden) {
       game.state = 'over';
-      events.push({ type: 'over' });
+      game.overReason = 'blocked';
+      events.push({ type: 'over', reason: 'blocked' });
       return events;
     }
     var full = fullRows(game);
@@ -171,6 +185,8 @@
       next: null,
       selfId: opts.selfId,
       goal: cfg.goal,
+      timeMs: cfg.timeMs,
+      overReason: null,
       collected: 0,
       jar: 0,
       lines: 0,
@@ -231,6 +247,8 @@
   function step(game, ms) {
     var events = [];
     var left = ms;
+    if (game.state === 'falling' || game.state === 'settling') { game.timeMs = Math.max(0, game.timeMs - ms); }
+    if (game.state === 'falling' && game.timeMs <= 0) { return timeUp(game); }
     if (game.state === 'settling') {
       game._settle.acc += ms;
       return game._settle.acc >= K.SETTLE_MS ? finishSettle(game) : events;

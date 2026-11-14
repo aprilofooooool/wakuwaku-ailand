@@ -16,9 +16,9 @@
     SPEEDUP_LINES: 4,
     SPEEDUP: 0.92,
     DIFFICULTY: {
-      easy: { fallMs: 900, minMs: 350, goal: 12 },
-      normal: { fallMs: 650, minMs: 200, goal: 20 },
-      hard: { fallMs: 450, minMs: 120, goal: 28 }
+      easy: { fallMs: 900, minMs: 350, goal: 15, timeMs: 180000, faceMs: 3000 },
+      normal: { fallMs: 650, minMs: 200, goal: 30, timeMs: 150000, faceMs: 3000 },
+      hard: { fallMs: 450, minMs: 120, goal: 50, timeMs: 120000, faceMs: 2000 }
     }
   };
 })(Ailand.games.blocks);

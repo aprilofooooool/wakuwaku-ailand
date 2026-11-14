@@ -226,7 +226,24 @@
       t.ctl.start(s);
       expect(JSON.stringify(t.storage.m['settings.v1'])).toBe(JSON.stringify(s));
       expect(t.ctl.game().selfId).toBe('flowertchi');
-      expect(t.ctl.game().goal).toBe(20);
+      expect(t.ctl.game().goal).toBe(30);
+    });
+    it('time does not run during the countdown or while paused, and timeup shows in the result', function () {
+      var t = make();
+      t.ctl.start(SET);
+      t.ctl.advance(STEP);
+      expect(t.ctl.game().timeMs).toBe(180000);
+      while (t.ctl.phase() === 'countdown') { t.ctl.advance(STEP); }
+      t.ctl.pause('menu');
+      t.ctl.advance(5000);
+      expect(t.ctl.game().timeMs).toBe(180000);
+      t.ctl.resume();
+      t.ctl.game().timeMs = 100;
+      t.ctl.advance(200);
+      expect(t.ctl.phase()).toBe('result');
+      var res = t.ctl.getResult();
+      expect(res.cleared).toBe(false);
+      expect(res.timeup).toBe(true);
     });
   });
 })(Ailand);
