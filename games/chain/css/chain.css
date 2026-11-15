@@ -1,0 +1,192 @@
+/* chain (ぷにっち). Soft apricot page (the others: cream, light blue, green, pink; the entrance: lavender),
+   white panels with the navy outline (design 3.1). The board canvas size comes from Layout.cellSize in ui.js. */
+:root {
+  --page-bg: #ffe9dc;
+  --page-dot: #ffd2b8;
+  --ch-on-bg: #ffe0cc;
+  --ch-gold: #ffc83a;
+  --ch-almost-bg: #fff4c2;
+  --ch-danger: #ff8a8a;
+  --ch-danger-glow: rgba(255, 90, 90, 0.3);
+  --ch-friends: #eef7ff;
+  --ch-hard: #ffd9c2;
+  --ch-hurry: #ff5a6e;
+  --ch-hurry-edge: #c8283c;
+}
+
+/* The whole play screen and the buttons: no scroll, pinch or double-tap zoom, text selection or long-press menu (design 4). */
+.ch-game-screen, .ch-game, .ch-boardwrap, .ch-board, .ch-settings-screen button, .ch-game button, .ch-overlay button, #modal-root button {
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+/* The settings screen may be taller than a phone: a drag on its buttons must still scroll it. */
+.ch-settings-screen button { touch-action: manipulation; }
+.ch-overlay[hidden], .ch-game-screen[hidden] { display: none !important; }
+
+/* ---------- settings screen ---------- */
+.ch-settings-screen { max-width: var(--content-max); margin: 0 auto; padding: 12px 16px calc(32px + env(safe-area-inset-bottom)); }
+.ch-panel { background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-l); box-shadow: var(--shadow-m); padding: 14px 16px 16px; margin: 0 0 18px; }
+.ch-panel h2 { margin: 0 0 10px; font-size: 1.2rem; font-weight: 900; }
+.ch-pickname { font-weight: 900; font-size: 18px; margin-bottom: 8px; }
+.ch-charlist { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.ch-charbtn { font: inherit; color: var(--ink); min-width: 64px; min-height: 72px; padding: 4px 2px; display: flex; align-items: center; justify-content: center; background: var(--surface); border: var(--border-w) solid var(--disabled-bg); border-radius: var(--radius-m); cursor: pointer; }
+.ch-charbtn[aria-pressed="true"] { border-color: var(--outline); background: var(--ch-on-bg); box-shadow: var(--shadow-s); }
+.ch-charface { display: block; width: 56px; height: 56px; }
+.ch-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.ch-levels { display: flex; flex-direction: column; gap: 8px; }
+.ch-choice { font: inherit; font-size: 18px; font-weight: 800; color: var(--ink); min-width: 64px; min-height: 64px; padding: 6px 16px; background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-round); box-shadow: var(--shadow-s); cursor: pointer; }
+.ch-choice[aria-pressed="true"] { background: var(--accent-yellow); }
+.ch-choice:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--outline); }
+.ch-choice:focus-visible, .ch-charbtn:focus-visible, .ch-padbtn:focus-visible { outline: 4px solid var(--accent-blue); outline-offset: 2px; }
+.ch-level { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; border-radius: var(--radius-l); }
+.ch-level-name { font-weight: 900; }
+.ch-level-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.ch-level-goal, .ch-level-best { font-size: 18px; font-weight: 700; }
+.ch-level-time, .ch-level-turn { font-size: 16px; font-weight: 700; }
+.ch-startpanel { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.ch-start, .ch-howto, .ch-card .btn, .ch-menu .btn { min-width: 64px; min-height: 64px; }
+.ch-howto-body { text-align: center; }
+.ch-howto-face { width: 96px; height: 96px; margin: 0 auto 8px; }
+.ch-howto-text { margin: 0 0 12px; font-size: 18px; font-weight: 800; word-break: keep-all; overflow-wrap: anywhere; }
+
+/* ---------- game screen ---------- */
+body.ch-playing { overflow: hidden; }
+.ch-game-screen { position: relative; overflow: hidden; height: 100%; }
+/* Phone portrait (design 3.3): board on the left; clock, つぎ, the character and the friends panel on the right;
+   buttons below. */
+.ch-game {
+  height: 100%; box-sizing: border-box; display: grid; gap: 8px;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+  grid-template-columns: minmax(0, 1fr) 108px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "board info" "board buddy" "pad pad";
+}
+.ch-boardwrap { grid-area: board; position: relative; min-width: 0; min-height: 0; }
+.ch-boardframe { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); line-height: 0; background: #fff; border: 3px solid var(--outline); border-radius: 10px; box-shadow: var(--shadow-s); }
+.ch-board { display: block; border-radius: 7px; }
+.ch-game.is-paused .ch-board, .ch-game.is-paused .ch-nextcanvas { visibility: hidden; }   /* design 3.4 */
+/* Danger (design 3.3): the frame turns softly red; the character's face never changes for it. */
+.ch-boardframe.is-danger { border-color: var(--ch-danger); box-shadow: 0 0 0 4px var(--ch-danger-glow), 0 0 16px var(--ch-danger-glow); }
+/* A 2 or 3+ chain (design 5.3): the board shines once. */
+.ch-boardframe.is-flash::after { content: ""; position: absolute; inset: 0; border-radius: 7px; pointer-events: none; background: radial-gradient(circle, rgba(255, 255, 255, 0.9), rgba(255, 214, 170, 0.55) 60%, rgba(255, 180, 120, 0)); animation: ch-flash 650ms ease-out both; }
+@keyframes ch-flash { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
+
+.ch-info { grid-area: info; display: flex; flex-direction: column; gap: 8px; }
+.ch-clock { position: relative; display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; column-gap: 4px; padding: 2px 4px; background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-m); box-shadow: var(--shadow-s); line-height: 1.2; white-space: nowrap; }
+.ch-clocklabel { font-size: 16px; font-weight: 800; }
+.ch-clocktime { font-size: 24px; font-weight: 900; font-variant-numeric: tabular-nums; }
+/* Under 10 seconds: red and blinking. */
+.ch-clock.is-hurry { color: #fff; background: var(--ch-hurry); border-color: var(--ch-hurry-edge); animation: ch-hurry 500ms steps(2, jump-none) infinite alternate; }
+@keyframes ch-hurry { from { opacity: 1; } to { opacity: 0.55; } }
+/* "+N" after a wake: pops up above the clock, then goes. */
+.ch-timeadd { position: absolute; right: -2px; top: -12px; z-index: 5; padding: 0 6px; font-size: 18px; font-weight: 900; color: var(--ink); background: var(--ch-gold); border: 2px solid var(--outline); border-radius: 10px; pointer-events: none; animation: ch-timeadd 900ms ease-out both; }
+@keyframes ch-timeadd { 0% { opacity: 0; transform: translateY(6px) scale(0.6); } 25% { opacity: 1; transform: translateY(0) scale(1.1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-6px); } }
+.ch-next { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 4px 6px; background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-m); box-shadow: var(--shadow-s); }
+.ch-label { font-size: 18px; font-weight: 900; line-height: 1.2; }
+.ch-nextcanvas { display: block; }
+
+.ch-buddy { grid-area: buddy; min-height: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.ch-facewrap { position: relative; flex: none; width: 76px; height: 76px; }
+.ch-face { width: 100%; height: 100%; border-radius: 50%; background: var(--surface); border: var(--border-w) solid var(--outline); overflow: hidden; }
+.ch-mark { position: absolute; top: -4px; right: -4px; font-size: 22px; line-height: 1; }
+/* Speech bubble (core/effects.js): under the face, over the friends panel, never over the board. */
+.ch-say { position: absolute; left: 50%; top: 100%; z-index: 30; margin-top: 4px; transform: translateX(-50%); width: max-content; max-width: 100px; pointer-events: none; }
+/* おきた ともだち (design 3.3): woken faces and のこり ○にん. */
+.ch-friends { position: relative; flex: 1 1 auto; width: 100%; min-height: 96px; max-height: 220px; box-sizing: border-box; display: flex; flex-direction: column; padding: 4px; background: var(--ch-friends); border: var(--border-w) solid var(--outline); border-radius: var(--radius-m); box-shadow: var(--shadow-s); }
+.ch-friendtitle { flex: none; font-size: 16px; font-weight: 900; line-height: 1.15; text-align: center; }
+.ch-friendbody { flex: 1; min-height: 24px; overflow: hidden; display: flex; flex-wrap: wrap; align-content: flex-start; justify-content: center; gap: 2px; padding: 2px; }
+.ch-friendface { display: block; flex: none; width: 22px; height: 22px; }
+.ch-left { flex: none; font-size: 18px; font-weight: 900; text-align: center; line-height: 1.3; white-space: nowrap; }
+/* One left (design 3.3): the panel lights up. */
+.ch-friends.is-almost { background: var(--ch-almost-bg); border-color: var(--ch-gold); animation: ch-glow 900ms ease-in-out infinite alternate; }
+@keyframes ch-glow { from { box-shadow: 0 0 2px var(--ch-gold); } to { box-shadow: 0 0 14px var(--ch-gold), 0 0 4px var(--ch-gold); } }
+
+.ch-pad { grid-area: pad; display: flex; justify-content: space-between; gap: 10px; }
+.ch-pad-move, .ch-pad-act { display: flex; gap: 6px; }
+.ch-pad-move { flex: 3 1 0; }
+.ch-pad-act { flex: 2 1 0; }
+.ch-padbtn { flex: 1 1 0; min-width: 64px; min-height: 68px; padding: 0; font: inherit; font-size: 30px; font-weight: 900; line-height: 1; color: var(--ink); background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-m); box-shadow: var(--shadow-s); cursor: pointer; }
+.ch-padbtn[data-action="hard"] { background: var(--ch-hard); }
+.ch-padbtn[data-action="hard"] .ch-ico { display: inline-block; padding-bottom: 2px; border-bottom: 4px solid currentColor; }
+.ch-padbtn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--outline); background: var(--accent-yellow); }
+
+/* Landscape / PC (design 3.3): character and friends left, board in the middle, clock and つぎ right;
+   ← ↓ hard under the left side, ↻ → under the right side. */
+@media (min-aspect-ratio: 1/1) {
+  .ch-game {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-areas: "buddy board info" "move board act";
+  }
+  .ch-pad { display: contents; }
+  .ch-pad-move { grid-area: move; justify-content: center; }
+  .ch-pad-act { grid-area: act; justify-content: center; }
+  .ch-padbtn { flex: 0 0 auto; width: 72px; height: 72px; }
+  .ch-info { align-items: center; justify-content: center; }
+  .ch-clock, .ch-next { width: 100%; max-width: 160px; box-sizing: border-box; }
+  .ch-buddy { justify-content: center; }
+  .ch-friends { max-width: 180px; }
+  .ch-friendface { width: 28px; height: 28px; }
+  .ch-say { max-width: 11em; }
+}
+/* Phone landscape: compact header (buttons stay 64px), same as blocks. */
+@media (orientation: landscape) and (max-height: 500px) {
+  :root { --header-h: 67px; }
+  .ch-game { gap: 6px; padding-top: 6px; }
+  .ch-padbtn { width: 66px; height: 66px; min-height: 64px; }
+  .ch-facewrap { width: 56px; height: 56px; }
+  .ch-friends { min-height: 80px; }
+  .ch-friendface { width: 20px; height: 20px; }
+}
+
+/* ---------- flying friends (games/chain/js/fx.js): hop out of the cell, then glide to the friends panel ---------- */
+.ch-fly { position: absolute; width: var(--size); height: var(--size); margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2); animation: ch-fly-x 700ms linear var(--d) both; }
+.ch-fly-in { position: relative; width: 100%; height: 100%; animation: ch-fly-y 700ms var(--d) both; }
+.ch-fly-deco { position: absolute; right: -10px; top: -10px; font-size: 16px; font-weight: 900; color: var(--accent-pink); text-shadow: 0 0 2px #fff, 0 0 2px #fff; }
+@keyframes ch-fly-x { from { transform: translateX(0); } to { transform: translateX(var(--dx)); } }
+@keyframes ch-fly-y {
+  0% { transform: translateY(0) scale(1); animation-timing-function: ease-out; }
+  30% { transform: translateY(-40px) scale(1.2); animation-timing-function: ease-in; }
+  100% { transform: translateY(var(--dy)) scale(0.6); }
+}
+/* Popped balls: a soft ✦ / ♪ floats up and fades (never a burst or a crack). */
+.ch-bit { position: absolute; transform: translate(-50%, -50%); font-weight: 900; line-height: 1; color: var(--ch-gold); text-shadow: 0 0 2px var(--outline), 0 0 3px #fff; pointer-events: none; animation: ch-bit 700ms ease-out both; }
+.ch-bit:nth-child(even) { color: var(--accent-pink); }
+@keyframes ch-bit { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); } 30% { opacity: 1; transform: translate(-50%, -70%) scale(1.1); } 100% { opacity: 0; transform: translate(-50%, -160%) scale(0.9); } }
+/* "Nれんさ！" near the popped balls. */
+.ch-chaintext { position: absolute; transform: translate(-50%, -50%); padding: 2px 10px; font-size: 22px; font-weight: 900; white-space: nowrap; color: var(--ink); background: #fff; border: 3px solid var(--outline); border-radius: var(--radius-round); pointer-events: none; animation: ch-chain 1000ms ease-out both; }
+@keyframes ch-chain { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); } 20% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); } 35% { transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -90%); } }
+/* A turn: zzz floats up from the new sleeper. */
+.ch-zzz { position: absolute; transform: translate(-50%, -50%); font-size: 20px; font-weight: 900; font-style: italic; color: var(--accent-blue); text-shadow: 0 0 2px #fff, 0 0 3px #fff; pointer-events: none; animation: ch-zzz 1200ms ease-out both; }
+@keyframes ch-zzz { 0% { opacity: 0; transform: translate(-50%, -30%); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(-20%, -180%); } }
+
+/* ---------- overlay cards: pause and result ---------- */
+.ch-overlay { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--overlay); }
+.ch-card { width: 100%; max-width: 520px; max-height: 100%; overflow-y: auto; box-sizing: border-box; background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-l); box-shadow: var(--shadow-soft); padding: 20px; text-align: center; }
+.ch-card-text { margin: 0 0 12px; font-size: 1.6rem; font-weight: 900; }
+.ch-hero { display: flex; flex-direction: column; align-items: center; }
+.ch-heroface { width: min(44vw, 28vh, 220px); aspect-ratio: 1; border-radius: 50%; background: var(--surface); border: var(--border-w) solid var(--outline); box-shadow: var(--shadow-m); overflow: hidden; }
+.ch-hero.is-win .ch-heroface { animation: ch-hero 1100ms ease-in-out infinite; }
+@keyframes ch-hero { 0%, 100% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-5%) rotate(-8deg); } 60% { transform: translateY(0) rotate(8deg); } }
+.ch-line { margin: 8px 0 0; padding: 6px 12px; font-size: 18px; font-weight: 800; background: var(--surface); border: 2px solid var(--outline); border-radius: var(--radius-s); }
+.ch-line:empty { display: none; }
+.ch-result-score { margin: 12px 0 4px; font-size: 1.3rem; font-weight: 900; }
+.ch-result-time { margin: 0 0 4px; font-size: 20px; font-weight: 900; }
+.ch-result-newtime { display: inline-block; margin-left: 8px; padding: 0 8px; color: var(--ink); background: var(--ch-gold); border: 2px solid var(--outline); border-radius: 10px; }
+.ch-result-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 12px; }
+.ch-menu { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.ch-rule { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0; }
+.ch-rulename { font-weight: 900; min-width: 4em; }
+
+/* ---------- full-screen banners ---------- */
+.ch-banner { display: flex; align-items: center; justify-content: center; }
+.ch-banner-text { font-size: 6rem; font-weight: 900; line-height: 1; color: var(--ink); text-shadow: 0 0 8px #fff, 0 0 16px #fff, 0 0 24px var(--fx-gold); animation: ch-banner 420ms ease-out both; }
+.ch-banner.is-go .ch-banner-text { font-size: 2.6rem; padding: 8px 24px; background: #fff; border: 4px solid var(--outline); border-radius: var(--radius-round); text-shadow: none; }
+@keyframes ch-banner { 0% { opacity: 0; transform: scale(0.4); } 60% { opacity: 1; transform: scale(1.15); } 100% { transform: scale(1); } }
+
+/* Reduced motion (design 5.2): base.css stops every animation and transition. Nothing wobbles, flies, shines or
+   shakes: things fade where they are (the count changes at once), and the glow becomes a still highlight. */
+@media (prefers-reduced-motion: reduce) {
+  .ch-fly { transition: opacity 400ms ease !important; }
+  .ch-fly.fx-out { opacity: 0; }
+  .ch-friends.is-almost { box-shadow: 0 0 0 3px var(--ch-gold); }
+}

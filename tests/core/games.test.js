@@ -7,9 +7,9 @@
   }
 
   describe('core/Games', function () {
-    it('lists 7 games, 4 of them ready', function () {
+    it('lists 7 games, 5 of them ready', function () {
       expect(G.LIST.length).toBe(7);
-      expect(G.LIST.filter(function (g) { return g.ready; }).length).toBe(4);
+      expect(G.LIST.filter(function (g) { return g.ready; }).length).toBe(5);
     });
     it('whack is ready at games/whack/index.html without a save key', function () {
       var w = G.LIST.filter(function (g) { return g.id === 'whack'; })[0];
@@ -22,6 +22,13 @@
       expect(b.ready).toBe(true);
       expect(b.href).toBe('games/blocks/index.html');
       expect(b.saveKey).toBe(null);
+    });
+    it('chain is ready at games/chain/index.html as ぷにっち without a save key', function () {
+      var c = G.LIST.filter(function (g) { return g.id === 'chain'; })[0];
+      expect(c.ready).toBe(true);
+      expect(c.name).toBe('ぷにっち');
+      expect(c.href).toBe('games/chain/index.html');
+      expect(c.saveKey).toBe(null);
     });
     it('ids are lowercase alphanumeric with hyphens and unique', function () {
       var seen = {};
