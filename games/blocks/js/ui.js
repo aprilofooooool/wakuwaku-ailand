@@ -101,7 +101,7 @@
     root.appendChild(gameScreen);
 
     var header = C.UI.header({
-      title: 'おちブロック',
+      title: 'テトリっち',
       soundOn: Sound.isEnabled(),
       onBack: onBack,
       onSound: function () { return Sound.toggleFromTap(); },
