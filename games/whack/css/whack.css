@@ -135,6 +135,18 @@ body.wk-playing { overflow: hidden; }
 .wk-banner.is-final .wk-banner-text { color: var(--wk-time-final); }
 @keyframes wk-banner { 0% { opacity: 0; transform: scale(0.4); } 60% { opacity: 1; transform: scale(1.15); } 100% { transform: scale(1); } }
 
+/* Squeaky hammer (fx.js hammerAt): .wk-hammer sits on the touched point; the arm pivots on the handle end
+   (48px 116px) from raised (+15deg) to the strike (-45deg), where the head center lands on the point. */
+.wk-hammer { position: fixed; width: 0; height: 0; z-index: 5; transform: scale(var(--hm-scale, 1)); transform-origin: 0 0; animation: wk-hm-out 380ms linear both; }
+.wk-hammer-arm { position: absolute; left: 15.6px; top: -52.4px; width: 96px; height: 120px; transform-origin: 48px 116px; transform: rotate(-45deg); animation: wk-hm-swing 110ms ease-in both; }
+.wk-hammer-arm svg { display: block; color: var(--outline); filter: drop-shadow(2px 3px 0 rgba(0, 0, 0, 0.18)); }
+.wk-hm-handle { fill: var(--accent-yellow, #ffd23f); stroke: currentColor; stroke-width: 3; }
+.wk-hm-head { fill: #ff6f91; stroke: currentColor; stroke-width: 3; }
+.wk-hm-fold { fill: none; stroke: #d9446c; stroke-width: 3; stroke-linecap: round; }
+.wk-hm-cap { fill: var(--accent-yellow, #ffd23f); stroke: currentColor; stroke-width: 3; }
+@keyframes wk-hm-swing { from { transform: rotate(15deg); } to { transform: rotate(-45deg); } }
+@keyframes wk-hm-out { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+
 /* Reduced motion (design 5.3): base.css stops every animation and transition; the rise / sink becomes a fade. */
 @media (prefers-reduced-motion: reduce) {
   .wk-pop { transform: none !important; opacity: 0; transition: opacity 160ms ease !important; }

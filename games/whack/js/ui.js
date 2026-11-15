@@ -69,7 +69,7 @@
     root.appendChild(gameScreen);
 
     var header = C.UI.header({
-      title: 'キャラたたき',
+      title: 'ピコハンっち',
       soundOn: Sound.isEnabled(),
       onBack: onBack,
       onSound: function () { return Sound.toggleFromTap(); },
@@ -316,7 +316,11 @@
       var f = game.fields[fieldIndex];
       var rects = f.holes.map(function (h) { return h.up && !h.hit ? h.el.getBoundingClientRect() : null; });
       var hole = L.hitHole(x, y, rects);
-      if (hole >= 0) { controller.press(game.mode === 'together' ? fieldIndex : 0, hole); }
+      if (hole >= 0) {
+        // The hammer always strikes the character's top-right corner, not the finger's point.
+        var cr = f.holes[hole].box.getBoundingClientRect();
+        Fx.hammerAt(cr.right, cr.top, rects[hole].width);
+        controller.press(game.mode === 'together' ? fieldIndex : 0, hole); }
     }
 
     // One bubble per side at a time (design 5.1): a new line waits until the previous one is gone.
