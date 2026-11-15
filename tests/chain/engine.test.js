@@ -8,14 +8,49 @@
 
   function mk(seed, diff) { return E.create({ difficulty: diff || 'normal', seed: seed === undefined ? 1 : seed }); }
   function types(events) { return events.map(function (e) { return e.type; }); }
+  function ball(id) { return { kind: 'ball', charId: id }; }
+  function sleep(id) { return { kind: 'sleep', charId: id }; }
+  // Empties the board but keeps one sleeper in the bottom-right corner so the game does not clear.
   function clearBoard(g) {
     g.board.forEach(function (row) { for (var c = 0; c < K.COLS; c++) { row[c] = null; } });
+    g.board[K.ROWS + K.HIDDEN - 1][K.COLS - 1] = sleep('mametchi');
+    g.sleepers = 1;
   }
-  function ball(id) { return { kind: 'ball', charId: id }; }
-  // Fills rows fromRow..bottom of a column with balls.
-  function fillCol(g, col, fromRow, id) {
-    for (var r = fromRow; r < K.ROWS + K.HIDDEN; r++) { g.board[r][col] = ball(id || 'mimitchi'); }
+  // Fills rows fromRow..bottom of a column with balls of two alternating colours (never a group).
+  function fillCol(g, col, fromRow) {
+    for (var r = fromRow; r < K.ROWS + K.HIDDEN; r++) { g.board[r][col] = ball(r % 2 === 0 ? 'mimitchi' : 'flowertchi'); }
   }
+  // Letters for layout(): lower case = ball, upper case = sleeper, '.' = empty.
+  var LETTERS = { m: 'mametchi', k: 'kuchipatchi', i: 'mimitchi', f: 'flowertchi' };
+  // Empties the board and writes `lines` onto the bottom rows. Keeps g.sleepers in step with the board.
+  function layout(g, lines) {
+    g.board.forEach(function (row) { for (var c = 0; c < K.COLS; c++) { row[c] = null; } });
+    g.sleepers = 0;
+    var top = K.ROWS + K.HIDDEN - lines.length;
+    lines.forEach(function (line, i) {
+      for (var c = 0; c < K.COLS; c++) {
+        var ch = line.charAt(c);
+        if (ch === '.') { continue; }
+        var low = ch.toLowerCase();
+        g.board[top + i][c] = low === ch ? ball(LETTERS[low]) : sleep(LETTERS[low]);
+        if (low !== ch) { g.sleepers++; }
+      }
+    });
+  }
+  // Hard-drops a pair at column x (rot 0 = child above the axis).
+  function drop(g, x, axis, child) {
+    g.pair = { x: x, y: K.SPAWN_Y, rot: 0, axis: LETTERS[axis], child: LETTERS[child] };
+    return E.hardDrop(g);
+  }
+  // Steps the game in `ms` slices until the settle ends; returns the events.
+  function run(g, ms) {
+    var ev = [];
+    var guard = 0;
+    while (g.state === 'settling' && guard++ < 10000) { ev = ev.concat(E.step(g, ms || 10)); }
+    return ev;
+  }
+  function find(ev, type) { return ev.filter(function (e) { return e.type === type; }); }
+  function cellKey(c) { return c.col + ',' + c.row + ',' + c.charId; }
 
   describe('chain engine bag', function () {
     it('the bag gives each colour twice per 8', function () {
@@ -186,19 +221,24 @@
       expect(g.state).toBe('settling');
       var wait = (m.to[1] - m.from[1]) * K.FALL_CELL_MS;
       expect(types(E.step(g, wait - 1))).toEqual([]);
-      expect(types(E.step(g, 1))).toEqual(['spawn']);
+      expect(types(E.step(g, 1))).toEqual(['settled', 'spawn']);
       expect(g.state).toBe('falling');
     });
 
-    it('a ball locked in the hidden row stays', function () {
+    it('a ball locked in the hidden row stays but never pops', function () {
       var g = mk(1);
       clearBoard(g);
       fillCol(g, 0, 2);
+      // rows 1..3 become 3 visible mametchi; the 4th mametchi sits in the hidden row 0
+      g.board[2][0] = ball('mametchi');
+      g.board[3][0] = ball('mametchi');
+      g.pair.axis = 'mametchi';
+      g.pair.child = 'mametchi';
       E.move(g, -1);
       E.move(g, -1);
       expect(g.pair.x).toBe(0);
-      E.hardDrop(g);
-      E.step(g, 1000);
+      var ev = E.hardDrop(g).concat(E.step(g, 1000));
+      expect(find(ev, 'pop').length).toBe(0);
       expect(g.board[0][0].kind).toBe('ball');
       expect(g.board[1][0].kind).toBe('ball');
       expect(g.state).toBe('falling');
@@ -230,6 +270,242 @@
       g.board[1][K.SPAWN_X] = null;
       g.board[0][K.SPAWN_X] = ball('mimitchi');
       expect(E.dangerous(g)).toBe(false);
+    });
+  });
+
+  describe('chain engine pop and wake', function () {
+    it('four connected pop, three do not, diagonals do not', function () {
+      var g = mk(1);
+      layout(g, [
+        'k.i...',
+        'k..i..',
+        'k...i.',
+        'mmmm.i'
+      ]);
+      var gs = E.groups(g.board);
+      expect(gs.length).toBe(1);
+      expect(gs[0].charId).toBe('mametchi');
+      expect(gs[0].cells.map(function (c) { return c.join(); }).sort()).toEqual(['0,12', '1,12', '2,12', '3,12']);
+    });
+
+    it('sleepers never join a group', function () {
+      var g = mk(1);
+      layout(g, ['mmmM..']);
+      expect(E.groups(g.board)).toEqual([]);
+    });
+
+    it('two groups pop together', function () {
+      var g = mk(1);
+      layout(g, [
+        '....k.',
+        'mmm.kk'
+      ]);
+      var ev = drop(g, 3, 'm', 'k').concat(run(g));
+      var pops = find(ev, 'pop');
+      expect(pops.length).toBe(1);
+      expect(pops[0].chain).toBe(1);
+      expect(pops[0].cells.length).toBe(8);
+    });
+
+    it('a pop wakes adjacent sleepers of any colour, not diagonal ones', function () {
+      var g = mk(1);
+      layout(g, [
+        'FK..I.',
+        'mmm.K.'
+      ]);
+      var ev = drop(g, 3, 'm', 'k').concat(run(g));
+      var wakes = find(ev, 'wake');
+      expect(wakes.length).toBe(1);
+      expect(wakes[0].cells.map(cellKey).sort()).toEqual(['0,11,flowertchi', '1,11,kuchipatchi', '4,12,kuchipatchi']);
+      expect(wakes[0].left).toBe(1);
+      expect(g.sleepers).toBe(1);
+      expect(g.woke).toBe(3);
+      expect(g.board[12][4]).toEqual(sleep('mimitchi'));
+    });
+
+    it('wake frees the cell and things above fall', function () {
+      var g = mk(1);
+      layout(g, [
+        '....m.',
+        '....F.',
+        '....K.',
+        'kkk.I.'
+      ]);
+      var ev = drop(g, 3, 'k', 'm').concat(run(g));
+      var moves = [];
+      find(ev, 'fall').forEach(function (e) { moves = moves.concat(e.moves); });
+      var sleepMove = moves.filter(function (m) { return m.from[0] === 4 && m.from[1] === 11; })[0];
+      expect(sleepMove.to).toEqual([4, 12]);
+      expect(sleepMove.kind).toBe('sleep');
+      expect(g.board[12][4]).toEqual(sleep('kuchipatchi'));
+      expect(g.board[11][4]).toEqual(sleep('flowertchi'));
+      expect(g.board[10][4]).toEqual(ball('mametchi'));
+      expect(g.board[9][4]).toBe(null);
+      expect(g.sleepers).toBe(2);
+    });
+
+    it('waking can trigger a chain', function () {
+      var g = mk(1);
+      layout(g, [
+        'F...i.',
+        'f...i.',
+        'kkk.Mi'
+      ]);
+      var ev = drop(g, 3, 'k', 'i').concat(run(g));
+      expect(find(ev, 'pop').map(function (e) { return e.chain; })).toEqual([1, 2]);
+      var settled = find(ev, 'settled');
+      expect(settled.length).toBe(1);
+      expect(settled[0].chain).toBe(2);
+      expect(settled[0].woke).toBe(1);
+      expect(g.state).toBe('falling');
+      // the next lock counts from 1 again
+      g.board[12][1] = ball('mametchi');
+      g.board[12][2] = ball('mametchi');
+      g.board[12][3] = ball('mametchi');
+      var ev2 = drop(g, 4, 'm', 'k');
+      expect(g.chain).toBe(1);
+      ev2 = ev2.concat(run(g));
+      expect(find(ev2, 'pop').map(function (e) { return e.chain; })).toEqual([1]);
+    });
+
+    it('waking adds time and counts', function () {
+      var g = mk(1);
+      layout(g, [
+        'F....K',
+        'kkk.Kf'
+      ]);
+      var before = g.timeMs + g.elapsedMs;
+      var ev = drop(g, 3, 'k', 'm').concat(run(g));
+      var times = find(ev, 'time');
+      expect(times.length).toBe(1);
+      expect(times[0].addMs).toBe(2 * K.DIFFICULTY.normal.wakeMs);
+      expect(g.woke).toBe(2);
+      expect(g.timeMs + g.elapsedMs).toBe(before + 2 * K.DIFFICULTY.normal.wakeMs);
+      expect(find(ev, 'settled')[0].woke).toBe(2);
+    });
+  });
+
+  describe('chain engine end', function () {
+    it('clear when no sleepers are left', function () {
+      var g = mk(1);
+      layout(g, ['kkk.F.']);
+      var ev = drop(g, 3, 'k', 'm').concat(run(g));
+      expect(ev[ev.length - 1]).toEqual({ type: 'clear' });
+      expect(g.state).toBe('clear');
+      expect(g.sleepers).toBe(0);
+      expect(find(ev, 'settled').length).toBe(0);
+      expect(find(ev, 'spawn').length).toBe(0);
+      expect(E.step(g, 1000)).toEqual([]);
+    });
+
+    it('timeout while falling is timeup', function () {
+      var g = mk(1);
+      g.timeMs = 100;
+      expect(E.step(g, 99)).toEqual([]);
+      expect(E.step(g, 1)).toEqual([{ type: 'over', reason: 'timeup' }]);
+      expect(g.timeMs).toBe(0);
+      expect(g.state).toBe('over');
+      expect(g.overReason).toBe('timeup');
+    });
+
+    it('timeout during a chain waits for the chain', function () {
+      // stage 1 pops the k row, the i balls drop onto the floor, stage 2 pops 4 i
+      // clear: the last sleeper wakes in stage 2 even though time is 0
+      var g = mk(1);
+      layout(g, [
+        '.ii...',
+        'kkk.iF'
+      ]);
+      var ev = drop(g, 3, 'k', 'i');
+      expect(g.state).toBe('settling');
+      g.timeMs = 0;
+      ev = ev.concat(run(g, 100000));
+      expect(find(ev, 'pop').map(function (e) { return e.chain; })).toEqual([1, 2]);
+      expect(find(ev, 'wake').length).toBe(1);
+      expect(ev[ev.length - 1]).toEqual({ type: 'clear' });
+      expect(g.state).toBe('clear');
+
+      // continue: the stage 2 wake adds time, one sleeper is left
+      g = mk(1);
+      layout(g, [
+        '.ii..K',
+        'kkk.iF'
+      ]);
+      ev = drop(g, 3, 'k', 'i');
+      g.timeMs = 0;
+      ev = ev.concat(run(g));
+      expect(g.timeMs > 0).toBe(true);
+      expect(types(ev).slice(-2)).toEqual(['settled', 'spawn']);
+      expect(find(ev, 'settled')[0]).toEqual({ type: 'settled', chain: 2, woke: 1 });
+      expect(g.state).toBe('falling');
+
+      // timeup: the chain wakes nobody, time stays 0
+      g = mk(1);
+      layout(g, [
+        '.ii..F',
+        'kkk.im'
+      ]);
+      ev = drop(g, 3, 'k', 'i');
+      g.timeMs = 0;
+      ev = ev.concat(run(g));
+      expect(find(ev, 'pop').map(function (e) { return e.chain; })).toEqual([1, 2]);
+      expect(ev[ev.length - 1]).toEqual({ type: 'over', reason: 'timeup' });
+      expect(find(ev, 'settled').length).toBe(0);
+      expect(g.state).toBe('over');
+      expect(g.overReason).toBe('timeup');
+    });
+
+    it('almost fires once', function () {
+      // 2 -> 1: once, right after the wake
+      var g = mk(1);
+      layout(g, [
+        '.....K',
+        'kkk.Fm'
+      ]);
+      var ev = drop(g, 3, 'k', 'm').concat(run(g));
+      expect(find(ev, 'almost').length).toBe(1);
+      expect(types(ev).indexOf('almost')).toBe(types(ev).indexOf('wake') + 1);
+      // a later lock with one sleeper left does not fire it again
+      g.board[12][0] = ball('mimitchi');
+      g.board[12][1] = ball('mimitchi');
+      ev = drop(g, 0, 'i', 'i').concat(run(g));
+      expect(find(ev, 'pop').length).toBe(1);
+      expect(find(ev, 'almost').length).toBe(0);
+
+      // 2 -> 0 at once: never fires
+      g = mk(1);
+      layout(g, [
+        'K.....',
+        'kkk.F.'
+      ]);
+      ev = drop(g, 3, 'k', 'm').concat(run(g));
+      expect(find(ev, 'almost').length).toBe(0);
+      expect(g.state).toBe('clear');
+    });
+
+    it('elapsed runs only while falling or settling', function () {
+      var g = mk(1);
+      clearBoard(g);
+      var t0 = g.timeMs;
+      E.step(g, 250);
+      expect(g.elapsedMs).toBe(250);
+      expect(g.timeMs).toBe(t0 - 250);
+      // settling: a split fall; the full ms counts even when the wait ends early
+      fillCol(g, 3, 11);
+      g.pair = { x: 2, y: K.SPAWN_Y, rot: 1, axis: 'mametchi', child: 'kuchipatchi' };
+      E.hardDrop(g);
+      expect(g.state).toBe('settling');
+      E.step(g, 1000);
+      expect(g.elapsedMs).toBe(1250);
+      expect(g.timeMs).toBe(t0 - 1250);
+      // over: nothing counts any more
+      g.timeMs = 5;
+      E.step(g, 10);
+      expect(g.state).toBe('over');
+      expect(g.elapsedMs).toBe(1260);
+      E.step(g, 1000);
+      expect(g.elapsedMs).toBe(1260);
+      expect(g.timeMs).toBe(0);
     });
   });
 })(Ailand);

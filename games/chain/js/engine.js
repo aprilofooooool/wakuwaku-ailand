@@ -96,8 +96,8 @@
     return [{ type: 'spawn', pair: game.pair }];
   }
 
-  // Drops every unsupported ball, bottom ball of each column first, one ball at a time.
-  // Sleepers never move. Returns the moves (and the largest distance in `maxDist`).
+  // Drops every unsupported ball and sleeper (design 2.4 step 4), bottom cell of each column first.
+  // Sleepers only ever float after a wake. Returns the moves (and the largest distance in `maxDist`).
   function applyGravity(game) {
     var moves = [];
     var maxDist = 0;
@@ -106,7 +106,7 @@
       for (var r = TOTAL_ROWS - 1; r >= 0; r--) {
         var cell = game.board[r][c];
         if (cell === null) { continue; }
-        if (cell.kind === 'ball' && r < floor) {
+        if (r < floor) {
           game.board[floor][c] = cell;
           game.board[r][c] = null;
           moves.push({ from: [c, r], to: [c, floor], kind: cell.kind, charId: cell.charId });
@@ -120,12 +120,115 @@
     return { moves: moves, maxDist: maxDist };
   }
 
-  // Settle phases: 'fall' (split balls drop, wait) -> spawn.
-  // Task 3 inserts groups -> pop (WOBBLE_MS wait) -> wake -> gravity between 'fall' and the spawn.
-  function advanceSettle(game) {
+  // Same-coloured balls joined up/down/left/right, POP_MIN or more (design 2.1, 2.4).
+  // Only visible rows count: the hidden row never pops.
+  function groups(board) {
+    var seen = {};
+    var out = [];
+    for (var r = K.HIDDEN; r < TOTAL_ROWS; r++) {
+      for (var c = 0; c < K.COLS; c++) {
+        var cell = board[r][c];
+        if (cell === null || cell.kind !== 'ball' || seen[c + ',' + r]) { continue; }
+        var cells = [];
+        var stack = [[c, r]];
+        seen[c + ',' + r] = true;
+        while (stack.length > 0) {
+          var p = stack.pop();
+          cells.push(p);
+          [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+            var nc = p[0] + d[0], nr = p[1] + d[1];
+            if (nc < 0 || nc >= K.COLS || nr < K.HIDDEN || nr >= TOTAL_ROWS || seen[nc + ',' + nr]) { return; }
+            var n = board[nr][nc];
+            if (n !== null && n.kind === 'ball' && n.charId === cell.charId) {
+              seen[nc + ',' + nr] = true;
+              stack.push([nc, nr]);
+            }
+          });
+        }
+        if (cells.length >= K.POP_MIN) { out.push({ charId: cell.charId, cells: cells }); }
+      }
+    }
+    return out;
+  }
+
+  // Removes the popped balls and wakes every sleeper next to one of them (design 2.4 step 3).
+  function popAndWake(game, popped) {
+    var events = [];
+    popped.forEach(function (p) { game.board[p.row][p.col] = null; });
+    var woken = [];
+    popped.forEach(function (p) {
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(function (d) {
+        var c = p.col + d[0], r = p.row + d[1];
+        if (c < 0 || c >= K.COLS || r < 0 || r >= TOTAL_ROWS) { return; }
+        var n = game.board[r][c];
+        if (n !== null && n.kind === 'sleep') {
+          woken.push({ col: c, row: r, charId: n.charId });
+          game.board[r][c] = null;
+        }
+      });
+    });
+    if (woken.length === 0) { return events; }
+    game.sleepers -= woken.length;
+    game.woke += woken.length;
+    game._settle.woke += woken.length;
+    var addMs = woken.length * K.DIFFICULTY[game.difficulty].wakeMs;
+    game.timeMs += addMs;
+    events.push({ type: 'wake', cells: woken, left: game.sleepers });
+    // design 3.3: once, the first time exactly one is left; dropping straight to 0 uses it up
+    if (!game._almostUsed && game.sleepers <= 1) {
+      game._almostUsed = true;
+      if (game.sleepers === 1) { events.push({ type: 'almost' }); }
+    }
+    events.push({ type: 'time', addMs: addMs });
+    return events;
+  }
+
+  // Design 2.5: clear, timeup (only judged here once the whole chain is over) or the next pair.
+  function finishSettle(game) {
+    var woke = game._settle.woke;
     game._settle = null;
+    if (game.sleepers === 0) {
+      game.state = 'clear';
+      return [{ type: 'clear' }];
+    }
+    if (game.timeMs <= 0) {
+      game.state = 'over';
+      game.overReason = 'timeup';
+      return [{ type: 'over', reason: 'timeup' }];
+    }
     game.state = 'falling';
-    return spawn(game);
+    return [{ type: 'settled', chain: game.chain, woke: woke }].concat(spawn(game));
+  }
+
+  // Called when the current settle wait ends. Phases (design 2.4):
+  // 'fall' -> groups: pop (WOBBLE_MS wait) or finish; 'pop' -> remove, wake, gravity -> 'fall' (or groups at once).
+  function advanceSettle(game) {
+    var s = game._settle;
+    var events = [];
+    if (s.phase === 'pop') {
+      events = events.concat(popAndWake(game, s.cells));
+      var g = applyGravity(game);
+      if (g.moves.length > 0) {
+        events.push({ type: 'fall', moves: g.moves });
+        s.phase = 'fall';
+        s.acc = 0;
+        s.wait = g.maxDist * K.FALL_CELL_MS;
+        return events;
+      }
+    }
+    var gs = groups(game.board);
+    if (gs.length === 0) { return events.concat(finishSettle(game)); }
+    game.chain++;
+    var cells = [];
+    gs.forEach(function (grp) {
+      grp.cells.forEach(function (p) { cells.push({ col: p[0], row: p[1], charId: grp.charId }); });
+    });
+    events.push({ type: 'pop', chain: game.chain, cells: cells });
+    s.phase = 'pop';
+    s.cells = cells;
+    s.acc = 0;
+    s.wait = K.WOBBLE_MS;
+    return events;
   }
 
   // Writes the pair into the board, lets the split balls fall and starts the settle wait.
@@ -133,11 +236,12 @@
     var cells = P.cells(game.pair).map(function (c) { return { col: c.col, row: c.row, charId: c.charId }; });
     cells.forEach(function (c) { game.board[c.row][c.col] = { kind: 'ball', charId: c.charId }; });
     game.pair = null;
+    game.chain = 0;
     var events = [{ type: 'lock', cells: cells }];
     var g = applyGravity(game);
     if (g.moves.length > 0) { events.push({ type: 'fall', moves: g.moves }); }
     game.state = 'settling';
-    game._settle = { phase: 'fall', acc: 0, wait: g.maxDist * K.FALL_CELL_MS };
+    game._settle = { phase: 'fall', acc: 0, wait: g.maxDist * K.FALL_CELL_MS, cells: null, woke: 0 };
     if (game._settle.wait === 0) { events = events.concat(advanceSettle(game)); }
     return events;
   }
@@ -170,7 +274,8 @@
       _fallAcc: 0,
       _lockAcc: 0,
       _resets: 0,
-      _settle: null
+      _settle: null,
+      _almostUsed: false
     };
     placeSleepers(game.board, rng, cfg.sleepers);
     drawNext(game);
@@ -219,6 +324,15 @@
   function step(game, ms) {
     var events = [];
     var left = ms;
+    if (game.state !== 'falling' && game.state !== 'settling') { return events; }
+    game.elapsedMs += ms;
+    game.timeMs = Math.max(0, game.timeMs - ms);
+    // design 2.5: while settling, time is judged only when the chain is over (finishSettle)
+    if (game.state === 'falling' && game.timeMs === 0) {
+      game.state = 'over';
+      game.overReason = 'timeup';
+      return [{ type: 'over', reason: 'timeup' }];
+    }
     if (game.state === 'settling') {
       game._settle.acc += ms;
       return game._settle.acc >= game._settle.wait ? advanceSettle(game) : events;
@@ -252,6 +366,7 @@
     softDrop: softDrop,
     hardDrop: hardDrop,
     step: step,
+    groups: groups,
     ghost: ghost,
     dangerous: dangerous
   };
