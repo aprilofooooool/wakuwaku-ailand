@@ -558,12 +558,23 @@
       expect(E.step(g, 15000)).toEqual([]);
       g = hard(['.f....']);
       expect(E.step(g, 15000)).toEqual([]);
-      // a ball only in the hidden row is not a candidate
-      g = hard(['M.....']);
-      g.board[11][0] = null;
+    });
+
+    it('a ball in the hidden row is not a turn candidate', function () {
+      var g = hard(['......']);
+      var r;
+      // column 0 is full: ball in the hidden row 0, a sleeper at the top visible row 1, sleepers below so nothing falls
       g.board[0][0] = ball('mametchi');
-      g.board[1][0] = null;
-      expect(E.step(g, 15000)).toEqual([]);
+      for (r = K.HIDDEN; r < K.ROWS + K.HIDDEN; r++) { g.board[r][0] = sleep('mametchi'); }
+      // the board holds 12 sleepers (the cap); report 11 so the cap does not hide a missing hidden-row check
+      g.sleepers = K.MAX_SLEEPERS - 1;
+      var before = JSON.stringify(g.board);
+      var ev = [];
+      for (var i = 0; i < 16; i++) { ev = ev.concat(E.step(g, 1000)); }
+      expect(g.state).toBe('falling');
+      expect(find(ev, 'turnWarn').length).toBe(0);
+      expect(find(ev, 'turn').length).toBe(0);
+      expect(JSON.stringify(g.board)).toBe(before);
     });
 
     it('stops at 12 sleepers', function () {

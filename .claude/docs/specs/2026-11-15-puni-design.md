@@ -216,7 +216,7 @@ iPhone 縦                     iPad 横・PC
 
 ## 9. 保存
 - `Ailand.core.Storage.create('chain')` を使う。キーは `ailand:chain:` で始まる。
-  - `settings.v1`：`{ char: id, difficulty: 'easy'|'normal'|'hard', seenHowTo: true|false }`。読めない値は既定（最初のキャラ・ふつう・false）。
+  - `settings.v1`：`{ char: id, difficulty: 'easy'|'normal'|'hard', seenHowTo: true|false }`。読めない値は既定（最初のキャラ・かんたん・false）（判断。テトリっちと同じ既定にし、初めての子どもが「かんたん」から始められるようにする。2026-11-15 実装時に「ふつう」から変更）。
   - `time.v1`：`{ easy: 秒, normal: 秒, hard: 秒 }`。読めない・数でない・0以下は「記録なし」。
 - 途中の状態は保存しない（§12）。
 

@@ -520,7 +520,9 @@
       if (fx === 'chain3') { Fx.flash(game.frame); Fx.sparkle(centerOf(game.frame)); }
       else if (fx === 'chain2') { Fx.flash(game.frame); }
       else if (fx === 'wake') { Fx.sparkle(centerOf(game.friends)); }
-      // 'clear' leaves the stage to the result card (confetti); a plain pop has only its sparkles.
+      // A lock that ends the game leaves face and line to the result screen (phase is not 'result' yet here).
+      var last = events.length ? events[events.length - 1].type : '';
+      if (last === 'over' || last === 'clear') { return; }
       var r = reactions.forSettled(fx);
       if (r.emotion) { react(r.emotion); }
       if (r.situation && controller.phase() === 'playing') { say(r.situation); }
@@ -745,7 +747,7 @@
     });
     on('settled', finishSettle);
     on('clear', function (p) { collect(p); finishSettle(); });
-    on('over', finishSettle);
+    on('over', function (p) { collect(p); finishSettle(); });
     on('danger', function (p) { game.frame.classList.toggle('is-danger', !!p.on); });
     on('result', onResult);
 

@@ -23,7 +23,7 @@
     },
     // A sleeper wakes up: a small rising "mu-ku".
     'chain-wake': function (c, d, t) { seq(c, d, t, [440, 587], 0.07, 0.1, 'sine', 0.3); },
-    // A pair arrives at the top.
+    // A woken friend lands in the "おきた ともだち" panel.
     'chain-arrive': function (c, d, t) { note(c, d, t, 700, 0, 0.05, 'sine', 0.15); },
     // Turn-over warning: a soft two-note nudge.
     'chain-turnwarn': function (c, d, t) { seq(c, d, t, [660, 660], 0.12, 0.07, 'triangle', 0.25); },
