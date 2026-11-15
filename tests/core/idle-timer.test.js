@@ -21,10 +21,13 @@
       }
     };
   }
+  // isHidden is pinned to false: the default reads document.hidden, and a test page opened in a
+  // background tab would arm() into 'paused' and never fire.
   function setup() {
     var c = { idle: 0, wake: 0 }, timers = fakeTimers();
     c.timers = timers;
-    c.t = T.create({ ms: 20000, timers: timers, onIdle: function () { c.idle++; }, onWake: function () { c.wake++; } });
+    c.t = T.create({ ms: 20000, timers: timers, isHidden: function () { return false; },
+      onIdle: function () { c.idle++; }, onWake: function () { c.wake++; } });
     return c;
   }
 

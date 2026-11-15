@@ -70,6 +70,13 @@
     }
   }
 
+  // Bgm stays silent while document.hidden is true, so a test page opened in a background tab
+  // would schedule nothing. Pin it to false on the document itself (shadows the prototype getter).
+  function withVisiblePage(fn) {
+    if (typeof document === 'undefined') { fn(); return; }
+    Object.defineProperty(document, 'hidden', { configurable: true, get: function () { return false; } });
+    try { fn(); } finally { delete document.hidden; }
+  }
   function withFake(state, fn, noNoise) {
     var made = null;
     window.AudioContext = function () { made = new FakeCtx(noNoise); made.state = state; return made; };
@@ -79,7 +86,7 @@
       Sound.unlock();
       // resume() of a suspended fake leaves it running in this stub; force the state under test
       if (made) { made.state = state; }
-      try { fn(made); } finally { delete window.AudioContext; Sound._reset(); Bgm.stop(); }
+      try { withVisiblePage(function () { fn(made); }); } finally { delete window.AudioContext; Sound._reset(); Bgm.stop(); }
     });
   }
 
