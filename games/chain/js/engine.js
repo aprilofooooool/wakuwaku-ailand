@@ -183,6 +183,65 @@
     return events;
   }
 
+  // Design 2.7 (hard only): picks a visible sleeper that touches a visible ball, and one of those balls.
+  function pickTurn(game) {
+    var sleepers = [];
+    var dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    var r, c;
+    for (r = K.HIDDEN; r < TOTAL_ROWS; r++) {
+      for (c = 0; c < K.COLS; c++) {
+        var cell = game.board[r][c];
+        if (cell === null || cell.kind !== 'sleep') { continue; }
+        var balls = [];
+        dirs.forEach(function (d) {
+          var nc = c + d[0], nr = r + d[1];
+          if (nc < 0 || nc >= K.COLS || nr < K.HIDDEN || nr >= TOTAL_ROWS) { return; }
+          var n = game.board[nr][nc];
+          if (n !== null && n.kind === 'ball') { balls.push({ col: nc, row: nr, cell: n }); }
+        });
+        if (balls.length > 0) { sleepers.push({ col: c, row: r, cell: cell, balls: balls }); }
+      }
+    }
+    if (sleepers.length === 0) { return null; }
+    var s = sleepers[Math.floor(game._turnRng() * sleepers.length)];
+    var b = s.balls[Math.floor(game._turnRng() * s.balls.length)];
+    return { sleeper: s, ball: b };
+  }
+
+  // Advances the turn timer by `ms` of falling time: warn at turnMs - TURN_WARN_MS, act at turnMs.
+  function turnTick(game, ms) {
+    var turnMs = K.DIFFICULTY[game.difficulty].turnMs;
+    var events = [];
+    if (turnMs === null) { return events; }
+    game._turnAcc += ms;
+    if (!game._turnWarned && game._turnAcc >= turnMs - K.TURN_WARN_MS) {
+      game._turnWarned = true;
+      var pick = game.sleepers >= K.MAX_SLEEPERS ? null : pickTurn(game);
+      if (pick) {
+        game._turnPending = pick;
+        events.push({ type: 'turnWarn', sleeper: [pick.sleeper.col, pick.sleeper.row], ball: [pick.ball.col, pick.ball.row] });
+      }
+    }
+    if (game._turnAcc >= turnMs) {
+      var p = game._turnPending;
+      if (p) {
+        // same objects as at warn time means nothing was popped, woken or moved there
+        if (game.board[p.sleeper.row][p.sleeper.col] === p.sleeper.cell && game.board[p.ball.row][p.ball.col] === p.ball.cell) {
+          var charId = p.ball.cell.charId;
+          game.board[p.ball.row][p.ball.col] = { kind: 'sleep', charId: charId };
+          game.sleepers++;
+          events.push({ type: 'turn', cell: [p.ball.col, p.ball.row], charId: charId, left: game.sleepers });
+        } else {
+          events.push({ type: 'turnCancel' });
+        }
+      }
+      game._turnAcc = 0;
+      game._turnWarned = false;
+      game._turnPending = null;
+    }
+    return events;
+  }
+
   // Design 2.5: clear, timeup (only judged here once the whole chain is over) or the next pair.
   function finishSettle(game) {
     var woke = game._settle.woke;
@@ -275,7 +334,10 @@
       _lockAcc: 0,
       _resets: 0,
       _settle: null,
-      _almostUsed: false
+      _almostUsed: false,
+      _turnAcc: 0,
+      _turnWarned: false,
+      _turnPending: null
     };
     placeSleepers(game.board, rng, cfg.sleepers);
     drawNext(game);
@@ -337,6 +399,7 @@
       game._settle.acc += ms;
       return game._settle.acc >= game._settle.wait ? advanceSettle(game) : events;
     }
+    if (game.state === 'falling') { events = events.concat(turnTick(game, ms)); }
     while (game.state === 'falling' && left > 0) {
       if (!canDown(game)) {
         game._lockAcc += left;

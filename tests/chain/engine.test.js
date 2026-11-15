@@ -508,4 +508,97 @@
       expect(g.timeMs).toBe(0);
     });
   });
+
+  describe('chain engine turn', function () {
+    function hard(lines) {
+      var g = mk(1, 'hard');
+      layout(g, lines);
+      g.fallMs = 1e9;   // keep the pair in the air so only the turn timer is tested
+      return g;
+    }
+
+    it('no turns on easy and normal', function () {
+      ['easy', 'normal'].forEach(function (d) {
+        var g = mk(1, d);
+        layout(g, ['Mf....']);
+        g.fallMs = 1e9;
+        g.timeMs = 1e9;
+        var ev = [];
+        for (var i = 0; i < 300; i++) { ev = ev.concat(E.step(g, 1000)); }
+        expect(find(ev, 'turnWarn').length).toBe(0);
+        expect(find(ev, 'turn').length).toBe(0);
+      });
+    });
+
+    it('hard warns at 13s and turns at 15s', function () {
+      var g = hard(['Mf....']);
+      expect(E.step(g, 12999)).toEqual([]);
+      expect(E.step(g, 1)).toEqual([{ type: 'turnWarn', sleeper: [0, 12], ball: [1, 12] }]);
+      expect(E.step(g, 1999)).toEqual([]);
+      expect(E.step(g, 1)).toEqual([{ type: 'turn', cell: [1, 12], charId: 'flowertchi', left: 2 }]);
+      expect(g.board[12][1]).toEqual(sleep('flowertchi'));
+      expect(g.sleepers).toBe(2);
+      // the timer restarts from 0
+      expect(E.step(g, 12999)).toEqual([]);
+    });
+
+    it('turn time does not run while settling', function () {
+      var g = hard(['Mf....']);
+      g.state = 'settling';
+      g._settle = { phase: 'fall', acc: 0, wait: 1e9, cells: null, woke: 0 };
+      expect(E.step(g, 20000)).toEqual([]);
+      g.state = 'falling';
+      g._settle = null;
+      expect(E.step(g, 12999)).toEqual([]);
+      expect(types(E.step(g, 1))).toEqual(['turnWarn']);
+    });
+
+    it('no candidate means no warn', function () {
+      var g = hard(['M.....']);
+      expect(E.step(g, 15000)).toEqual([]);
+      g = hard(['.f....']);
+      expect(E.step(g, 15000)).toEqual([]);
+      // a ball only in the hidden row is not a candidate
+      g = hard(['M.....']);
+      g.board[11][0] = null;
+      g.board[0][0] = ball('mametchi');
+      g.board[1][0] = null;
+      expect(E.step(g, 15000)).toEqual([]);
+    });
+
+    it('stops at 12 sleepers', function () {
+      var g = hard(['f.....', 'MMMMMM', 'MMMMMM']);
+      expect(g.sleepers).toBe(12);
+      expect(E.step(g, 15000)).toEqual([]);
+      expect(g.sleepers).toBe(12);
+    });
+
+    it('a warned turn is cancelled when the board changed', function () {
+      var g = hard(['Kkk..M']);
+      expect(types(E.step(g, 13000))).toEqual(['turnWarn']);
+      // popping the warned ball also wakes the warned sleeper
+      var ev = drop(g, 3, 'k', 'k').concat(run(g));
+      expect(find(ev, 'pop').length).toBe(1);
+      expect(g.sleepers).toBe(1);
+      expect(E.step(g, 2000)).toEqual([{ type: 'turnCancel' }]);
+      expect(g.sleepers).toBe(1);
+      expect(g.board[12][5]).toEqual(sleep('mametchi'));
+    });
+
+    it('almost does not fire again after a turn', function () {
+      var g = hard(['.....K', 'kkk.Fm']);
+      var ev = drop(g, 3, 'k', 'm').concat(run(g));
+      expect(find(ev, 'almost').length).toBe(1);
+      expect(g.sleepers).toBe(1);
+      expect(types(E.step(g, 13000))).toEqual(['turnWarn']);
+      expect(types(E.step(g, 2000))).toEqual(['turn']);
+      expect(g.sleepers).toBe(2);
+      // wake one: back to 1 sleeper, and almost stays quiet
+      for (var c = 1; c <= 4; c++) { g.board[12][c] = ball('mimitchi'); }
+      ev = drop(g, 0, 'k', 'm').concat(run(g));
+      expect(find(ev, 'wake').length).toBe(1);
+      expect(g.sleepers).toBe(1);
+      expect(find(ev, 'almost').length).toBe(0);
+    });
+  });
 })(Ailand);
