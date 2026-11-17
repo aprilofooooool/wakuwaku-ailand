@@ -12,8 +12,9 @@
 .fl-game-screen, .fl-game, .fl-boardwrap, .fl-board, .fl-tray, .fl-tpiece, .fl-drag, .fl-game button, .fl-hint, #modal-root button {
   touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
 }
-/* The zukan may be taller than a phone: a drag on its buttons must still scroll it. */
-.fl-zukan-screen button { touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+/* The zukan may be taller than a phone: a drag on it (buttons too) still scrolls it up and down,
+   but pinch and double-tap zoom stay off (pan-y allows only vertical panning). */
+.fl-zukan-screen, .fl-zukan-screen button { touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .fl-game-screen[hidden], .fl-zukan-screen[hidden], .fl-hint[hidden] { display: none !important; }
 .fl-hint { flex: none; }
 

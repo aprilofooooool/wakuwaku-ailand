@@ -43,8 +43,10 @@
         if (h.onCancel) { h.onCancel(); }
       },
       // Capture lost without a pointerup (the element left the page, the browser took the gesture): cancel.
+      // Only el's own capture counts: a child (e.g. the touched canvas) losing its implicit touch capture
+      // when el takes it bubbles up here with the same pointerId and must not end the drag.
       lostpointercapture: function (e) {
-        if (!mine(e)) { return; }
+        if (!mine(e) || e.target !== el) { return; }
         pid = null;
         if (h.onCancel) { h.onCancel(); }
       }

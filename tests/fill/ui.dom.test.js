@@ -282,6 +282,25 @@
       } finally { t.done(); }
     });
 
+    it('only a lost capture on the drag element cancels', function () {
+      var t = make();
+      try {
+        startFirst(t);
+        var id = trayIds(t)[0], spot = freeSpot(t, id);
+        t.controller.drop(id, spot.x, spot.y);
+        var q = boardPoint(t, id);
+        ptr(board(t), 'pointerdown', 1, q.x, q.y);
+        ptr(wrap(t), 'pointermove', 1, q.x + 40, q.y + 40);
+        // the board canvas loses its implicit touch capture; the event bubbles up to the wrap
+        ptr(board(t), 'lostpointercapture', 1, q.x + 40, q.y + 40);
+        expect(!!t.box.querySelector('.fl-drag')).toBe(true);
+        expect(eng(t).state(id).at).toEqual(spot);
+        ptr(wrap(t), 'lostpointercapture', 1, q.x + 40, q.y + 40);
+        expect(!!t.box.querySelector('.fl-drag')).toBe(false);
+        expect(eng(t).state(id).at).toBe(null);
+      } finally { t.done(); }
+    });
+
     it('pointercancel returns the piece', function () {
       var t = make();
       try {
