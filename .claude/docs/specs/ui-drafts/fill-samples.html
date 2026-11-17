@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ピタうめっち 絵の見本</title>
+<style>
+body{margin:0;padding:16px;background:#fff8ee;font-family:sans-serif;color:#4a3a2a}
+h1{font-size:20px;margin:0 0 4px}p{font-size:13px;color:#7a6a5a;margin:0 0 12px}
+.row{display:flex;flex-wrap:wrap;gap:16px}.card{background:#fff;border-radius:16px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,.12);text-align:center}
+.name{font-size:18px;font-weight:bold;margin-top:6px}.meta{font-size:12px;color:#9a8a7a}
+</style></head><body>
+<h1>ピタうめっち 絵の見本（使い捨て）</h1>
+<p>上：完成したときの絵。下：遊ぶ前の枠（点線のマス）。1マス＝4×4ドット。</p>
+<div class="row" id="out"></div>
+<script>
+var PICS = 
+["{ id: 'apple', name: 'りんご', level: 'easy', palette: { r: '#ef4a4a', d: '#c73636', w: '#ffffff', b: '#8a5a2b', g: '#5cb85c', k: '#5a2424' }, pixels: [\n'........................',\n'........................',\n'...........kk..kkk......',\n'..........kbbkkgggkk....',\n'..........kbbgggggggk...',\n'........k.kbbgggggggk...',\n'.....kkkdkkbbkkgggkk....',\n'....krrrrrrbbrrrrrdk....',\n'...krrrrrrrrrrrrrrrdk...',\n'..krrrrrrrrrrrrrrrrrdk..',\n'.krrrrwwrrrrrrrrrrrrrdk.',\n'.krrrwwrrrrrrrrrrrrrrdk.',\n'.krrrwrrrrrrrrrrrrrrrdk.',\n'.krrrrrrrrrrrrrrrrrrrdk.',\n'.krrrrrrrrrrrrrrrrrrrdk.',\n'.krrrrrrrrrrrrrrrrrrrdk.',\n'.krrrrrrrrrrrrrrrrrrrdk.',\n'.kdrrrrrrrrrrrrrrrrrrdk.',\n'..kdrrrrrrrrrrrrrrrrdk..',\n'...kdrrrrrrrrrrrrrrdk...',\n'....kddrrrrrrrrrrddk....',\n'.....kkddddddddddkk.....',\n'.......kkkkkkkkkk.......',\n'........................' ] }","{ id: 'poop', name: 'うんち', level: 'easy', palette: { n: '#b8783a', d: '#93592a', k: '#4a2c14', w: '#f5e1c8', p: '#ff9aa8' }, pixels: [\n'........................',\n'........................',\n'........................',\n'..............k.........',\n'.............kdk........',\n'............kndk........',\n'...........knndk........',\n'.........kknnndk........',\n'.......kknnnnndkk.......',\n'......knnnnnnnnndk......',\n'.....knnnnnwwnnnndk.....',\n'.....kdnnnnnnnnnndk.....',\n'.....kknnnnnnnnndkk.....',\n'....knnnnnnnnnnnnndk....',\n'...knnnnknnnnnnknnndk...',\n'...kdnnnknnnnnnknnndk...',\n'...kknpnnnnnnnnnnpdkk...',\n'..knnnnnnnknnknnnnnndk..',\n'.knnnnnnnnnkknnnnnnnndk.',\n'kdnnnnnnnnnnnnnnnnnnnndk',\n'.kdnnnnnnnnnnnnnnnnnndk.',\n'..kdddnnnnnnnnnnnndddk..',\n'...kkkddddddddddddkkk...',\n'......kkkkkkkkkkkk......' ] }","{ id: 'cat', name: 'ねこ', level: 'normal', palette: { o: '#f5a742', d: '#d9822b', k: '#4a3020', p: '#ffb3c0', w: '#ffffff', c: '#ff8fa0' }, pixels: [\n'............................',\n'............................',\n'............................',\n'............................',\n'....kk................kk....',\n'...kodk..............kodk...',\n'...koodkk..........kkoodk...',\n'...kopoodkkkkkkkkkkooopdk...',\n'...koppooooooooooooooppdk...',\n'...koppppooooddooooppppdk...',\n'...kopppppododdodopppppdk...',\n'...kopppooodoooodooopppdk...',\n'...kopoooooooooooooooopdk...',\n'..kooooooooooooooooooooodk..',\n'..kooooooooooooooooooooodk..',\n'..kooooowkoooooooowkoooodk..',\n'..koooookkooooooookkoooodk..',\n'..koooookkooooooookkoooodk..',\n'..kooooooooooooooooooooodk..',\n'..koooccoooooppoooooccoodk..',\n'..kdoooooooookkooooooooodk..',\n'...kdoooooookookooooooodk...',\n'....kdoooooooooooooooodk....',\n'.....kddooooooooooooddk.....',\n'......kkddooooooooddkk......',\n'........kkddddddddkk........',\n'..........kkkkkkkk..........',\n'............................' ] }"]
+;
+(function(){
+  var PX=8,D=4,out=document.getElementById('out');
+  PICS.forEach(function(t){
+    var p=Function('return ('+t+');')(),w=p.pixels[0].length,h=p.pixels.length;
+    var card=document.createElement('div');card.className='card';
+    var a=document.createElement('canvas');a.width=w*PX;a.height=h*PX;var c=a.getContext('2d');
+    c.fillStyle='#fffdf6';c.fillRect(0,0,a.width,a.height);
+    p.pixels.forEach(function(r,y){for(var x=0;x<r.length;x++){var ch=r.charAt(x);if(ch!=='.'){c.fillStyle=p.palette[ch];c.fillRect(x*PX,y*PX,PX,PX);}}});
+    var b=document.createElement('canvas');b.width=w*PX;b.height=h*PX;var d=b.getContext('2d'),S=D*PX,n=0;
+    d.fillStyle='#f3e9da';d.fillRect(0,0,b.width,b.height);
+    for(var cy=0;cy<h/D;cy++){for(var cx=0;cx<w/D;cx++){var on=0;for(var j=0;j<D;j++)for(var i=0;i<D;i++)if(p.pixels[cy*D+j].charAt(cx*D+i)!=='.')on=1;
+      if(on){n++;d.fillStyle='#fff';d.fillRect(cx*S+2,cy*S+2,S-4,S-4);d.strokeStyle='#d8c8b0';d.setLineDash([4,3]);d.strokeRect(cx*S+2.5,cy*S+2.5,S-5,S-5);}}}
+    card.appendChild(a);card.appendChild(document.createElement('br'));card.appendChild(b);
+    var nm=document.createElement('div');nm.className='name';nm.textContent=p.name;card.appendChild(nm);
+    var mt=document.createElement('div');mt.className='meta';mt.textContent=p.level+'・'+(w/D)+'×'+(h/D)+'マス・枠 '+n+'マス';card.appendChild(mt);
+    out.appendChild(card);
+  });
+})();
+</script></body></html>
