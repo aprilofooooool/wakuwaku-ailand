@@ -51,7 +51,7 @@
       for (k = 0; k < n; k++) { used.push(0); }
       for (j = 0; j < nbrs[idx].length; j++) {
         var nc = pieces[nbrs[idx][j]].color;
-        if (nc !== undefined) { used[nc]++; }
+        if (nc >= 0) { used[nc]++; }
       }
       var best = 0;
       for (k = 1; k < n; k++) { if (used[k] < used[best]) { best = k; } }
@@ -81,7 +81,7 @@
       abs.forEach(function (c) { minX = Math.min(minX, c[0]); minY = Math.min(minY, c[1]); });
       var o = Math.floor(rand() * 8);
       return { id: 'p' + i, cells: cells, answer: { x: minX, y: minY },
-        start: { rot: o % 4, flip: o >= 4 ? 1 : 0 }, color: 0 };
+        start: { rot: o % 4, flip: o >= 4 ? 1 : 0 }, color: -1 };
     });
     colorPieces(pieces);
     var tray = shuffle(pieces.map(function (p) { return p.id; }), rand);

@@ -80,10 +80,45 @@
         expect(p.color >= 0 && p.color <= 3).toBe(true);
       });
     });
+    it('same color on neighbors only when one of them sees all 4 colors around it', function () {
+      var D = [[1, 0], [-1, 0], [0, 1], [0, -1]], bad = 0, uncolored = 0;
+      F.Pictures.forEach(function (pic) {
+        for (var seed = 1; seed <= 10; seed++) {
+          var pz = Z.make(pic, seed), owner = {};
+          pz.pieces.forEach(function (p, i) {
+            if (!(p.color >= 0 && p.color <= 3)) { uncolored++; }
+            P.place(p.cells, p.answer.x, p.answer.y).forEach(function (c) { owner[c[0] + ',' + c[1]] = i; });
+          });
+          var nb = pz.pieces.map(function () { return {}; });
+          Object.keys(owner).forEach(function (k) {
+            var xy = k.split(','), x = +xy[0], y = +xy[1];
+            D.forEach(function (d) {
+              var o = owner[(x + d[0]) + ',' + (y + d[1])];
+              if (o !== undefined && o !== owner[k]) { nb[owner[k]][o] = true; }
+            });
+          });
+          function distinct(i) {
+            var set = {};
+            Object.keys(nb[i]).forEach(function (j) { set[pz.pieces[j].color] = true; });
+            return Object.keys(set).length;
+          }
+          pz.pieces.forEach(function (p, i) {
+            Object.keys(nb[i]).forEach(function (j) {
+              if (+j > i && pz.pieces[+j].color === p.color && distinct(i) < 4 && distinct(+j) < 4) { bad++; }
+            });
+          });
+        }
+      });
+      expect(uncolored).toBe(0);
+      expect(bad).toBe(0);
+    });
     it('neighbors get different colors when possible', function () {
       var pz = Z.make(rectPicture(2, 4), 1);
       expect(pz.pieces.length).toBe(2);
       expect(pz.pieces[0].color === pz.pieces[1].color).toBe(false);
+      // The first piece has only an uncolored neighbor, so color 0 must still be free.
+      expect(pz.pieces[0].color).toBe(0);
+      expect(pz.pieces[1].color).toBe(1);
     });
   });
 })(window.Ailand);
