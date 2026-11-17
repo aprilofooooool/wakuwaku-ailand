@@ -224,16 +224,17 @@ function ghost() {
 
 function dog() {
   const p = new Pic(28, 28);
-  p.ell(14, 14.5, 9, 9, 't');
+  p.tri(4.5, 13, 12, 8, 6, 2.5, 't').tri(23.5, 13, 16, 8, 22, 2.5, 't');
+  p.ell(14, 16, 10, 8.5, 't');
   p.outline('k').shade({ t: 'd' }, 'k');
-  p.layer((q) => q.ell(4.6, 13.5, 2.6, 6.5, 'e').ell(23.4, 13.5, 2.6, 6.5, 'e').ell(7, 7.5, 3, 2, 'e').ell(21, 7.5, 3, 2, 'e'), 'k');
-  p.outline('k').shade({ e: 'f' }, 'k');
-  p.layer((q) => q.ell(14, 19.5, 5, 3.6, 'm'), 'd');
-  p.eye(9, 12, 'big', 'k', 'w').eye(17, 12, 'big', 'k', 'w');
-  p.rect(12, 16, 4, 2, 'k').set(12, 16, 'w');
-  p.pts([[13, 18], [14, 18], [12, 19], [15, 19], [11, 19], [16, 19]], 'k');
-  p.pts([[13, 19], [14, 19], [13, 20], [14, 20]], 'p');
-  p.pts([[7, 17], [8, 17], [19, 17], [20, 17]], 'p');
+  p.tri(7, 10, 10.5, 8, 7, 5, 'p').tri(21, 10, 17.5, 8, 21, 5, 'p');
+  p.within('td', (q) => q.ell(14, 21, 8.5, 4.5, 'c').ell(7, 18, 3, 2.5, 'c').ell(21, 18, 3, 2.5, 'c'));
+  p.shade({ c: 's' }, 'k');
+  p.pts([[9, 11], [10, 11], [18, 11], [19, 11]], 'c');
+  p.eye(9, 13, 'mid', 'k', 'w').eye(18, 13, 'mid', 'k', 'w');
+  p.rect(13, 17, 3, 1, 'k').set(14, 18, 'k');
+  p.pts([[14, 19], [13, 20], [12, 20], [15, 20], [16, 20]], 'k');
+  p.pts([[6, 16], [7, 16], [21, 16], [22, 16]], 'p');
   return p;
 }
 
@@ -250,18 +251,17 @@ function rabbit() {
   return p;
 }
 
-function panda() {
+function koala() {
   const p = new Pic(28, 28);
-  p.ell(14, 24.5, 9.5, 6, 'b');
-  p.layer((q) => q.ell(8, 6, 3.2, 3.2, 'b').ell(20, 6, 3.2, 3.2, 'b'), 'k');
-  p.layer((q) => q.ell(14, 12, 11.5, 7.5, 'w'), 'k');
-  p.outline('k').shade({ w: 's' }, 'k');
-  p.ell(8.5, 11.5, 2.3, 2.8, 'b').ell(7.5, 13.5, 2, 1.8, 'b').ell(19.5, 11.5, 2.3, 2.8, 'b').ell(20.5, 13.5, 2, 1.8, 'b');
-  p.rect(8, 10, 2, 2, 'k').set(8, 10, 'w');
-  p.rect(18, 10, 2, 2, 'k').set(18, 10, 'w');
-  p.rect(12, 14, 4, 1, 'k').rect(13, 15, 2, 1, 'k');
-  p.pts([[12, 16], [15, 16]], 'k');
-  p.pts([[4, 15], [5, 15], [22, 15], [23, 15]], 'p');
+  p.ell(14, 25, 9, 5.5, 'g');
+  p.ell(5, 9.5, 4.5, 4.5, 'g').ell(23, 9.5, 4.5, 4.5, 'g');
+  p.layer((q) => q.ell(14, 15, 9.5, 8.5, 'g'), 'k');
+  p.outline('k').shade({ g: 'h' }, 'k');
+  p.ell(5, 10, 2.6, 2.8, 'l').ell(23, 10, 2.6, 2.8, 'l');
+  p.ell(14, 16, 2.4, 3.2, 'n').set(13, 14, 'w');
+  p.eye(8, 13, 'mid', 'k', 'w').eye(18, 13, 'mid', 'k', 'w');
+  p.pts([[13, 20], [14, 20]], 'k').pts([[12, 19], [15, 19]], 'k');
+  p.pts([[7, 17], [8, 17], [19, 17], [20, 17]], 'p');
   return p;
 }
 
@@ -454,9 +454,9 @@ const PICTURES = [
   { id: 'fish', name: 'さかな', level: 'easy', draw: fish, palette: { b: '#4aa8f0', d: '#2f7fc8', l: '#bfe4ff', w: '#ffffff', p: '#ffa8c0', k: '#1c3a5a' } },
   { id: 'ghost', name: 'おばけ', level: 'easy', draw: ghost, palette: { w: '#ffffff', s: '#d8d2ee', p: '#ffa8c8', k: '#4a3a6a' } },
   { id: 'cat', name: 'ねこ', level: 'normal', draw: cat, palette: { o: '#f5a742', d: '#d9822b', k: '#4a3020', p: '#ffb3c0', w: '#ffffff', c: '#ff8fa0' } },
-  { id: 'dog', name: 'いぬ', level: 'normal', draw: dog, palette: { t: '#e8c08a', d: '#c89a62', e: '#9a6a3a', f: '#7a5028', m: '#fff1dc', p: '#ff9aa8', w: '#ffffff', k: '#3a2614' } },
+  { id: 'dog', name: 'いぬ', level: 'normal', draw: dog, palette: { t: '#f2a450', d: '#d68236', c: '#fff4e2', s: '#ecd8bc', p: '#ff9aa8', w: '#ffffff', k: '#3a2414' } },
   { id: 'rabbit', name: 'うさぎ', level: 'normal', draw: rabbit, palette: { w: '#ffffff', s: '#ddd6e4', p: '#ffb0c4', n: '#ff7a9a', k: '#4a3a48' } },
-  { id: 'panda', name: 'パンダ', level: 'normal', draw: panda, palette: { w: '#ffffff', s: '#dcdcdc', b: '#3a3a3a', p: '#ffa8b8', k: '#1e1e1e' } },
+  { id: 'koala', name: 'コアラ', level: 'normal', draw: koala, palette: { g: '#a9a9b8', h: '#8a8a9c', l: '#e6e6ee', n: '#3e3848', p: '#ffa8b8', w: '#ffffff', k: '#2e2a38' } },
   { id: 'grapes', name: 'ぶどう', level: 'normal', draw: grapes, palette: { v: '#9a5ad0', d: '#6e3aa0', w: '#f2e4ff', b: '#8a5a2b', g: '#5cb85c', k: '#3a1c50' } },
   { id: 'banana', name: 'バナナ', level: 'normal', draw: banana, palette: { y: '#ffe04a', d: '#e8b82a', l: '#fff4b0', b: '#7a5a2b', k: '#5a4214' } },
   { id: 'watermelon', name: 'すいか', level: 'normal', draw: watermelon, palette: { g: '#3fae4a', h: '#2a8a36', w: '#f4ffe8', r: '#ff5a6a', k: '#1c3a1c' } },
