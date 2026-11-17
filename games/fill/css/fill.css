@@ -139,7 +139,6 @@ body.fl-playing .hdr-title { font-size: 16px; }
 .fl-done-extra.is-sparkle { color: #c98a00; text-shadow: 0 0 6px var(--fl-gold); }
 .fl-done-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
 .fl-done-actions .btn { min-width: 64px; min-height: 64px; }
-.fl-done button { touch-action: manipulation; }
 @media (prefers-reduced-motion: reduce) {
   .fl-board.is-glow, .fl-board.is-fade, .fl-reveal { animation: none; }
   .fl-done-extra.is-sparkle { text-shadow: none; }

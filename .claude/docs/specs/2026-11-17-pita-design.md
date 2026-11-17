@@ -160,7 +160,7 @@ iPhone 縦                          iPad 横・PC
 ```
 
 ### 4.5 一時停止・やめる
-- 時間が進まないので、アプリを切り替えても止める処理は要らない（BGM は `core/bgm.js` の既存の扱いで止まる）。
+- 画面が隠れると `core/loop.js` のループが止まるので、戻ったとき（`visibilitychange` で表示に戻ったとき）にプレイ中ならループを動かし直す（ヒントの影・はずみ・完成の演出を続けるため）。BGM は `core/bgm.js` の既存の扱いで止まる。
 - プレイ中の「もどる」：1まいも置いていなければすぐずかんへ。置いていれば「やめる？」を聞く（判断）。
 - 「せってい」の中身：「さいしょから」（同じ絵を新しい分け方で）と BGM の ON/OFF（判断。ぷにっちと同じ並び）。
 
@@ -237,7 +237,7 @@ iPhone 縦                          iPad 横・PC
   - `layout`・`render`（Canvas：盤・置いたピース・影・ヒントの影・完成の絵）・`drag`（Pointer Events でのドラッグ・吸い付き・置き場との行き来）・`fx`・`sounds`・`ui`・`main`。
 - 盤は Canvas、置き場・ボタン・キャラ・ずかんは HTML（判断。テトリっち・ぷにっちと同じ形）。置き場のピースとドラッグ中のピースの描き方（小さな Canvas か HTML か）は実装者。
 - `devicePixelRatio` に合わせてくっきり描く。`getImageData` 等で読み出さない（要件 1.1）。絵はデータから `fillRect` で描く。
-- 入力は Pointer Events。ドラッグは `setPointerCapture`。盤と置き場とボタンは `touch-action: none`（要件 1.2）。
+- 入力は Pointer Events。ドラッグは `setPointerCapture`。盤と置き場とボタンは `touch-action: none`（要件 1.2）。ただしずかん画面だけは `touch-action: pan-y`（背の高いずかんを縦にスクロールできるようにしつつ、ピンチ拡大は止める。要件 1.2 からの意図した例外）。
 - ピースの色：4キャラのイメージ色（`Ailand.core.Characters` の `colors.main`）を順に使う（判断。答えの一例でとなり合うピースが同じ色にならないように割り当てる。4色で足りないときは同じ色がとなり合ってよいが、ピースの境目に濃い線を描いて見分けられるようにする）。
 - 時計・きろく・押しっぱなしは使わない。テトリっち・ぷにっちのファイルは変えない。
 - core の変更：`games.js` の fill 行を `name: 'ピタうめっち'`・`href: 'games/fill/index.html'`・`ready: true`・`saveKey: null` にする。それ以外の core は変えない（必要になったら本書に追記してから変える）。

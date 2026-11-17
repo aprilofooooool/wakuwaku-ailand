@@ -695,6 +695,9 @@
     on('clear', function () { sfx('fill-clear'); });
     on('done', showFinished);
 
+    // Core Loop stops itself while the page is hidden; restart it on return while a picture is open.
+    function onVisible() { if (!document.hidden && game) { loop.start(); } }
+    document.addEventListener('visibilitychange', onVisible);
     function onResize() { applyLayout(); if (game && game.reveal) { paintReveal(); } }
     window.addEventListener('resize', onResize);
     window.addEventListener('orientationchange', onResize);
@@ -721,6 +724,7 @@
         leaveGame();
         Bgm.stop();
         offs.forEach(function (off) { if (typeof off === 'function') { off(); } });
+        document.removeEventListener('visibilitychange', onVisible);
         window.removeEventListener('resize', onResize);
         window.removeEventListener('orientationchange', onResize);
         if (header.parentNode) { header.parentNode.removeChild(header); }

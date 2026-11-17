@@ -17,7 +17,7 @@
   }
   function fakeLoop() {
     var on = false;
-    return { start: function () { on = true; }, stop: function () { on = false; }, isRunning: function () { return on; } };
+    return { starts: 0, start: function () { on = true; this.starts++; }, stop: function () { on = false; }, isRunning: function () { return on; } };
   }
 
   function make(tab, zukan) {
@@ -27,9 +27,10 @@
     var bus = A.core.EventBus.create();
     var controller = G.Controller.create({ bus: bus, storage: fakeStorage(tab, zukan), seed: function () { return 7; } });
     var linePicker = A.core.LinePicker.create({ gameLines: G.Lines, commonLines: A.core.CommonLines, rng: function () { return 0; } });
-    var ui = G.UI.init(box, controller, { bus: bus, loop: fakeLoop(), linePicker: linePicker, rng: function () { return 0.5; } });
+    var loop = fakeLoop();
+    var ui = G.UI.init(box, controller, { bus: bus, loop: loop, linePicker: linePicker, rng: function () { return 0.5; } });
     return {
-      box: box, bus: bus, controller: controller, ui: ui,
+      box: box, bus: bus, controller: controller, ui: ui, loop: loop,
       done: function () { ui.destroy(); box.remove(); }
     };
   }
@@ -193,6 +194,33 @@
         tabs[1].click();
         expect(t.controller.loadSettings().tab).toBe('normal');
         expect(cards(t)[0].textContent.indexOf('？') >= 0).toBe(true);
+      } finally { t.done(); }
+    });
+
+    it('restarts the loop when the page becomes visible again during play', function () {
+      var t = make();
+      function setHidden(h) {
+        Object.defineProperty(document, 'hidden', { configurable: true, get: function () { return h; } });
+        document.dispatchEvent(new Event('visibilitychange'));
+      }
+      try {
+        startFirst(t);
+        t.loop.stop(); // core Loop stops itself while hidden
+        var n = t.loop.starts;
+        setHidden(true);
+        expect(t.loop.starts).toBe(n);
+        setHidden(false);
+        expect(t.loop.starts).toBe(n + 1);
+        expect(t.loop.isRunning()).toBe(true);
+      } finally { delete document.hidden; t.done(); }
+    });
+
+    it('does not start the loop on return while on the zukan', function () {
+      var t = make();
+      try {
+        var n = t.loop.starts;
+        document.dispatchEvent(new Event('visibilitychange'));
+        expect(t.loop.starts).toBe(n);
       } finally { t.done(); }
     });
 

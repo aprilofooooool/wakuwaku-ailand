@@ -4,7 +4,7 @@
     DOTS_PER_CELL: 4,
     PIECE_MIN: 4,
     PIECE_MAX: 5,
-    MAX_TRIES: 200,
+    MAX_TRIES: 1000,
     HINT_MS: 2000,
     PLACE_REACT_RATE: 1 / 3,
     CHARS: ['mametchi', 'kuchipatchi', 'mimitchi', 'flowertchi'],
