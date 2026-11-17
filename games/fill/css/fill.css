@@ -1,0 +1,120 @@
+/* fill (ピタうめっち). Soft mint page (the others: cream, light blue, green, pink, apricot; the entrance: lavender),
+   white panels with the navy outline (design 4.1). The board canvas size comes from Layout.cellSize in ui.js. */
+:root {
+  --page-bg: #dcf5ef;
+  --page-dot: #bce8dd;
+  --fl-on-bg: #d2f2ea;
+  --fl-gold: #ffc83a;
+  --fl-tray: #f4fbf9;
+}
+
+/* Board, tray and buttons: no scroll, pinch or double-tap zoom, text selection or long-press menu (design 2.3). */
+.fl-game-screen, .fl-game, .fl-boardwrap, .fl-board, .fl-tray, .fl-tpiece, .fl-drag, .fl-game button, .fl-hint, #modal-root button {
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+/* The zukan may be taller than a phone: a drag on its buttons must still scroll it. */
+.fl-zukan-screen button { touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.fl-game-screen[hidden], .fl-zukan-screen[hidden], .fl-hint[hidden] { display: none !important; }
+.fl-hint { flex: none; }
+
+/* ---------- zukan screen (design 4.3) ---------- */
+.fl-zukan-screen { max-width: var(--content-max); margin: 0 auto; padding: 12px 16px calc(32px + env(safe-area-inset-bottom)); }
+.fl-panel { background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-l); box-shadow: var(--shadow-m); padding: 12px 14px 14px; margin: 0 0 16px; }
+.fl-charlist { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.fl-charbtn { font: inherit; color: var(--ink); min-width: 64px; min-height: 72px; padding: 4px 2px; display: flex; align-items: center; justify-content: center; background: var(--surface); border: var(--border-w) solid var(--disabled-bg); border-radius: var(--radius-m); cursor: pointer; }
+.fl-charbtn[aria-pressed="true"] { border-color: var(--outline); background: var(--fl-on-bg); box-shadow: var(--shadow-s); }
+.fl-charface { display: block; width: 56px; height: 56px; }
+.fl-tabs { display: flex; gap: 6px; }
+.fl-tab { flex: 1 1 0; font: inherit; font-size: 18px; font-weight: 900; color: var(--ink); min-width: 64px; min-height: 64px; padding: 4px 6px; background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-m); box-shadow: var(--shadow-s); cursor: pointer; word-break: keep-all; }
+.fl-tab[aria-pressed="true"] { background: var(--accent-yellow); }
+.fl-counts { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 10px 2px 8px; font-size: 18px; font-weight: 900; }
+.fl-left { color: var(--accent-pink-strong); }
+.fl-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.fl-card { position: relative; font: inherit; color: var(--ink); min-width: 64px; min-height: 64px; padding: 6px 4px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--fl-tray); border: var(--border-w) solid var(--outline); border-radius: var(--radius-m); box-shadow: var(--shadow-s); cursor: pointer; }
+.fl-card.is-done { background: var(--surface); }
+.fl-cardpic { position: relative; width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
+.fl-cardcanvas { display: block; max-width: 100%; max-height: 100%; image-rendering: pixelated; }
+.fl-q { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 900; color: var(--ink); text-shadow: 0 0 3px #fff, 0 0 6px #fff; }
+.fl-cardname { font-size: 18px; font-weight: 900; line-height: 1.2; text-align: center; word-break: keep-all; overflow-wrap: anywhere; }
+/* キラキラ: a shining gold edge; reduced motion shows a still star instead (design 4.3). */
+.fl-card.is-sparkle { border-color: var(--fl-gold); animation: fl-sparkle 1200ms ease-in-out infinite alternate; }
+@keyframes fl-sparkle { from { box-shadow: 0 0 2px var(--fl-gold), var(--shadow-s); } to { box-shadow: 0 0 14px var(--fl-gold), 0 0 4px var(--fl-gold); } }
+.fl-star { display: none; position: absolute; top: -10px; right: -8px; font-size: 24px; line-height: 1; color: var(--fl-gold); text-shadow: 0 0 2px var(--outline), 0 0 2px var(--outline); }
+.fl-startpanel { display: flex; justify-content: center; }
+.fl-howto, .fl-menu .btn { min-width: 64px; min-height: 64px; }
+.fl-howto-body { text-align: center; }
+.fl-howto-face { width: 96px; height: 96px; margin: 0 auto 8px; }
+.fl-howto-text { margin: 0 0 12px; font-size: 18px; font-weight: 800; word-break: keep-all; overflow-wrap: anywhere; }
+
+/* ---------- play screen (design 4.4) ---------- */
+body.fl-playing { overflow: hidden; }
+body.fl-playing .hdr-title { font-size: 16px; }
+.fl-game-screen { position: relative; overflow: hidden; height: 100%; }
+/* Phone portrait: board, the character, the tray, then まわす・うらがえす. */
+.fl-game {
+  height: 100%; box-sizing: border-box; display: grid; gap: 8px;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1.6fr) auto minmax(0, 1fr) auto;
+  grid-template-areas: "board" "buddy" "tray" "act";
+}
+.fl-boardwrap { grid-area: board; position: relative; min-width: 0; min-height: 0; }
+.fl-boardframe { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); line-height: 0; padding: 1px; background: var(--fl-tray); border: 3px solid var(--outline); border-radius: 10px; box-shadow: var(--shadow-s); }
+.fl-board { display: block; }
+
+.fl-buddy { grid-area: buddy; display: flex; align-items: center; gap: 8px; height: 64px; min-width: 0; }
+.fl-facewrap { position: relative; flex: none; width: 60px; height: 60px; }
+.fl-face { width: 100%; height: 100%; border-radius: 50%; background: var(--surface); border: var(--border-w) solid var(--outline); overflow: hidden; box-sizing: border-box; }
+.fl-mark { position: absolute; top: -4px; right: -4px; font-size: 22px; line-height: 1; }
+/* Speech bubble (core/effects.js): beside the face, never over the board. */
+.fl-say { position: relative; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; pointer-events: none; }
+/* A line that is fading out sits under the new one instead of beside it. */
+.fl-say .fx-bubble.fx-out { position: absolute; left: 0; }
+
+.fl-tray { grid-area: tray; min-height: 0; min-width: 0; overflow: hidden; box-sizing: border-box; padding: 8px; display: flex; flex-wrap: wrap; align-content: flex-start; align-items: flex-start; background: var(--fl-tray); border: var(--border-w) solid var(--outline); border-radius: var(--radius-m); box-shadow: var(--shadow-s); }
+.fl-tpiece { flex: none; line-height: 0; cursor: grab; }
+.fl-tpiece canvas { display: block; }
+/* The selected piece (design 2.3): a gold glow along its shape. */
+.fl-tpiece.is-selected { filter: drop-shadow(0 0 2px var(--fl-gold)) drop-shadow(0 0 3px var(--fl-gold)); }
+.fl-drag { position: fixed; left: 0; top: 0; z-index: 50; line-height: 0; pointer-events: none; filter: drop-shadow(0 6px 4px rgba(58, 47, 90, 0.3)); }
+.fl-drag canvas { display: block; }
+
+.fl-act { grid-area: act; display: flex; gap: 10px; }
+.fl-actbtn { flex: 1 1 0; min-width: 64px; min-height: 68px; padding: 2px 6px; display: flex; align-items: center; justify-content: center; gap: 6px; font: inherit; color: var(--ink); background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-m); box-shadow: var(--shadow-s); cursor: pointer; }
+.fl-ico { font-size: 30px; font-weight: 900; line-height: 1; }
+.fl-actlabel { font-size: 18px; font-weight: 900; }
+.fl-actbtn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--outline); background: var(--accent-yellow); }
+/* Nothing selected: the buttons look off (design 2.3). */
+.fl-actbtn:disabled { color: var(--disabled-ink); background: var(--disabled-bg); border-color: var(--disabled-ink); box-shadow: none; cursor: default; transform: none; }
+.fl-actbtn:focus-visible, .fl-card:focus-visible, .fl-tab:focus-visible, .fl-charbtn:focus-visible { outline: 4px solid var(--accent-blue); outline-offset: 2px; }
+
+/* Landscape / PC (design 4.4): the board left; the character, tray and buttons right. */
+@media (min-aspect-ratio: 1/1) {
+  .fl-game {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: "board buddy" "board tray" "board act";
+  }
+}
+/* Phone landscape: compact header (buttons stay 64px), same as chain. */
+@media (orientation: landscape) and (max-height: 500px) {
+  :root { --header-h: 67px; }
+  .fl-game { gap: 6px; padding-top: 6px; }
+  .fl-buddy { height: 52px; }
+  .fl-facewrap { width: 50px; height: 50px; }
+  .fl-actbtn { min-height: 64px; }
+}
+
+/* ---------- menus ---------- */
+.fl-menu { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.fl-rule { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0; }
+.fl-rulename { font-weight: 900; min-width: 4em; }
+.fl-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.fl-choice { font: inherit; font-size: 18px; font-weight: 800; color: var(--ink); min-width: 64px; min-height: 64px; padding: 6px 16px; background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-round); box-shadow: var(--shadow-s); cursor: pointer; }
+.fl-choice[aria-pressed="true"] { background: var(--accent-yellow); }
+
+/* Reduced motion (design 5.2): base.css stops every animation; キラキラ becomes a still gold edge and a star. */
+@media (prefers-reduced-motion: reduce) {
+  .fl-card.is-sparkle { box-shadow: 0 0 0 3px var(--fl-gold); }
+  .fl-star { display: block; }
+}
