@@ -100,7 +100,7 @@
 - 絵はすべて本書作成者側（実装者）がオリジナルで描く。既存の作品・キャラに似せない。
 - 文字の並びを1行ずつ手で書くと崩れるため、**まる・三角・四角などの図形を組み合わせて描く小さなプログラム**で作り、出てきたデータを §6 の形式で保存する（試作 `.claude/docs/specs/ui-drafts/fill-samples.html` のりんご・うんち・ねこがこの作り方。この3まいはそのまま使ってよい）。
 - **絵を先に作り、ユーザーに24まいを見てもらってからずかんに載せる**（判断。絵は手戻りがいちばん大きく、過去に絵の案が2回見送られたため）。見る場は `fill-samples.html` と同じ形の一覧ページ。確認を待つ間は、絵に頼らない部分（piece・puzzle・engine）だけ進めてよい。
-- 図形を組み合わせるプログラムは `tools/fill-pictures.js`（Node。ゲームからは読まない）に置き、絵を足すときにも使えるようにする（判断）。実行は `node tools/fill-pictures.js`（判断。Python ではないので `scripts\run.bat` 経由にしない。既存の `tests/tools/serve.js` と同じ扱い）。
+- 図形を組み合わせるプログラムは `tools/fill-pictures/fill-pictures.js`（Node。ゲームからは読まない）に置き、絵を足すときにも使えるようにする（判断）。実行は `scripts\run.bat fill-pictures`（判断。既存の `resize-images` と同じく run.bat に入口を足す。2026-11-17 計画時に `node` 直接実行から変更）。このプログラムが `games/fill/js/pictures.js` と見本の一覧ページ `.claude/docs/specs/ui-drafts/fill-samples.html` を書き出す。
 - 共通の描き方（判断。試作で「かわいい」と判断された見た目）：濃い色の外ぶち1ドット、右下に少し暗い影、顔のあるものは黒い目＋白い光・ピンクのほっぺ。色は1まい8色以内。
 
 ### 3.3 絵を増やす（アップデート）
