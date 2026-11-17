@@ -8,12 +8,14 @@
     var st = {};          // id -> { rot, flip, at }
     var lastFired = false, hinted = false;
     var total = puzzle.pieces.length;
+    var byId = {};          // ids may be strings like "p0", so not an array index
+    puzzle.pieces.forEach(function (p) { byId[p.id] = p; });
 
     puzzle.pieces.forEach(function (p) {
       st[p.id] = { rot: p.start.rot, flip: p.start.flip, at: null };
     });
 
-    function cellsOf(id) { return puzzle.pieces[id].cells; }
+    function cellsOf(id) { return byId[id].cells; }
 
     function shape(id) { return P.orient(cellsOf(id), st[id].rot, st[id].flip === 1); }
 
@@ -88,13 +90,13 @@
       var tray = wrong.filter(function (id) { return !st[id].at; });
       var pool = tray.length ? tray : wrong;
       var id = pool[Math.floor(rand() * pool.length)];
-      var p = puzzle.pieces[id];
+      var p = byId[id];
       hinted = true;
       return { id: id, x: p.answer.x, y: p.answer.y, cells: P.place(p.cells, p.answer.x, p.answer.y) };
     }
 
     function isCorrectCells(id) {
-      var s = st[id], p = puzzle.pieces[id];
+      var s = st[id], p = byId[id];
       return !!s.at && sameAbsolute(P.place(shape(id), s.at.x, s.at.y), P.place(p.cells, p.answer.x, p.answer.y));
     }
 

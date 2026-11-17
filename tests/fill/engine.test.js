@@ -185,6 +185,13 @@
       e2.drop(0, 0, 0);
       expect(e2.hint(A.core.Rng.mulberry32(1)).id).toBe(1);
     });
+    it('works with string piece ids like the real puzzle', function () {
+      var pz = twoO();
+      pz.pieces[0].id = 'p0'; pz.pieces[1].id = 'p1'; pz.tray = ['p0', 'p1'];
+      var e = E.create(pz);
+      expect(types(e.drop('p0', 0, 0)).join(',')).toBe('placed,last');
+      expect(types(e.drop('p1', 0, 2)).join(',')).toBe('placed,clear');
+    });
     it('hint marks hintUsed', function () {
       var e = E.create(twoO());
       expect(e.hintUsed()).toBe(false);
