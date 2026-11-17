@@ -6,7 +6,7 @@
     { id: 'drop4', name: 'ぽとん4', href: 'games/drop4/index.html', ready: true, saveKey: 'ailand:drop4:save.v1' },
     { id: 'othello', name: 'オセロっち', href: 'games/othello/index.html', ready: true, saveKey: 'ailand:othello:save.v1' },
     { id: 'whack', name: 'ピコハンっち', href: 'games/whack/index.html', ready: true, saveKey: null },
-    { id: 'fill', name: 'ピースうめ', href: '', ready: false, saveKey: null },
+    { id: 'fill', name: 'ピタうめっち', href: 'games/fill/index.html', ready: true, saveKey: null },
     { id: 'territory', name: 'ピースじんとり', href: '', ready: false, saveKey: null },
     { id: 'blocks', name: 'テトリっち', href: 'games/blocks/index.html', ready: true, saveKey: null },
     { id: 'chain', name: 'ぷにっち', href: 'games/chain/index.html', ready: true, saveKey: null }

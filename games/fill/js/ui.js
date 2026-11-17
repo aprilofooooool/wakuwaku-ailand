@@ -2,7 +2,7 @@
   'use strict';
   // fill screens: zukan (design 4.3) and play (4.4) with drag (2.3). Copied from the chain UI and adapted.
   // DOM is touched only after init(). The loop runs only on the play screen (it times the hint shadow).
-  var C = Ailand.core, K = G.Constants, L = G.Layout, R = G.Render, P = G.Piece, Sound = C.Sound, Bgm = C.Bgm;
+  var C = Ailand.core, K = G.Constants, L = G.Layout, R = G.Render, P = G.Piece, Sound = C.Sound, Bgm = C.Bgm, Fx = G.Fx;
 
   var LEVELS = [['easy', 'かんたん'], ['normal', 'ふつう'], ['hard', 'むずかしい']];
   var ACTS = [['rotate', '↻', 'まわす'], ['flip', '⇋', 'うらがえす']];
@@ -14,7 +14,7 @@
   var START_BUBBLE_MS = 2000;
   var BUBBLE_FADE_MS = 250;    // core/effects.js bubble fade-out
   var REACT_MS = 1600;         // the chosen character goes back to normal after a reaction
-  var DONE_MS = 1500;          // the finished picture shows this long before the zukan (Task 9 adds the done screen)
+  var DONE_DOT = 6;            // canvas px per dot of the picture on the done screen
   var MAX_DPR = 3;
   var FRAME_PX = 8;            // the board frame's border on both sides (css .fl-boardframe) and a little air
   var CARD_DOT = 4;            // canvas px per dot on the zukan cards
@@ -213,13 +213,14 @@
 
     function beginPlay(id) {
       clearTimers();
+      Fx.stop();
       endDrag();
       var s = controller.loadSettings();
       var nth = 1;
       controller.listOf(pictureOf(id).level).forEach(function (it, i) { if (it.picture.id === id) { nth = i + 1; } });
       game = {
         id: id, profile: profileOf(s.char), cell: 0, dpr: 1, trayCell: TRAY_CELL,
-        selected: null, drag: null, hint: null, clockMs: 0, bubbleUntil: 0, reactToken: 0
+        selected: null, drag: null, hint: null, pop: null, clear: null, reveal: null, clockMs: 0, bubbleUntil: 0, reactToken: 0
       };
       buildGame();
       zukanScreen.hidden = true;
@@ -325,8 +326,10 @@
       var ghost = game.drag && game.drag.ghost;
       R.board(game.ctx, {
         frame: controller.puzzle().frame, pieces: boardPieces(), selected: game.selected,
-        ghost: ghost || null, hint: game.hint, cell: game.cell, dpr: game.dpr
+        ghost: ghost || null, hint: game.hint, cell: game.cell, dpr: game.dpr,
+        pop: game.pop ? { id: game.pop.id, scale: Fx.popScale(game.pop.t) } : null
       });
+      if (game.pop) { game.canvas.setAttribute('data-pop', '1'); } else { game.canvas.removeAttribute('data-pop'); }
       if (ghost) { game.canvas.setAttribute('data-ghost', '1'); } else { game.canvas.removeAttribute('data-ghost'); }
     }
 
@@ -519,18 +522,90 @@
       say(r.situation, BUBBLE_MS, force);
     }
 
-    // The picture is complete: show the dots on the board, then back to the zukan.
-    // Task 9 replaces this with the full effect and the done screen.
+    // ---------- clear (design 4.6, 5.2) ----------
+
+    // The picture is complete. Driven by step(): the pieces shine, fade into the dot picture, the name and the
+    // cheer come with confetti, then the done screen. Reduced motion: the picture just appears.
     function showFinished() {
-      var res = controller.result;
+      var res = controller.result || {};
+      endDrag();
+      game.selected = null;
+      game.pop = null;
+      redraw();
       game.finished = true;
       hintBtn.hidden = true;
       paintActs();
+      var reduced = C.Effects.isReduced();
+      game.clear = { t: 0, stage: 0, res: res, tl: Fx.timeline(reduced), reduced: reduced };
+      if (!reduced) { game.canvas.classList.add('is-glow'); }
+      advanceClear(0);
+    }
+
+    function advanceClear(ms) {
+      var c = game.clear;
+      c.t += ms;
+      if (c.stage < 1 && c.t >= c.tl.reveal) { c.stage = 1; revealPicture(); }
+      if (c.stage < 2 && c.t >= c.tl.cheer) { c.stage = 2; cheer(); }
+      if (c.stage < 3 && c.t >= c.tl.done) { c.stage = 3; game.clear = null; showDone(); }
+    }
+
+    // The dot picture on a canvas over the board; the pieces fade out under it.
+    function paintReveal() {
+      var pc = game.reveal, cv = game.canvas;
+      pc.width = cv.width; pc.height = cv.height;
+      pc.style.width = cv.style.width; pc.style.height = cv.style.height;
+      R.picture(pc.getContext('2d'), pictureOf(game.id), game.cell * game.dpr / K.DOTS_PER_CELL);
+    }
+    function revealPicture() {
+      game.reveal = el('canvas', 'fl-reveal' + (game.clear.reduced ? ' is-still' : ''));
+      game.canvas.parentNode.appendChild(game.reveal);
+      paintReveal();
+      game.canvas.classList.remove('is-glow');
+      if (game.clear.reduced) { game.canvas.style.visibility = 'hidden'; } else { game.canvas.classList.add('is-fade'); }
+    }
+
+    function cheer() {
+      var res = game.clear.res;
+      titleEl.textContent = pictureOf(game.id).name;
+      reactTo(reactions.forClear(!!res.sparkle, !!res.pageDone), true);
+      Fx.confetti();
+      if (res.sparkleNew) {
+        var r = game.canvas.getBoundingClientRect();
+        Fx.sparkle({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+      }
+    }
+
+    function showDone() {
+      var res = controller.result || {};
       var pic = pictureOf(game.id);
-      R.picture(game.ctx, pic, game.cell * game.dpr / K.DOTS_PER_CELL);
-      titleEl.textContent = pic.name;
-      reactTo(reactions.forClear(!!(res && res.sparkle), !!(res && res.pageDone)), true);
-      later(showZukan, DONE_MS);
+      var level = '';
+      LEVELS.forEach(function (it) { if (it[0] === pic.level) { level = it[1]; } });
+      var over = el('div', 'fl-done');
+      var card = el('div', 'fl-done-card');
+      var cv = el('canvas', 'fl-done-pic');
+      cv.width = pic.pixels[0].length * DONE_DOT;
+      cv.height = pic.pixels.length * DONE_DOT;
+      R.picture(cv.getContext('2d'), pic, DONE_DOT);
+      card.appendChild(cv);
+      card.appendChild(el('p', 'fl-done-title', pic.name + ' が できた！'));
+      card.appendChild(el('p', 'fl-done-sub', 'ずかんに はったよ'));
+      if (res.sparkleNew) { card.appendChild(el('p', 'fl-done-extra is-sparkle', 'キラキラ ゲット！')); }
+      if (res.pageDone) { card.appendChild(el('p', 'fl-done-extra', level + ' ぜんぶ できた！')); }
+      var acts = el('div', 'fl-done-actions');
+      var next = button('btn btn-main fl-next', 'つぎの え', onNext);
+      acts.appendChild(next);
+      acts.appendChild(button('btn btn-sub fl-tozukan', 'ずかんに もどる', showZukan));
+      card.appendChild(acts);
+      over.appendChild(card);
+      gameScreen.appendChild(over);
+      if (res.sparkleNew) { sfx('fill-sparkle'); }
+      next.focus();
+    }
+
+    function onNext() {
+      var id = null;
+      try { id = controller.nextPictureId(game.id); } catch (err) { id = null; }
+      if (id) { startPicture(id); } else { showZukan(); }
     }
 
     function startBgm() { if (Sound.isBgmOn()) { Bgm.start(G.Sounds.BGM); } else { Bgm.stop(); } }
@@ -538,6 +613,7 @@
     function leaveGame() {
       loop.stop();
       clearTimers();
+      Fx.stop();
       endDrag();
       if (detachDrag) { detachDrag(); detachDrag = null; }
       if (controller.phase() !== 'zukan') { controller.quit(); }
@@ -602,7 +678,11 @@
     var offs = [];
     function on(name, fn) { offs.push(bus.on(name, function (p) { if (game) { fn(p); } })); }
 
-    on('placed', function () { sfx('fill-place'); reactTo(reactions.forPlaced()); });
+    on('placed', function (p) {
+      sfx('fill-place');
+      if (!C.Effects.isReduced()) { game.pop = { id: p.id, t: 0 }; }
+      reactTo(reactions.forPlaced());
+    });
     on('returned', function () { sfx('fill-return'); });
     on('last', function () { reactTo(reactions.forLast(), true); });
     on('hint', function (h) {
@@ -615,7 +695,7 @@
     on('clear', function () { sfx('fill-clear'); });
     on('done', showFinished);
 
-    function onResize() { applyLayout(); }
+    function onResize() { applyLayout(); if (game && game.reveal) { paintReveal(); } }
     window.addEventListener('resize', onResize);
     window.addEventListener('orientationchange', onResize);
 
@@ -629,6 +709,12 @@
         if (!game) { return; }
         game.clockMs += ms || 0;
         if (game.hint && game.clockMs >= game.hint.until) { game.hint = null; redraw(); }
+        if (game.pop) {
+          game.pop.t += ms || 0;
+          if (game.pop.t >= Fx.POP_MS) { game.pop = null; }
+          redraw();
+        }
+        if (game.clear) { advanceClear(ms || 0); }
       },
       // Tests: removes the UI, its header and listeners.
       destroy: function () {

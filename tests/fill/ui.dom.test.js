@@ -83,6 +83,29 @@
     return { x: b.left + c0[0] * c + 1, y: b.top + c0[1] * c + 1 };
   }
 
+
+  // Solves the picture through the controller (turn to the answer shape, drop on the answer spot).
+  function key(cells) { return JSON.stringify(cells.slice().sort()); }
+  function solveOne(t, id) {
+    var ctl = t.controller, e = ctl.engine(), n = 0;
+    var p = ctl.puzzle().pieces.filter(function (q) { return q.id === id; })[0];
+    while (key(P.normalize(e.shape(id))) !== key(P.normalize(p.cells)) && n < 8) { ctl.turn(id, n === 3 ? 'flip' : 'rotate'); n++; }
+    ctl.drop(id, p.answer.x, p.answer.y);
+  }
+  function solveAll(t) { t.controller.puzzle().pieces.forEach(function (p) { solveOne(t, p.id); }); }
+  function withReduced(on, fn) {
+    var orig = window.matchMedia;
+    window.matchMedia = function (q) { return { matches: on && /reduced-motion/.test(q), addListener: function () {}, removeListener: function () {} }; };
+    try { fn(); } finally { window.matchMedia = orig; }
+  }
+  function clearFx() { var l = document.getElementById('fx-layer'); if (l) { l.innerHTML = ''; } }
+  function doneScreen(t) { return t.box.querySelector('.fl-done'); }
+  function easyDone(except) {
+    var z = {};
+    G.Pictures.filter(function (p) { return p.level === 'easy' && p.id !== except; }).forEach(function (p) { z[p.id] = { done: true, sparkle: false }; });
+    return z;
+  }
+
   // Loads the real game page in a w x h iframe on the hard page, starts the picture/seed that makes `pieces`
   // pieces (how-to skipped, saved settings restored after) and calls check(doc).
   function inFrame(w, h, pieces, check) {
@@ -319,6 +342,118 @@
         expect(!!t.box.querySelector('.fl-drag')).toBe(false);
         expect(board(t).hasAttribute('data-ghost')).toBe(false);
       } finally { t.done(); }
+    });
+
+    it('clearing shows the picture then the done screen', function () {
+      withReduced(false, function () {
+        clearFx();
+        var t = make();
+        try {
+          startFirst(t);
+          solveAll(t);
+          expect(t.controller.phase()).toBe('done');
+          expect(!!doneScreen(t)).toBe(false);
+          expect(!!t.box.querySelector('.fl-reveal')).toBe(false);
+          t.ui.step(700);                       // the pieces shine, then the picture floats in
+          expect(!!t.box.querySelector('.fl-reveal')).toBe(true);
+          expect(!!doneScreen(t)).toBe(false);
+          t.ui.step(1000);                      // the name and the cheer
+          expect(document.querySelector('.app-header .hdr-title').textContent).toBe('りんご');
+          expect(document.querySelectorAll('#fx-layer .fx-p').length > 0).toBe(true);
+          expect(!!doneScreen(t)).toBe(false);
+          t.ui.step(2000);                      // the done screen
+          var d = doneScreen(t);
+          expect(!!d).toBe(true);
+          expect(d.textContent.indexOf('りんご が できた！') >= 0).toBe(true);
+          expect(d.textContent.indexOf('ずかんに はったよ') >= 0).toBe(true);
+          expect(d.textContent.indexOf('キラキラ ゲット！') >= 0).toBe(true);
+          expect(d.querySelector('.fl-next').textContent).toBe('つぎの え');
+          expect(d.querySelector('.fl-tozukan').textContent).toBe('ずかんに もどる');
+          Array.prototype.forEach.call(d.querySelectorAll('button'), function (b) {
+            var r = b.getBoundingClientRect();
+            expect(r.width >= 64 && r.height >= 64).toBe(true);
+          });
+        } finally { t.done(); clearFx(); }
+      });
+    });
+
+    it('done screen says ぜんぶ できた when the page is complete, and no キラキラ after a hint', function () {
+      var t = make('easy', easyDone('apple'));
+      try {
+        startFirst(t);
+        t.controller.hint(function () { return 0; });
+        solveAll(t);
+        t.ui.step(6000);
+        var d = doneScreen(t);
+        expect(d.textContent.indexOf('かんたん ぜんぶ できた！') >= 0).toBe(true);
+        expect(d.textContent.indexOf('キラキラ') < 0).toBe(true);
+      } finally { t.done(); }
+    });
+
+    it('next picture opens the next unfinished one', function () {
+      var t = make();
+      try {
+        startFirst(t);
+        solveAll(t);
+        t.ui.step(6000);
+        doneScreen(t).querySelector('.fl-next').click();
+        expect(t.controller.phase()).toBe('play');
+        expect(!!doneScreen(t)).toBe(false);
+        // apple is done, so the next unfinished one is the second easy picture
+        expect(document.querySelector('.app-header .hdr-title').textContent.indexOf('2まいめ') >= 0).toBe(true);
+        expect(t.box.querySelectorAll('.fl-tray [data-piece-id]').length).toBe(t.controller.puzzle().pieces.length);
+        expect(t.controller.engine().placedCount()).toBe(0);
+      } finally { t.done(); }
+    });
+
+    it('back to zukan shows the card as done', function () {
+      var t = make();
+      try {
+        startFirst(t);
+        solveAll(t);
+        t.ui.step(6000);
+        doneScreen(t).querySelector('.fl-tozukan').click();
+        expect(t.box.querySelector('.fl-zukan-screen').hidden).toBe(false);
+        expect(cards(t)[0].classList.contains('is-done')).toBe(true);
+        expect(cards(t)[0].classList.contains('is-sparkle')).toBe(true);
+        expect(t.box.querySelector('.fl-count').textContent).toBe('できた 1／8');
+        expect(!!doneScreen(t)).toBe(false);
+      } finally { t.done(); }
+    });
+
+    it('reduced motion skips the bounce and confetti', function () {
+      function place(t) {
+        startFirst(t);
+        var id = trayIds(t)[0], spot = freeSpot(t, id);
+        down(t, id);
+        dragTo(t, spot.x, spot.y);
+        expect(eng(t).state(id).at).toEqual(spot);
+      }
+      withReduced(false, function () {
+        var t = make();
+        try {
+          place(t);
+          expect(board(t).getAttribute('data-pop')).toBe('1');
+          t.ui.step(1000);
+          expect(board(t).hasAttribute('data-pop')).toBe(false);
+        } finally { t.done(); }
+      });
+      withReduced(true, function () {
+        clearFx();
+        var t = make();
+        try {
+          place(t);
+          expect(board(t).hasAttribute('data-pop')).toBe(false);
+          t.controller.restart();
+          solveAll(t);
+          t.ui.step(50);                         // the picture shows at once, no shine
+          expect(!!t.box.querySelector('.fl-reveal')).toBe(true);
+          expect(board(t).classList.contains('is-glow')).toBe(false);
+          t.ui.step(6000);
+          expect(document.querySelectorAll('#fx-layer .fx-p').length).toBe(0);
+          expect(!!doneScreen(t)).toBe(true);
+        } finally { t.done(); clearFx(); }
+      });
     });
 
     it('fits 390x844 without scrolling', function () {

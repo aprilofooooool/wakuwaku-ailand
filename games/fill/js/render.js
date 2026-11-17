@@ -71,7 +71,7 @@
   }
 
   // o: { frame, pieces: { id: { cells (absolute), color } }, selected, ghost: { cells, color }|null,
-  //      hint: { cells }|null, cell, dpr }. The canvas is frame.w x frame.h cells.
+  //      hint: { cells }|null, pop: { id, scale }|null, cell, dpr }. The canvas is frame.w x frame.h cells.
   function board(ctx, o) {
     var cell = o.cell, frame = o.frame;
     begin(ctx, o.dpr || 1);
@@ -90,12 +90,25 @@
     ctx.stroke();
 
     var ids = Object.keys(o.pieces || {});
-    ids.forEach(function (id) {
-      if (id !== o.selected) { drawPiece(ctx, o.pieces[id].cells, o.pieces[id].color, cell, 0, 0, false); }
-    });
-    if (o.selected && o.pieces && o.pieces[o.selected]) {
-      drawPiece(ctx, o.pieces[o.selected].cells, o.pieces[o.selected].color, cell, 0, 0, true);
+    function put(id, selected) {
+      var pc = o.pieces[id];
+      if (o.pop && o.pop.id === id && o.pop.scale !== 1) {
+        // a placed piece bounces: scaled around its own center
+        var cx = 0, cy = 0;
+        pc.cells.forEach(function (c) { cx += c[0] + 0.5; cy += c[1] + 0.5; });
+        cx = cx / pc.cells.length * cell; cy = cy / pc.cells.length * cell;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(o.pop.scale, o.pop.scale);
+        ctx.translate(-cx, -cy);
+        drawPiece(ctx, pc.cells, pc.color, cell, 0, 0, selected);
+        ctx.restore();
+      } else {
+        drawPiece(ctx, pc.cells, pc.color, cell, 0, 0, selected);
+      }
     }
+    ids.forEach(function (id) { if (id !== o.selected) { put(id, false); } });
+    if (o.selected && o.pieces && o.pieces[o.selected]) { put(o.selected, true); }
     if (o.hint) {
       ctx.save();
       ctx.globalAlpha = HINT_ALPHA;

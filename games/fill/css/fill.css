@@ -119,3 +119,28 @@ body.fl-playing .hdr-title { font-size: 16px; }
   .fl-card.is-sparkle { box-shadow: 0 0 0 3px var(--fl-gold); }
   .fl-star { display: block; }
 }
+
+/* ---------- clear (design 4.6, 5.2) ---------- */
+/* The pieces shine, then fade while the dot picture floats in over them. */
+.fl-board.is-glow { animation: fl-glow 600ms ease-in-out forwards; }
+@keyframes fl-glow { from { filter: none; } to { filter: brightness(1.35) drop-shadow(0 0 8px var(--fl-gold)); } }
+.fl-board.is-fade { animation: fl-fade 800ms ease-out forwards; }
+@keyframes fl-fade { from { opacity: 1; } to { opacity: 0; } }
+.fl-reveal { position: absolute; left: 1px; top: 1px; image-rendering: pixelated; animation: fl-float 800ms ease-out both; }
+.fl-reveal.is-still { animation: none; }
+@keyframes fl-float { from { opacity: 0; transform: translateY(6px) scale(0.94); } to { opacity: 1; transform: none; } }
+
+.fl-done { position: absolute; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(255, 255, 255, 0.72); }
+.fl-done-card { box-sizing: border-box; width: 100%; max-width: 360px; max-height: 100%; overflow: auto; text-align: center; padding: 16px; background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-l); box-shadow: var(--shadow-m); }
+.fl-done-pic { display: block; margin: 0 auto 8px; max-width: 60%; height: auto; image-rendering: pixelated; }
+.fl-done-title { margin: 0; font-size: 24px; font-weight: 900; }
+.fl-done-sub { margin: 4px 0 8px; font-size: 18px; font-weight: 800; }
+.fl-done-extra { margin: 4px 0; font-size: 20px; font-weight: 900; color: var(--accent-pink-strong); }
+.fl-done-extra.is-sparkle { color: #c98a00; text-shadow: 0 0 6px var(--fl-gold); }
+.fl-done-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.fl-done-actions .btn { min-width: 64px; min-height: 64px; }
+.fl-done button { touch-action: manipulation; }
+@media (prefers-reduced-motion: reduce) {
+  .fl-board.is-glow, .fl-board.is-fade, .fl-reveal { animation: none; }
+  .fl-done-extra.is-sparkle { text-shadow: none; }
+}
