@@ -4,8 +4,8 @@
   var F = A.games.fill, Ctl = F.Controller;
 
   function pick(id) { return F.Pictures.filter(function (p) { return p.id === id; })[0]; }
-  // easy 2 (apple, strawberry), normal 1 (cat)
-  var PICS = [pick('apple'), pick('strawberry'), pick('cat')];
+  // easy 3 (apple, strawberry, orange), normal 1 (cat)
+  var PICS = [pick('apple'), pick('strawberry'), pick('orange'), pick('cat')];
 
   function fakeStorage(init) {
     var m = init || {};
@@ -76,7 +76,7 @@
       var z = t2.ctl.zukan();
       expect(Object.keys(z).join(',')).toBe('strawberry');
       expect(z.strawberry.sparkle).toBe(false);
-      expect(t2.ctl.listOf('easy').length).toBe(2);
+      expect(t2.ctl.listOf('easy').length).toBe(3);
     });
 
     it('broken settings fall back per field', function () {
@@ -131,15 +131,7 @@
     });
 
     it('next picture order', function () {
-      var t = make();
-      expect(t.ctl.nextPictureId('apple')).toBe('strawberry');
-      expect(t.ctl.nextPictureId('strawberry')).toBe('apple');
-      var u = make({ 'zukan.v1': { strawberry: { done: true, sparkle: false } } });
-      expect(u.ctl.nextPictureId('apple')).toBe('strawberry');
-      expect(u.ctl.nextPictureId('strawberry')).toBe('apple');
-      var w = make({ 'zukan.v1': { apple: { done: true, sparkle: false }, strawberry: { done: true, sparkle: false } } });
-      expect(w.ctl.nextPictureId('apple')).toBe('strawberry');
-      expect(w.ctl.nextPictureId('strawberry')).toBe('apple');
+function zk(ids) {        var z = {};        ids.forEach(function (i) { z[i] = { done: true, sparkle: false }; });        return make({ 'zukan.v1': z }).ctl;      }      expect(zk([]).nextPictureId('apple')).toBe('strawberry');      expect(zk([]).nextPictureId('strawberry')).toBe('orange');      expect(zk(['strawberry']).nextPictureId('apple')).toBe('orange');      expect(zk(['orange']).nextPictureId('strawberry')).toBe('apple');      expect(zk(['apple']).nextPictureId('orange')).toBe('strawberry');      expect(zk(['apple', 'strawberry', 'orange']).nextPictureId('apple')).toBe('strawberry');      expect(zk(['apple', 'strawberry', 'orange']).nextPictureId('orange')).toBe('apple');
     });
 
     it('pageDone only on the first full page', function () {
@@ -147,9 +139,19 @@
       clearIt(t, 'apple', false);
       expect(t.ctl.result.pageDone).toBe(false);
       clearIt(t, 'strawberry', false);
-      expect(t.ctl.result.pageDone).toBe(true);
-      clearIt(t, 'strawberry', false);
       expect(t.ctl.result.pageDone).toBe(false);
+      clearIt(t, 'orange', false);
+      expect(t.ctl.result.pageDone).toBe(true);
+      clearIt(t, 'orange', false);
+      expect(t.ctl.result.pageDone).toBe(false);
+    });
+
+    it('keeps records of pictures that left the list', function () {
+      var t = make({ 'zukan.v1': { gone: { done: true, sparkle: true } } });
+      clearIt(t, 'apple', false);
+      var saved = t.storage.m['zukan.v1'];
+      expect(saved.gone.sparkle).toBe(true);
+      expect(saved.apple.done).toBe(true);
     });
   });
 })(Ailand);

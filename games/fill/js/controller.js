@@ -75,8 +75,14 @@
       var before = z[curId];
       var pageBefore = doneCount(pic.level) === ofLevel(pic.level).length;
       var sparkle = !!(before && before.sparkle) || !eng.hintUsed();
-      z[curId] = { done: true, sparkle: sparkle };
-      storage.set(ZUKAN_KEY, z);
+      // Write from the raw stored object so records of pictures no longer in the list are kept.
+      var raw = storage.get(ZUKAN_KEY, null);
+      var out = {};
+      if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+        Object.keys(raw).forEach(function (k) { out[k] = raw[k]; });
+      }
+      out[curId] = { done: true, sparkle: sparkle };
+      storage.set(ZUKAN_KEY, out);
       var pageNow = doneCount(pic.level) === ofLevel(pic.level).length;
       curPhase = 'done';
       result = {
