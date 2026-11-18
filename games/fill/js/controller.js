@@ -130,12 +130,12 @@
       doneCount: doneCount,
       start: start,
       drop: function (id, x, y) { return playing() ? handle(eng.drop(id, x, y)) : []; },
-      toTray: function (id) { return playing() ? handle(eng.toTray(id)) : []; },
-      turn: function (id, kind) { return playing() ? handle(eng.turn(id, kind)) : []; },
-      // The engine throws when nothing is left to hint, so only ask it while playing.
-      hint: function (rand) {
+      turn: function (id) { return playing() ? handle(eng.turn(id)) : []; },
+      // The engine returns null when nothing is left to hint.
+      hint: function (rand, preferId) {
         if (!playing()) { return null; }
-        var h = eng.hint(rand || Math.random);
+        var h = eng.hint(rand || Math.random, preferId);
+        if (!h) { return null; }
         bus.emit('hint', h);
         return h;
       },

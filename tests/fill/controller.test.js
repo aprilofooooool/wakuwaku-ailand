@@ -24,14 +24,10 @@
     return { ctl: ctl, log: log, storage: storage };
   }
   function names(log) { return log.map(function (e) { return e.name; }); }
-  function key(cells) { return JSON.stringify(cells.slice().sort()); }
-  // Turns a piece until its shape matches the answer shape, then drops it on the answer.
+    // Turns a piece until it is upright (rot 0), then drops it on the answer.
   function solveOne(ctl, id) {
     var p = ctl.puzzle().pieces.filter(function (q) { return q.id === id; })[0], e = ctl.engine(), n = 0;
-    while (key(F.Piece.normalize(e.shape(id))) !== key(F.Piece.normalize(p.cells)) && n < 8) {
-      ctl.turn(id, n === 3 ? 'flip' : 'rotate');
-      n++;
-    }
+    while (e.state(id).rot !== 0 && n < 4) { ctl.turn(id); n++; }
     ctl.drop(id, p.answer.x, p.answer.y);
   }
   function solveAll(ctl) {
@@ -116,8 +112,6 @@
       expect(t.ctl.needsQuitConfirm()).toBe(false);
       solveOne(t.ctl, 'p0');
       expect(t.ctl.needsQuitConfirm()).toBe(true);
-      t.ctl.toTray('p0');
-      expect(t.ctl.needsQuitConfirm()).toBe(false);
       t.ctl.quit();
       expect(t.ctl.phase()).toBe('zukan');
     });

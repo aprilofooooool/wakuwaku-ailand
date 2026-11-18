@@ -12,7 +12,7 @@
     return { w: w, h: h, on: on, cells: cells, count: w * h };
   }
   function piece(id, cells, ax, ay) {
-    return { id: id, cells: cells, answer: { x: ax, y: ay }, start: { rot: 0, flip: 0 }, color: 0 };
+    return { id: id, cells: cells, answer: { x: ax, y: ay }, start: { rot: 0 } };
   }
   var O = [[0, 0], [1, 0], [0, 1], [1, 1]];
   var I5 = [[0, 0], [1, 0], [2, 0], [3, 0], [4, 0]];
@@ -27,163 +27,130 @@
     for (i = 0; i < 4; i++) { ps.push(piece(i, I5, 0, i)); }
     return { frame: full(5, 4), seed: 1, pieces: ps, tray: [0, 1, 2, 3] };
   }
-  // 3x3 frame with one L piece.
-  function oneL() {
-    return { frame: full(3, 3), seed: 1, pieces: [piece(0, [[0, 0], [0, 1], [1, 1]], 0, 0)], tray: [0] };
-  }
   function types(ev) { return ev.map(function (e) { return e.type; }); }
 
   describe('fill engine', function () {
     it('starts with every piece in the tray in its start orientation', function () {
       var pz = twoO();
-      pz.pieces[1].start = { rot: 1, flip: 1 };
+      pz.pieces[1].start = { rot: 1 };
       var e = E.create(pz);
       expect(e.inTray()).toEqual([0, 1]);
-      expect(e.state(1)).toEqual({ rot: 1, flip: 1, at: null });
-      expect(e.shape(1)).toEqual(P.orient(O, 1, true));
+      expect(e.state(1)).toEqual({ rot: 1, at: null });
+      expect(e.shape(1)).toEqual(P.orient(O, 1));
       expect(e.placedCount()).toBe(0);
       expect(e.isClear()).toBe(false);
       expect(e.hintUsed()).toBe(false);
     });
-    it('drop places when it fits', function () {
+    it('drop places at the answer position', function () {
       var e = E.create(twoO());
-      var ev = e.drop(0, 0, 1);
+      var ev = e.drop(0, 0, 0);
       expect(ev).toEqual([{ type: 'placed', id: 0 }, { type: 'last' }]);
-      expect(e.state(0).at).toEqual({ x: 0, y: 1 });
-      expect(e.occupied()).toEqual({ '0,1': 0, '1,1': 0, '0,2': 0, '1,2': 0 });
+      expect(e.state(0).at).toEqual({ x: 0, y: 0 });
+      expect(e.occupied()).toEqual({ '0,0': 0, '1,0': 0, '0,1': 0, '1,1': 0 });
       expect(e.inTray()).toEqual([1]);
       expect(e.placedCount()).toBe(1);
     });
-    it('out of frame or overlap returns to the tray', function () {
-      var e = E.create(twoO());
-      e.drop(0, 0, 0);
-      var before = JSON.stringify(e.occupied());
-      expect(types(e.drop(1, 1, 3))).toEqual(['returned']);
-      expect(e.state(1).at).toBe(null);
-      expect(types(e.drop(1, 0, 1))).toEqual(['returned']);
-      expect(e.state(1).at).toBe(null);
-      expect(JSON.stringify(e.occupied())).toBe(before);
-      expect(e.inTray()).toEqual([1]);
-    });
-    it('moving a placed piece frees the old spot', function () {
-      var e = E.create(twoO());
-      e.drop(0, 0, 0);
-      expect(types(e.drop(0, 0, 2))).toEqual(['placed']);
-      expect(e.occupied()['0,0']).toBe(undefined);
-      expect(e.occupied()['0,2']).toBe(0);
-      expect(e.placedCount()).toBe(1);
-      // Shifting by one overlaps only its own old cells: allowed.
-      expect(types(e.drop(0, 0, 1))).toEqual(['placed']);
-      expect(e.state(0).at).toEqual({ x: 0, y: 1 });
-    });
-    it('a failed move sends the placed piece back to the tray', function () {
-      var e = E.create(twoO());
-      e.drop(0, 0, 0);
-      expect(types(e.drop(0, 1, 3))).toEqual(['returned']);
-      expect(e.state(0).at).toBe(null);
-      expect(e.occupied()).toEqual({});
-    });
-    it('toTray returns a placed piece', function () {
-      var e = E.create(twoO());
-      e.drop(0, 0, 0);
-      expect(e.toTray(0)).toEqual([{ type: 'returned', id: 0 }]);
-      expect(e.state(0).at).toBe(null);
-      expect(e.inTray()).toEqual([0, 1]);
-      expect(e.occupied()).toEqual({});
-    });
-    it('rotate and flip match Piece for a tray piece', function () {
-      var pz = oneL();
-      pz.pieces[0].start = { rot: 1, flip: 0 };
-      var e = E.create(pz), r, f;
-      for (r = 0; r < 4; r++) {
-        for (f = 0; f < 2; f++) {
-          var before = e.shape(0);
-          expect(types(e.turn(0, 'rotate'))).toEqual(['turned']);
-          expect(e.shape(0)).toEqual(P.rotate(before));
-          before = e.shape(0);
-          expect(types(e.turn(0, 'flip'))).toEqual(['turned']);
-          expect(e.shape(0)).toEqual(P.flip(before));
-        }
+    it('snaps within one cell, returns at two', function () {
+      var ax = 2, ay = 2;
+      function fresh() {
+        var pz = { frame: full(6, 6), seed: 1, pieces: [piece(0, O, ax, ay), piece(1, O, 0, 0), piece(2, O, 4, 4)], tray: [0, 1, 2] };
+        return E.create(pz);
       }
+      [[0, 0], [1, 0], [-1, 1], [1, 1], [-1, -1]].forEach(function (d) {
+        var e = fresh();
+        expect(types(e.drop(0, ax + d[0], ay + d[1]))).toEqual(['placed']);
+        expect(e.state(0).at).toEqual({ x: ax, y: ay });
+      });
+      [[2, 0], [0, -2], [-2, 2], [0, 3]].forEach(function (d) {
+        var e = fresh();
+        expect(types(e.drop(0, ax + d[0], ay + d[1]))).toEqual(['returned']);
+        expect(e.state(0).at).toBe(null);
+      });
+    });
+    it('wrong turn does not snap', function () {
+      var pz = twoO();
+      pz.pieces[0] = piece(0, [[0, 0], [0, 1], [1, 1]], 0, 0);
+      pz.pieces[0].start = { rot: 1 };
+      var e = E.create(pz);
+      expect(types(e.drop(0, 0, 0))).toEqual(['returned']);
+      expect(e.state(0).at).toBe(null);
+      e.turn(0); e.turn(0); e.turn(0);
+      expect(e.state(0).rot).toBe(0);
+      expect(types(e.drop(0, 0, 0))[0]).toBe('placed');
+    });
+    it('a symmetric shape in the wrong turn does not snap', function () {
+      var pz = twoO();
+      pz.pieces[0].start = { rot: 2 };
+      var e = E.create(pz);
+      expect(types(e.drop(0, 0, 0))).toEqual(['returned']);
       expect(e.state(0).at).toBe(null);
     });
-    it('turning a placed piece stays or returns', function () {
-      var e = E.create(oneL());
-      e.drop(0, 1, 1);
-      var ev = e.turn(0, 'flip');
-      expect(ev).toEqual([{ type: 'turned', id: 0 }]);
-      expect(e.state(0).at).toEqual({ x: 1, y: 1 });
-      expect(e.occupied()).toEqual({ '2,1': 0, '1,2': 0, '2,2': 0 });
-      // Rotating at the edge: the new shape sticks out, so it goes back to the tray.
-      var e2 = E.create(rows());
-      e2.drop(0, 0, 0);
-      var ev2 = e2.turn(0, 'rotate');
-      expect(ev2).toEqual([{ type: 'turned', id: 0 }, { type: 'returned', id: 0 }]);
-      expect(e2.state(0).at).toBe(null);
-      expect(e2.state(0).rot).toBe(1);
-      expect(e2.occupied()).toEqual({});
-      expect(e2.inTray()).toEqual([0, 1, 2, 3]);
+    it('turn rotates a tray piece clockwise like Piece.orient', function () {
+      var pz = twoO();
+      pz.pieces[0] = piece(0, [[0, 0], [0, 1], [1, 1]], 0, 0);
+      var e = E.create(pz), r;
+      for (r = 1; r <= 5; r++) {
+        expect(types(e.turn(0))).toEqual(['turned']);
+        expect(e.state(0).rot).toBe(r % 4);
+        expect(e.shape(0)).toEqual(P.orient(pz.pieces[0].cells, r % 4));
+      }
     });
-    it('turning into an overlap returns the piece', function () {
-      var pz = { frame: full(3, 3), seed: 1, pieces: [piece(0, [[0, 0], [1, 0]], 0, 0), piece(1, [[0, 0]], 2, 2)], tray: [0, 1] };
-      var e = E.create(pz);
-      e.drop(0, 0, 1);
-      e.drop(1, 0, 2);
-      expect(types(e.turn(0, 'rotate'))).toEqual(['turned', 'returned']);
-      expect(e.occupied()).toEqual({ '0,2': 1 });
-    });
-    it('clear with a different arrangement', function () {
+    it('a placed piece is locked', function () {
       var e = E.create(twoO());
-      e.drop(0, 0, 2);
-      var ev = e.drop(1, 0, 0);
-      expect(types(ev)).toEqual(['placed', 'clear']);
-      expect(e.isClear()).toBe(true);
-      expect(e.placedCount()).toBe(2);
+      e.drop(0, 0, 0);
+      var before = JSON.stringify(e.state(0)), occ = JSON.stringify(e.occupied());
+      expect(e.drop(0, 0, 0)).toEqual([]);
+      expect(e.drop(0, 1, 1)).toEqual([]);
+      expect(e.turn(0)).toEqual([]);
+      expect(JSON.stringify(e.state(0))).toBe(before);
+      expect(JSON.stringify(e.occupied())).toBe(occ);
+      expect(e.placedCount()).toBe(1);
     });
     it('last fires once', function () {
       var e = E.create(rows());
       e.drop(0, 0, 0);
       e.drop(1, 0, 1);
       expect(types(e.drop(2, 0, 2))).toEqual(['placed', 'last']);
-      e.toTray(2);
-      expect(types(e.drop(2, 0, 2))).toEqual(['placed']);
-      e.toTray(1);
-      expect(types(e.drop(3, 0, 3))).toEqual(['placed']);
-      expect(types(e.drop(1, 0, 1))).toEqual(['placed', 'clear']);
+      expect(types(e.drop(3, 0, 3))).toEqual(['placed', 'clear']);
+      expect(e.isClear()).toBe(true);
     });
-    it('hint prefers tray pieces and returns the answer cells', function () {
+    it('clear fires once when everything is on its answer', function () {
+      var e = E.create(twoO()), all = [];
+      all = all.concat(e.drop(1, 0, 2), e.drop(0, 0, 0));
+      expect(types(all).filter(function (t) { return t === 'clear'; }).length).toBe(1);
+      expect(e.placedCount()).toBe(2);
+    });
+    it('hint prefers the given tray piece', function () {
       var e = E.create(rows());
-      e.drop(0, 0, 1);
+      var h = e.hint(A.core.Rng.mulberry32(1), 2);
+      expect(h.id).toBe(2);
+      expect(h.x).toBe(0);
+      expect(h.y).toBe(2);
+      expect(h.cells).toEqual(P.place(I5, 0, 2));
+      expect(e.hintUsed()).toBe(true);
+      e.drop(1, 0, 1);
+      for (var s = 1; s <= 10; s++) {
+        var h2 = e.hint(A.core.Rng.mulberry32(s), 1);
+        expect(h2.id === 0 || h2.id === 2 || h2.id === 3).toBe(true);
+      }
+    });
+    it('hint picks from the tray only', function () {
+      var e = E.create(rows());
+      e.drop(0, 0, 0);
       for (var s = 1; s <= 10; s++) {
         var h = e.hint(A.core.Rng.mulberry32(s));
         expect(h.id === 1 || h.id === 2 || h.id === 3).toBe(true);
-        expect(h.x).toBe(0);
-        expect(h.y).toBe(h.id);
         expect(h.cells).toEqual(P.place(I5, 0, h.id));
       }
     });
-    it('hint skips correctly placed pieces', function () {
+    it('snapTarget matches drop', function () {
       var e = E.create(rows());
+      expect(e.snapTarget(2, 1, 3)).toEqual({ x: 0, y: 2 });
+      expect(e.snapTarget(2, 2, 2)).toBe(null);
+      e.turn(2);
+      expect(e.snapTarget(2, 0, 2)).toBe(null);
       e.drop(0, 0, 0);
-      e.drop(1, 0, 1);
-      e.drop(2, 0, 3);
-      e.drop(3, 0, 2);
-      expect(e.inTray()).toEqual([]);
-      for (var s = 1; s <= 10; s++) {
-        var h = e.hint(A.core.Rng.mulberry32(s));
-        expect(h.id === 2 || h.id === 3).toBe(true);
-        expect(h.cells).toEqual(P.place(I5, 0, h.id));
-      }
-    });
-    it('hint treats an equal-cell placement as correct', function () {
-      var e = E.create(twoO());
-      e.drop(1, 0, 0);
-      e.drop(0, 0, 2);
-      // Both are swapped: wrong by cells, so the hint still points somewhere.
-      expect(e.hint(A.core.Rng.mulberry32(1)).cells.length).toBe(4);
-      var e2 = E.create(twoO());
-      e2.drop(0, 0, 0);
-      expect(e2.hint(A.core.Rng.mulberry32(1)).id).toBe(1);
+      expect(e.snapTarget(0, 0, 0)).toBe(null);
     });
     it('works with string piece ids like the real puzzle', function () {
       var pz = twoO();
