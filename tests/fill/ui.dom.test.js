@@ -68,30 +68,20 @@
     ptr(wrap(t), 'pointermove', pid || 1, p.x, p.y);
     ptr(wrap(t), 'pointerup', pid || 1, p.x, p.y);
   }
-  // First free spot where the piece fits in its current orientation.
-  function freeSpot(t, id) {
-    var e = eng(t), frame = t.controller.puzzle().frame, occ = e.occupied(), shape = e.shape(id);
-    for (var y = 0; y < frame.h; y++) {
-      for (var x = 0; x < frame.w; x++) { if (P.fits(frame, occ, shape, x, y)) { return { x: x, y: y }; } }
-    }
-    return null;
-  }
   function trayIds(t) { return eng(t).inTray(); }
-  // Pointer position on the first cell of a placed piece (its top-left grab point is that cell's corner).
-  function boardPoint(t, id) {
-    var at = eng(t).state(id).at, c0 = P.place(eng(t).shape(id), at.x, at.y)[0];
-    var b = board(t).getBoundingClientRect(), c = cellPx(t);
-    return { x: b.left + c0[0] * c + 1, y: b.top + c0[1] * c + 1 };
+  // Solves the picture through the controller (turn to the answer orientation, drop on the answer spot).
+  function turnToAnswer(t, id) {
+    var ctl = t.controller, n = 0;
+    while (ctl.engine().state(id).rot !== 0 && n < 4) { ctl.turn(id); n++; }
   }
-
-
-  // Solves the picture through the controller (turn to the answer shape, drop on the answer spot).
-  function key(cells) { return JSON.stringify(cells.slice().sort()); }
   function solveOne(t, id) {
-    var ctl = t.controller, e = ctl.engine(), n = 0;
+    var ctl = t.controller;
     var p = ctl.puzzle().pieces.filter(function (q) { return q.id === id; })[0];
-    while (key(P.normalize(e.shape(id))) !== key(P.normalize(p.cells)) && n < 8) { ctl.turn(id, n === 3 ? 'flip' : 'rotate'); n++; }
+    turnToAnswer(t, id);
     ctl.drop(id, p.answer.x, p.answer.y);
+  }
+  function answerOf(t, id) {
+    return t.controller.puzzle().pieces.filter(function (q) { return q.id === id; })[0].answer;
   }
   function solveAll(t) { t.controller.puzzle().pieces.forEach(function (p) { solveOne(t, p.id); }); }
   function withReduced(on, fn) {
@@ -136,7 +126,7 @@
           doc.querySelectorAll('.fl-tab')[2].click();
           win.Math.random = function () { return pick.seed / 4294967296; };
           doc.querySelectorAll('.fl-card')[pick.index].click();
-          setTimeout(function () { try { check(doc); resolve(); } catch (e) { reject(e); } }, 300);
+          setTimeout(function () { try { check(doc, G.Puzzle.make(hard[pick.index], pick.seed + 1)); resolve(); } catch (e) { reject(e); } }, 300);
         } catch (e) { reject(e); }
       };
       frame.src = '../games/fill/index.html';
@@ -240,10 +230,10 @@
       var t = make();
       try {
         startFirst(t);
-        var id = trayIds(t)[0], spot = freeSpot(t, id);
+        var id = trayIds(t)[0], a = answerOf(t, id);
         down(t, id);
-        dragTo(t, spot.x, spot.y);
-        expect(eng(t).state(id).at).toEqual(spot);
+        dragTo(t, a.x, a.y);
+        expect(eng(t).state(id).at).toEqual(a);
         expect(!!trayPiece(t, id)).toBe(false);
         expect(!!t.box.querySelector('.fl-drag')).toBe(false);
       } finally { t.done(); }
@@ -253,21 +243,15 @@
       var t = make();
       try {
         startFirst(t);
-        var id = trayIds(t)[0], spot = freeSpot(t, id);
+        var id = trayIds(t)[0], a = answerOf(t, id);
         var frame = t.controller.puzzle().frame;
-        // half out of the frame (right edge): the right column of the piece is outside
-        var w = 1 + Math.max.apply(null, eng(t).shape(id).map(function (c) { return c[0]; }));
+        // two cells off the answer spot: the piece goes back
         down(t, id);
-        dragTo(t, frame.w - w + 1, spot.y);
+        dragTo(t, a.x + 2, a.y);
         expect(eng(t).state(id).at).toBe(null);
-        // a board piece dropped on the tray
-        t.controller.drop(id, spot.x, spot.y);
-        expect(eng(t).state(id).at).toEqual(spot);
-        var b = boardPoint(t, id);
-        ptr(board(t), 'pointerdown', 1, b.x, b.y);
-        var tr = t.box.querySelector('.fl-tray').getBoundingClientRect();
-        ptr(wrap(t), 'pointermove', 1, tr.left + 10, tr.top + 10);
-        ptr(wrap(t), 'pointerup', 1, tr.left + 10, tr.top + 10);
+        // past the right edge of the frame
+        down(t, id);
+        dragTo(t, frame.w + 1, a.y);
         expect(eng(t).state(id).at).toBe(null);
         // off the screen
         down(t, id);
@@ -276,11 +260,36 @@
         expect(eng(t).state(id).at).toBe(null);
         expect(eng(t).placedCount()).toBe(0);
         expect(!!trayPiece(t, id)).toBe(true);
+        // on the tray itself
+        down(t, id);
+        var tr = t.box.querySelector('.fl-tray').getBoundingClientRect();
+        ptr(wrap(t), 'pointermove', 1, tr.left + 10, tr.top + 10);
+        ptr(wrap(t), 'pointerup', 1, tr.left + 10, tr.top + 10);
+        expect(eng(t).placedCount()).toBe(0);
+        expect(!!trayPiece(t, id)).toBe(true);
       } finally { t.done(); }
     });
 
-    it('rotate and flip buttons act on the selected piece', function () {
+    it('a placed piece cannot be picked up', function () {
       var t = make();
+      try {
+        startFirst(t);
+        var id = trayIds(t)[0], a = answerOf(t, id);
+        t.controller.drop(id, a.x, a.y);
+        expect(eng(t).state(id).at).toEqual(a);
+        var c0 = P.place(eng(t).shape(id), a.x, a.y)[0];
+        var b = board(t).getBoundingClientRect(), c = cellPx(t);
+        var x = b.left + c0[0] * c + 2, y = b.top + c0[1] * c + 2;
+        ptr(board(t), 'pointerdown', 1, x, y);
+        ptr(wrap(t), 'pointermove', 1, x + 60, y + 60);
+        expect(!!t.box.querySelector('.fl-drag')).toBe(false);
+        ptr(wrap(t), 'pointerup', 1, x + 60, y + 60);
+        expect(eng(t).state(id).at).toEqual(a);
+      } finally { t.done(); }
+    });
+
+    it('rotate button turns the selected piece', function () {
+      var t = make('normal');
       try {
         startFirst(t);
         var id = trayIds(t)[0];
@@ -290,35 +299,69 @@
         expect(trayPiece(t, id).classList.contains('is-selected')).toBe(true);
         act(t, 'rotate').click();
         expect(eng(t).state(id).rot).toBe((s0.rot + 1) % 4);
-        var s1 = eng(t).state(id);
-        act(t, 'flip').click();
-        expect(eng(t).state(id).flip).toBe(1 - s1.flip);
         expect(eng(t).state(id).at).toBe(null);
+        expect(!!act(t, 'flip')).toBe(false);
       } finally { t.done(); }
     });
 
+    it('easy has no rotate button, normal and hard have one', function () {
+      ['easy', 'normal', 'hard'].forEach(function (tab) {
+        var t = make(tab);
+        try {
+          startFirst(t);
+          var b = act(t, 'rotate');
+          if (tab === 'easy') {
+            expect(!b || b.hidden || b.offsetParent === null).toBe(true);
+          } else {
+            expect(!!b && !b.hidden).toBe(true);
+            var r = b.getBoundingClientRect();
+            expect(r.width >= 64 && r.height >= 64).toBe(true);
+          }
+        } finally { t.done(); }
+      });
+    });
+
     it('buttons look disabled without a selection', function () {
-      var t = make();
+      var t = make('normal');
       try {
         startFirst(t);
-        ['rotate', 'flip'].forEach(function (a) {
-          var r = act(t, a).getBoundingClientRect();
-          expect(r.width >= 64 && r.height >= 64).toBe(true);
-          expect(act(t, a).disabled).toBe(true);
-        });
+        var r = act(t, 'rotate').getBoundingClientRect();
+        expect(r.width >= 64 && r.height >= 64).toBe(true);
+        expect(act(t, 'rotate').disabled).toBe(true);
         var id = trayIds(t)[0];
         down(t, id);
         ptr(wrap(t), 'pointerup', 1, 0, 0);
         expect(act(t, 'rotate').disabled).toBe(false);
-        expect(act(t, 'flip').disabled).toBe(false);
       } finally { t.done(); }
+    });
+
+    it('pieces show the picture', function () {
+      var t = make();
+      var orig = G.Render.piece, calls = [];
+      G.Render.piece = function (ctx, picture, piece, rot) {
+        calls.push({ picture: picture, piece: piece, rot: rot });
+        return orig.apply(this, arguments);
+      };
+      try {
+        startFirst(t);
+        var id = trayIds(t)[0];
+        calls.length = 0;
+        down(t, id);                       // selecting rebuilds the tray: one Render.piece call per tray piece
+        ptr(wrap(t), 'pointerup', 1, 0, 0);
+        var mine = calls.filter(function (c) { return c.piece.id === id; });
+        expect(mine.length > 0).toBe(true);
+        var c = mine[mine.length - 1];
+        expect(c.picture.id).toBe('apple');
+        expect(c.piece).toBe(t.controller.puzzle().pieces.filter(function (q) { return q.id === id; })[0]);
+        expect(trayPiece(t, id).querySelectorAll('canvas').length).toBe(1);
+      } finally { G.Render.piece = orig; t.done(); }
     });
 
     it('a second finger is ignored', function () {
       var t = make();
       try {
         startFirst(t);
-        var ids = trayIds(t), a = ids[0], b = ids[1], spot = freeSpot(t, a);
+        var ids = trayIds(t), a = ids[0], b = ids[1], spot = answerOf(t, a);
         down(t, a, 1);
         down(t, b, 2);
         var far = target(t, 0, 0);
@@ -337,18 +380,17 @@
       var t = make();
       try {
         startFirst(t);
-        var id = trayIds(t)[0], spot = freeSpot(t, id);
-        t.controller.drop(id, spot.x, spot.y);
-        var q = boardPoint(t, id);
-        ptr(board(t), 'pointerdown', 1, q.x, q.y);
-        ptr(wrap(t), 'pointermove', 1, q.x + 40, q.y + 40);
-        // the board canvas loses its implicit touch capture; the event bubbles up to the wrap
-        ptr(board(t), 'lostpointercapture', 1, q.x + 40, q.y + 40);
+        var id = trayIds(t)[0];
+        var r = trayPiece(t, id).getBoundingClientRect();
+        ptr(trayPiece(t, id), 'pointerdown', 1, r.left + 1, r.top + 1);
+        ptr(wrap(t), 'pointermove', 1, r.left + 61, r.top + 61);
+        // the touched piece loses its implicit touch capture; the event bubbles up to the wrap
+        ptr(trayPiece(t, id), 'lostpointercapture', 1, r.left + 61, r.top + 61);
         expect(!!t.box.querySelector('.fl-drag')).toBe(true);
-        expect(eng(t).state(id).at).toEqual(spot);
-        ptr(wrap(t), 'lostpointercapture', 1, q.x + 40, q.y + 40);
+        ptr(wrap(t), 'lostpointercapture', 1, r.left + 61, r.top + 61);
         expect(!!t.box.querySelector('.fl-drag')).toBe(false);
         expect(eng(t).state(id).at).toBe(null);
+        expect(!!trayPiece(t, id)).toBe(true);
       } finally { t.done(); }
     });
 
@@ -356,19 +398,34 @@
       var t = make();
       try {
         startFirst(t);
-        var id = trayIds(t)[0], spot = freeSpot(t, id);
-        t.controller.drop(id, spot.x, spot.y);
-        var q = boardPoint(t, id);
-        ptr(board(t), 'pointerdown', 1, q.x, q.y);
-        ptr(wrap(t), 'pointermove', 1, q.x + 40, q.y + 40);
-        ptr(wrap(t), 'pointermove', 1, q.x, q.y + G.UI.LIFT_PX);   // back over its own spot: the ghost shows
+        var id = trayIds(t)[0], a = answerOf(t, id);
+        down(t, id);
+        var p = target(t, a.x, a.y);
+        ptr(wrap(t), 'pointermove', 1, p.x - 30, p.y - 30);
+        ptr(wrap(t), 'pointermove', 1, p.x, p.y);   // over the answer spot: the ghost shows
         expect(!!t.box.querySelector('.fl-drag')).toBe(true);
         expect(board(t).hasAttribute('data-ghost')).toBe(true);
-        ptr(wrap(t), 'pointercancel', 1, q.x, q.y + G.UI.LIFT_PX);
+        ptr(wrap(t), 'pointercancel', 1, p.x, p.y);
         expect(eng(t).state(id).at).toBe(null);
         expect(!!trayPiece(t, id)).toBe(true);
         expect(!!t.box.querySelector('.fl-drag')).toBe(false);
         expect(board(t).hasAttribute('data-ghost')).toBe(false);
+      } finally { t.done(); }
+    });
+
+    it('hint lights the selected tray piece', function () {
+      var t = make();
+      try {
+        startFirst(t);
+        var id = trayIds(t)[2], seen = null;
+        t.bus.on('hint', function (h) { seen = h; });
+        down(t, id);
+        ptr(wrap(t), 'pointerup', 1, 0, 0);
+        document.querySelector('.fl-hint').click();
+        expect(seen.id).toBe(id);
+        expect(trayPiece(t, id).classList.contains('is-hint')).toBe(true);
+        t.ui.step(2100);
+        expect(trayPiece(t, id).classList.contains('is-hint')).toBe(false);
       } finally { t.done(); }
     });
 
@@ -452,7 +509,8 @@
     it('reduced motion skips the bounce and confetti', function () {
       function place(t) {
         startFirst(t);
-        var id = trayIds(t)[0], spot = freeSpot(t, id);
+        var id = trayIds(t)[0], spot = answerOf(t, id);
+        turnToAnswer(t, id);
         down(t, id);
         dragTo(t, spot.x, spot.y);
         expect(eng(t).state(id).at).toEqual(spot);
@@ -485,11 +543,27 @@
     });
 
     it('fits 390x844 without scrolling', function () {
-      return inFrame(390, 844, 11, function (doc) { checkPlayScreen(doc, 11); });
+      return inFrame(390, 844, 16, function (doc) { checkPlayScreen(doc, 16); });
     });
 
     it('fits 844x390 without scrolling', function () {
-      return inFrame(844, 390, 11, function (doc) { checkPlayScreen(doc, 11); });
+      return inFrame(844, 390, 16, function (doc) { checkPlayScreen(doc, 16); });
+    });
+
+    // Every tray cell is at least 8 px (the piece box divided by its cells across / down).
+    function checkCellSize(doc, puz) {
+      checkPlayScreen(doc, 16);
+      puz.pieces.forEach(function (p) {
+        var box = doc.querySelector('.fl-tray [data-piece-id="' + p.id + '"]').getBoundingClientRect();
+        var shape = P.orient(p.cells, p.start.rot), w = 0, h = 0;
+        shape.forEach(function (c) { w = Math.max(w, c[0] + 1); h = Math.max(h, c[1] + 1); });
+        expect(box.width / w >= 8 && box.height / h >= 8).toBe(true);
+      });
+    }
+    it('hard fits 390x844 with 16 pieces', function () {
+      return inFrame(390, 844, 16, checkCellSize).then(function () {
+        return inFrame(844, 390, 16, checkCellSize);
+      });
     });
   });
 })(window.Ailand);

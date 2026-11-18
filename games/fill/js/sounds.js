@@ -17,7 +17,6 @@
     // Piece goes back to the tray: a gentle falling slide.
     'fill-return': function (c, d, t) { note(c, d, t, 520, 0, 0.12, 'sine', 0.22, 330); },
     'fill-rotate': function (c, d, t) { note(c, d, t, 520, 0, 0.06, 'sine', 0.2, 700); },
-    'fill-flip': function (c, d, t) { seq(c, d, t, [700, 520], 0.05, 0.07, 'triangle', 0.2); },
     // Hint: two soft chimes.
     'fill-hint': function (c, d, t) { seq(c, d, t, [880, 1175], 0.12, 0.2, 'sine', 0.22); },
     // Picture complete: a bright rising run with a shimmer.

@@ -5,7 +5,7 @@
   var C = Ailand.core, K = G.Constants, L = G.Layout, R = G.Render, P = G.Piece, Sound = C.Sound, Bgm = C.Bgm, Fx = G.Fx;
 
   var LEVELS = [['easy', 'かんたん'], ['normal', 'ふつう'], ['hard', 'むずかしい']];
-  var ACTS = [['rotate', '↻', 'まわす'], ['flip', '⇋', 'うらがえす']];
+  var ACTS = [['rotate', '↻', 'まわす']];
   var TRAY_CELL = 24;          // tray piece cell (px) at scale 1: the size Layout.trayScale assumes
   var TRAY_GAP = 8;            // gap (px) between tray pieces at scale 1: the gap Layout.trayScale assumes
   var LIFT_PX = 40;            // a dragged piece floats this far above the finger (design 2.3)
@@ -187,9 +187,9 @@
       var face = el('div', 'fl-howto-face');
       faceInto(face, pf, 'joy');
       body.appendChild(face);
-      body.appendChild(el('p', 'fl-howto-text', 'ピースを ドラッグして わくに おこう'));
-      body.appendChild(el('p', 'fl-howto-text', 'まわす・うらがえす で むきを かえよう'));
-      body.appendChild(el('p', 'fl-howto-text', 'ぜんぶ うまったら えが でてくるよ'));
+      body.appendChild(el('p', 'fl-howto-text', 'ピースを ドラッグして えの とおりの ばしょに はめよう'));
+      body.appendChild(el('p', 'fl-howto-text', 'ふつう・むずかしい は まわして むきを あわせよう'));
+      body.appendChild(el('p', 'fl-howto-text', 'ぜんぶ はまったら えが できるよ'));
       var acts = el('div', 'fl-menu');
       acts.appendChild(button('btn btn-main', 'わかった', function () { m.close(); controller.markHowToSeen(); }));
       m = C.UI.modal('あそびかた', [body, acts]);
@@ -265,8 +265,9 @@
       var tray = el('div', 'fl-tray');
 
       var actEl = el('div', 'fl-act');
-      game.acts = ACTS.map(function (a) {
-        var b = button('fl-actbtn', undefined, function () { turnSelected(a[0]); });
+      var canRotate = K.LEVEL[pictureOf(game.id).level].rotate;
+      game.acts = ACTS.filter(function () { return canRotate; }).map(function (a) {
+        var b = button('fl-actbtn', undefined, function () { turnSelected(); });
         b.dataset.action = a[0];
         b.setAttribute('aria-label', a[2]);
         b.appendChild(el('span', 'fl-ico', a[1]));
@@ -278,6 +279,7 @@
       wrap.appendChild(boardWrap);
       wrap.appendChild(buddy);
       wrap.appendChild(tray);
+      actEl.hidden = !game.acts.length;
       wrap.appendChild(actEl);
       gameScreen.appendChild(wrap);
 
@@ -304,20 +306,15 @@
       renderTray();
     }
 
-    // Pieces on the board: id -> { cells (absolute), color }. The dragged piece is left out (it floats).
-    function boardPieces() {
-      var e = controller.engine(), out = {};
-      controller.puzzle().pieces.forEach(function (p) {
-        var at = e.state(p.id).at;
-        if (!at || (game.drag && game.drag.moved && game.drag.id === p.id)) { return; }
-        out[p.id] = { cells: P.place(e.shape(p.id), at.x, at.y), color: p.color };
-      });
-      return out;
-    }
-    function colorOf(id) {
+    function pieceOf(id) {
       var ps = controller.puzzle().pieces;
-      for (var i = 0; i < ps.length; i++) { if (ps[i].id === id) { return ps[i].color; } }
-      return 0;
+      for (var i = 0; i < ps.length; i++) { if (ps[i].id === id) { return ps[i]; } }
+      return null;
+    }
+    // Placed pieces, each at its answer spot (a placed piece never moves).
+    function placedPieces() {
+      var e = controller.engine();
+      return controller.puzzle().pieces.filter(function (p) { return !!e.state(p.id).at; }).map(function (p) { return { piece: p }; });
     }
 
     function redraw() {
@@ -325,8 +322,8 @@
       if (game.finished) { return; }
       var ghost = game.drag && game.drag.ghost;
       R.board(game.ctx, {
-        frame: controller.puzzle().frame, pieces: boardPieces(), selected: game.selected,
-        ghost: ghost || null, hint: game.hint, cell: game.cell, dpr: game.dpr,
+        frame: controller.puzzle().frame, picture: pictureOf(game.id), guide: K.LEVEL[pictureOf(game.id).level].guide,
+        placed: placedPieces(), ghost: ghost || null, hint: game.hint, cell: game.cell, dpr: game.dpr,
         pop: game.pop ? { id: game.pop.id, scale: Fx.popScale(game.pop.t) } : null
       });
       if (game.pop) { game.canvas.setAttribute('data-pop', '1'); } else { game.canvas.removeAttribute('data-pop'); }
@@ -349,21 +346,21 @@
       tray.style.gap = (TRAY_GAP * scale) + 'px';
       ids.forEach(function (id, i) {
         var sz = sizeOf(shapes[i]);
-        var item = el('div', 'fl-tpiece' + (id === game.selected ? ' is-selected' : ''));
+        var item = el('div', 'fl-tpiece' + (id === game.selected ? ' is-selected' : '') + (game.hint && game.hint.id === id ? ' is-hint' : ''));
         item.setAttribute('data-piece-id', id);
         if (game.drag && game.drag.moved && game.drag.id === id) { item.style.visibility = 'hidden'; }
         var cv = el('canvas');
         sizeCanvas(cv, sz.w * tc, sz.h * tc, game.dpr);
         item.style.width = (sz.w * tc) + 'px';
         item.style.height = (sz.h * tc) + 'px';
-        R.piece(cv.getContext('2d'), shapes[i], colorOf(id), tc, game.dpr);
+        R.piece(cv.getContext('2d'), pictureOf(game.id), pieceOf(id), e.state(id).rot, tc, game.dpr);
         item.appendChild(cv);
         tray.appendChild(item);
       });
       paintActs();
     }
 
-    // まわす・うらがえす can be pressed only with a selected piece (design 2.3).
+    // まわす can be pressed only with a selected piece (design 2.3).
     function paintActs() {
       var off = !playing() || !game.selected;
       game.acts.forEach(function (b) { b.disabled = off; });
@@ -376,40 +373,29 @@
       refresh();
     }
 
-    function turnSelected(kind) {
+    function turnSelected() {
       if (!playing() || !game.selected) { return; }
-      sfx(kind === 'flip' ? 'fill-flip' : 'fill-rotate');
-      controller.turn(game.selected, kind);
+      sfx('fill-rotate');
+      controller.turn(game.selected);
       refresh();
     }
 
     // ---------- drag (design 2.3) ----------
 
-    // The piece under a pointerdown: a tray piece (its whole box), or the board piece on that cell.
+    // The piece under a pointerdown: a tray piece (its whole box). Placed pieces are locked and cannot be picked.
     function pick(e) {
       if (!playing()) { return null; }
       var t = e.target && e.target.closest ? e.target.closest('[data-piece-id]') : null;
-      if (t && game.tray.contains(t)) { return t.getAttribute('data-piece-id'); }
-      if (e.target !== game.canvas || !game.cell) { return null; }
-      var r = game.canvas.getBoundingClientRect();
-      var cx = Math.floor((e.clientX - r.left) / game.cell), cy = Math.floor((e.clientY - r.top) / game.cell);
-      var id = controller.engine().occupied()[cx + ',' + cy];
-      return id === undefined ? null : id;
+      return t && game.tray.contains(t) ? t.getAttribute('data-piece-id') : null;
     }
 
     // Remembers where on the piece the finger is (in cells), so the piece keeps that point under the finger.
     function onDragStart(id, e) {
-      var eng = controller.engine(), at = eng.state(id).at, gx, gy;
-      if (at) {
-        var r = game.canvas.getBoundingClientRect();
-        gx = (e.clientX - r.left) / game.cell - at.x;
-        gy = (e.clientY - r.top) / game.cell - at.y;
-      } else {
-        var tr = game.tray.querySelector('[data-piece-id="' + id + '"]').getBoundingClientRect();
-        gx = (e.clientX - tr.left) / game.trayCell;
-        gy = (e.clientY - tr.top) / game.trayCell;
-      }
-      game.drag = { id: id, onBoard: !!at, gx: gx, gy: gy, x0: e.clientX, y0: e.clientY, moved: false, float: null, ghost: null };
+      var tr = game.tray.querySelector('[data-piece-id="' + id + '"]').getBoundingClientRect();
+      game.drag = {
+        id: id, gx: (e.clientX - tr.left) / game.trayCell, gy: (e.clientY - tr.top) / game.trayCell,
+        x0: e.clientX, y0: e.clientY, moved: false, float: null, ghost: null
+      };
       select(id);
     }
 
@@ -432,25 +418,22 @@
 
     // The dragged piece at board cell size, following the finger (fixed, never catches the pointer).
     function makeFloat(id) {
-      var shape = controller.engine().shape(id), sz = sizeOf(shape);
+      var eng = controller.engine(), sz = sizeOf(eng.shape(id));
       var f = el('div', 'fl-drag');
       var cv = el('canvas');
       sizeCanvas(cv, sz.w * game.cell, sz.h * game.cell, game.dpr);
-      R.piece(cv.getContext('2d'), shape, colorOf(id), game.cell, game.dpr);
+      R.piece(cv.getContext('2d'), pictureOf(game.id), pieceOf(id), eng.state(id).rot, game.cell, game.dpr);
       f.appendChild(cv);
       gameScreen.appendChild(f);
       return f;
     }
 
-    // Where the piece would land if let go now: shown only when it fits.
+    // Where the piece would snap if let go now (the answer spot): shown only then.
     function ghostAt(id, left, top) {
-      var eng = controller.engine(), frame = controller.puzzle().frame;
       var at = L.snap(game.canvas.getBoundingClientRect(), game.cell, left, top);
-      var occ = eng.occupied();
-      Object.keys(occ).forEach(function (k) { if (occ[k] === id) { delete occ[k]; } });
-      var shape = eng.shape(id);
-      if (!P.fits(frame, occ, shape, at.x, at.y)) { return null; }
-      return { cells: P.place(shape, at.x, at.y), color: colorOf(id), x: at.x, y: at.y };
+      var t = controller.engine().snapTarget(id, at.x, at.y);
+      if (!t) { return null; }
+      return { cells: P.place(pieceOf(id).cells, t.x, t.y), x: t.x, y: t.y };
     }
 
     function endDrag() {
@@ -461,15 +444,13 @@
       return g;
     }
 
-    // Let go: on the tray -> back to the tray; elsewhere -> the nearest cell (the engine sends it back when it
-    // does not fit, design 2.3). A press without a move only selected the piece.
+    // Let go: on the tray -> stays in the tray; elsewhere -> the engine snaps it to its answer spot or sends it
+    // back (design 2.3). A press without a move only selected the piece. A tray piece was never placed.
     function onDragEnd(e) {
       var g = endDrag();
       if (!g) { return; }
       if (!g.moved || !playing()) { refresh(); return; }
-      if (inRect(game.tray.getBoundingClientRect(), e.clientX, e.clientY)) {
-        if (g.onBoard) { controller.toTray(g.id); }
-      } else {
+      if (!inRect(game.tray.getBoundingClientRect(), e.clientX, e.clientY)) {
         var at = L.snap(game.canvas.getBoundingClientRect(), game.cell,
           e.clientX - g.gx * game.cell, e.clientY - g.gy * game.cell - LIFT_PX);
         controller.drop(g.id, at.x, at.y);
@@ -477,19 +458,16 @@
       if (game) { refresh(); }
     }
 
-    // Cancelled (a call, a system gesture): the piece goes back to the tray and the shadow goes (Review Focus 5).
+    // Cancelled (a call, a system gesture): the piece stays in the tray and the shadow goes (Review Focus 5).
     function onDragCancel() {
-      var g = endDrag();
-      if (!g) { return; }
-      if (g.onBoard && playing()) { controller.toTray(g.id); }
-      refresh();
+      if (endDrag()) { refresh(); }
     }
 
     // ---------- hint (design 2.5) ----------
 
     function onHint() {
       if (!playing()) { return; }
-      controller.hint(rng);   // null outside play; the 'hint' event draws it
+      controller.hint(rng, game.selected);   // null outside play or with an empty tray; the 'hint' event draws it
     }
 
     // ---------- character ----------
@@ -680,6 +658,7 @@
 
     on('placed', function (p) {
       sfx('fill-place');
+      if (game.hint && game.hint.id === p.id) { game.hint = null; }
       if (!C.Effects.isReduced()) { game.pop = { id: p.id, t: 0 }; }
       reactTo(reactions.forPlaced());
     });
@@ -687,10 +666,10 @@
     on('last', function () { reactTo(reactions.forLast(), true); });
     on('hint', function (h) {
       if (!h) { return; }
-      game.hint = { cells: h.cells, until: game.clockMs + K.HINT_MS };
+      game.hint = { id: h.id, cells: h.cells, until: game.clockMs + K.HINT_MS };
       sfx('fill-hint');
       reactTo(reactions.forHint(), true);
-      redraw();
+      refresh();
     });
     on('clear', function () { sfx('fill-clear'); });
     on('done', showFinished);
@@ -711,7 +690,7 @@
       step: function (ms) {
         if (!game) { return; }
         game.clockMs += ms || 0;
-        if (game.hint && game.clockMs >= game.hint.until) { game.hint = null; redraw(); }
+        if (game.hint && game.clockMs >= game.hint.until) { game.hint = null; refresh(); }
         if (game.pop) {
           game.pop.t += ms || 0;
           if (game.pop.t >= Fx.POP_MS) { game.pop = null; }

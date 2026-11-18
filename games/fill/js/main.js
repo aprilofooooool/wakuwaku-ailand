@@ -8,7 +8,7 @@
     var linePicker = C.LinePicker.create({ gameLines: G.Lines, commonLines: C.CommonLines, rng: Math.random });
     // Requirements 1.7: unlock at once when the browser allows audio, else on a gesture (core/sound.js wireUnlock).
     C.Sound.wireUnlock();
-    // まわす・うらがえす and ヒント have their own sounds, so they skip the click tone.
+    // まわす and ヒント have their own sounds, so they skip the click tone.
     document.addEventListener('click', function (e) {
       var b = e.target && e.target.closest ? e.target.closest('button') : null;
       if (b && !b.closest('.fl-act') && !b.classList.contains('fl-hint')) { C.Sound.play('button'); }

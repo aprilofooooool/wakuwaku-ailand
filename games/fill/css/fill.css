@@ -51,7 +51,7 @@
 body.fl-playing { overflow: hidden; }
 body.fl-playing .hdr-title { font-size: 16px; }
 .fl-game-screen { position: relative; overflow: hidden; height: 100%; }
-/* Phone portrait: board, the character, the tray, then まわす・うらがえす. */
+/* Phone portrait: board, the character, the tray, then まわす. */
 .fl-game {
   height: 100%; box-sizing: border-box; display: grid; gap: 8px;
   padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
@@ -77,11 +77,14 @@ body.fl-playing .hdr-title { font-size: 16px; }
 .fl-tpiece canvas { display: block; }
 /* The selected piece (design 2.3): a gold glow along its shape. */
 .fl-tpiece.is-selected { filter: drop-shadow(0 0 2px var(--fl-gold)) drop-shadow(0 0 3px var(--fl-gold)); }
+/* The hint (design 2.5): the tray piece whose spot is shadowed on the board glows. */
+.fl-tpiece.is-hint { filter: drop-shadow(0 0 3px var(--fl-gold)) drop-shadow(0 0 6px var(--fl-gold)); }
 .fl-drag { position: fixed; left: 0; top: 0; z-index: 50; line-height: 0; pointer-events: none; filter: drop-shadow(0 6px 4px rgba(58, 47, 90, 0.3)); }
 .fl-drag canvas { display: block; }
 
-.fl-act { grid-area: act; display: flex; gap: 10px; }
-.fl-actbtn { flex: 1 1 0; min-width: 64px; min-height: 68px; padding: 2px 6px; display: flex; align-items: center; justify-content: center; gap: 6px; font: inherit; color: var(--ink); background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-m); box-shadow: var(--shadow-s); cursor: pointer; }
+.fl-act { grid-area: act; display: flex; justify-content: center; gap: 10px; }
+.fl-act[hidden] { display: none; }
+.fl-actbtn { flex: 1 1 0; max-width: 280px; min-width: 64px; min-height: 68px; padding: 2px 6px; display: flex; align-items: center; justify-content: center; gap: 6px; font: inherit; color: var(--ink); background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-m); box-shadow: var(--shadow-s); cursor: pointer; }
 .fl-ico { font-size: 30px; font-weight: 900; line-height: 1; }
 .fl-actlabel { font-size: 18px; font-weight: 900; }
 .fl-actbtn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--outline); background: var(--accent-yellow); }
