@@ -37,16 +37,11 @@
       expect(r).toEqual(c);
       expect(P.rotate([[0, 0], [0, 1], [0, 2], [1, 2]])).toEqual([[0, 0], [1, 0], [2, 0], [0, 1]]);
     });
-    it('flip twice returns the same', function () {
-      var c = P.normalize(L5);
-      expect(P.flip(P.flip(c))).toEqual(c);
-      expect(P.flip(c)).toEqual([[1, 0], [1, 1], [1, 2], [0, 3], [1, 3]]);
-    });
-    it('orientations counts', function () {
-      expect(P.orientations([[0, 0], [1, 0], [0, 1], [1, 1]]).length).toBe(1);
-      expect(P.orientations([[0, 0], [0, 1], [0, 2], [0, 3]]).length).toBe(2);
-      expect(P.orientations([[0, 0], [1, 0], [2, 0], [1, 1]]).length).toBe(4);
-      expect(P.orientations([[0, 0], [0, 1], [0, 2], [1, 2]]).length).toBe(8);
+    it('orient rotates clockwise and four turns equal normalize', function () {
+      var c = [[3, 4], [3, 5], [3, 6], [4, 6]];
+      expect(P.orient(c, 4)).toEqual(P.normalize(c));
+      expect(P.orient(c, 0)).toEqual(P.normalize(c));
+      expect(P.orient(c, 1)).toEqual(P.rotate(P.normalize(c)));
     });
     it('same compares after normalize', function () {
       expect(P.same([[5, 5], [6, 5]], [[0, 0], [1, 0]])).toBe(true);
@@ -64,30 +59,41 @@
       expect(P.fits(frame, occ, [[0, 0], [1, 0]], 0, 1)).toBe(false);
       expect(P.fits(frame, occ, [[0, 0], [1, 0]], 1, 1)).toBe(true);
     });
-    it('partition covers every cell once with connected pieces of 4 to 5', function () {
-      var okCount = 0;
-      for (var seed = 1; seed <= 50; seed++) {
-        var parts = P.partition(rect(6, 5), A.core.Rng.mulberry32(seed), 4, 5);
-        if (!parts) { continue; }
-        okCount++;
-        var seen = {}, total = 0;
-        parts.forEach(function (p) {
-          expect(p.length).toBeGreaterThanOrEqual(4);
-          expect(p.length).toBeLessThanOrEqual(5);
-          expect(connected(p)).toBe(true);
-          p.forEach(function (c) {
-            var k = c[0] + ',' + c[1];
-            expect(seen[k]).toBeFalsy();
-            seen[k] = true; total++;
-          });
+    it('partition makes count connected pieces of even size', function () {
+      var lShape = [];
+      for (var y = 0; y < 10; y++) { for (var x = 0; x < 10; x++) { if (x < 4 || y >= 6) { lShape.push([x, y]); } } }
+      var cases = [
+        { cells: rect(12, 12), counts: [8, 12, 16] },
+        { cells: lShape, counts: [4, 8] }
+      ];
+      cases.forEach(function (cs) {
+        cs.counts.forEach(function (count) {
+          var okCount = 0, avg = cs.cells.length / count;
+          for (var seed = 1; seed <= 50; seed++) {
+            var parts = P.partition(cs.cells, A.core.Rng.mulberry32(seed), count);
+            if (!parts) { continue; }
+            okCount++;
+            var seen = {}, total = 0;
+            expect(parts.length).toBe(count);
+            parts.forEach(function (p) {
+              expect(connected(p)).toBe(true);
+              expect(p.length).toBeGreaterThanOrEqual(Math.ceil(0.5 * avg));
+              expect(p.length).toBeLessThanOrEqual(Math.floor(1.5 * avg));
+              p.forEach(function (c) {
+                var k = c[0] + ',' + c[1];
+                expect(seen[k]).toBeFalsy();
+                seen[k] = true; total++;
+              });
+            });
+            expect(total).toBe(cs.cells.length);
+          }
+          expect(okCount).toBeGreaterThanOrEqual(40);
         });
-        expect(total).toBe(30);
-      }
-      expect(okCount).toBeGreaterThanOrEqual(1);
+      });
     });
     it('partition is deterministic for the same rand', function () {
-      var a = P.partition(rect(6, 5), A.core.Rng.mulberry32(7), 4, 5);
-      var b = P.partition(rect(6, 5), A.core.Rng.mulberry32(7), 4, 5);
+      var a = P.partition(rect(12, 12), A.core.Rng.mulberry32(7), 8);
+      var b = P.partition(rect(12, 12), A.core.Rng.mulberry32(7), 8);
       expect(a).toEqual(b);
     });
   });

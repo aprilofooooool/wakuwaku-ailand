@@ -734,7 +734,7 @@ var PICS = [
   ] }
 ];
 (function(){
-  var PX=6,D=4,out=document.getElementById('out'),NAMES={easy:'かんたん',normal:'ふつう',hard:'むずかしい'},rows={};
+  var PX=6,D=2,out=document.getElementById('out'),NAMES={easy:'かんたん',normal:'ふつう',hard:'むずかしい'},rows={};
   ['easy','normal','hard'].forEach(function(lv){var h=document.createElement('h2');h.textContent=NAMES[lv];out.appendChild(h);
     var r=document.createElement('div');r.className='row';out.appendChild(r);rows[lv]=r;});
   PICS.forEach(function(p){

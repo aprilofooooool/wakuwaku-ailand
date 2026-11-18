@@ -61,11 +61,12 @@
         });
       });
     });
-    it('every frame is in range and connected', function () {
+    it('every frame is connected and can be split', function () {
       F.Pictures.forEach(function (p) {
-        var lv = C.LEVEL[p.level], cells = frameCells(p);
-        expect(p.id + ':' + (cells.length >= lv.minCells && cells.length <= lv.maxCells)).toBe(p.id + ':true');
-        expect(p.id + ':' + connected(cells)).toBe(p.id + ':true');
+        expect(p.id + ':' + connected(frameCells(p))).toBe(p.id + ':true');
+        var made = true;
+        try { F.Puzzle.make(p, 1); } catch (e) { made = false; }
+        expect(p.id + ':' + made).toBe(p.id + ':true');
       });
     });
     it('eight pictures per level', function () {

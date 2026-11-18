@@ -23,37 +23,15 @@
     return normalize(cells.map(function (c) { return [-c[1], c[0]]; }));
   }
 
-  // Horizontal mirror: x -> -x.
-  function flip(cells) {
-    return normalize(cells.map(function (c) { return [-c[0], c[1]]; }));
-  }
-
-  // Flip first, then rotate clockwise rot times.
-  function orient(cells, rot, doFlip) {
+  // Rotate clockwise rot times.
+  function orient(cells, rot) {
     var r = normalize(cells);
-    if (doFlip) { r = flip(r); }
     for (var i = 0; i < rot; i++) { r = rotate(r); }
     return r;
   }
 
   function same(a, b) {
     return JSON.stringify(normalize(a)) === JSON.stringify(normalize(b));
-  }
-
-  // Distinct shapes among the 8 orientations.
-  function orientations(cells) {
-    var out = [];
-    for (var f = 0; f < 2; f++) {
-      for (var r = 0; r < 4; r++) {
-        var c = orient(cells, r, f === 1);
-        var dup = false;
-        for (var i = 0; i < out.length; i++) {
-          if (same(out[i].cells, c)) { dup = true; break; }
-        }
-        if (!dup) { out.push({ rot: r, flip: f === 1, cells: c }); }
-      }
-    }
-    return out;
   }
 
   function place(cells, x, y) {
@@ -70,81 +48,78 @@
     return true;
   }
 
-  function freeCount(free, x, y) {
-    var n = 0;
-    for (var i = 0; i < 4; i++) {
-      if (free[key(x + DIRS[i][0], y + DIRS[i][1])]) { n++; }
-    }
-    return n;
-  }
-
-  // true when every island of free cells has at least min cells.
-  function islandsOk(free, cells, min) {
-    var seen = {}, i, j;
-    for (i = 0; i < cells.length; i++) {
-      var k0 = key(cells[i][0], cells[i][1]);
-      if (!free[k0] || seen[k0]) { continue; }
-      var stack = [cells[i]], n = 0;
-      seen[k0] = true;
-      while (stack.length) {
-        var c = stack.pop();
-        n++;
-        for (j = 0; j < 4; j++) {
-          var nx = c[0] + DIRS[j][0], ny = c[1] + DIRS[j][1], k = key(nx, ny);
-          if (free[k] && !seen[k]) { seen[k] = true; stack.push([nx, ny]); }
-        }
+  // Grid (BFS) distance from src to every frame cell, keyed by key(x, y).
+  function distancesFrom(inFrame, src) {
+    var dist = {}, queue = [src], head = 0;
+    dist[key(src[0], src[1])] = 0;
+    while (head < queue.length) {
+      var c = queue[head++], d = dist[key(c[0], c[1])];
+      for (var j = 0; j < 4; j++) {
+        var nx = c[0] + DIRS[j][0], ny = c[1] + DIRS[j][1], k = key(nx, ny);
+        if (inFrame[k] && dist[k] === undefined) { dist[k] = d + 1; queue.push([nx, ny]); }
       }
-      if (n < min) { return false; }
     }
-    return true;
+    return dist;
   }
 
-  // Split frameCells into connected pieces of min..max cells, or null on failure.
-  function partition(frameCells, rand, min, max) {
-    var free = {}, i, j;
-    for (i = 0; i < frameCells.length; i++) { free[key(frameCells[i][0], frameCells[i][1])] = true; }
-    var remaining = frameCells.length;
-    var pieces = [];
-    while (remaining > 0) {
-      // Start: the free cell with the fewest free neighbours (first in frame order on ties).
-      var start = null, best = 5;
+  // Split connected frameCells into count connected pieces (each 0.5x to 1.5x the average size), or null.
+  function partition(frameCells, rand, count) {
+    var inFrame = {}, i, j, k;
+    for (i = 0; i < frameCells.length; i++) { inFrame[key(frameCells[i][0], frameCells[i][1])] = true; }
+    var avg = frameCells.length / count;
+    var minSize = Math.ceil(0.5 * avg), maxSize = Math.floor(1.5 * avg);
+    if (frameCells.length < count) { return null; }
+
+    // Seeds: first at random, then the cell farthest from all chosen seeds (ties by rand).
+    var seeds = [frameCells[Math.floor(rand() * frameCells.length)]];
+    var minDist = distancesFrom(inFrame, seeds[0]);
+    while (seeds.length < count) {
+      var bestD = -1, ties = [];
       for (i = 0; i < frameCells.length; i++) {
-        var fc = frameCells[i];
-        if (!free[key(fc[0], fc[1])]) { continue; }
-        var n = freeCount(free, fc[0], fc[1]);
-        if (n < best) { best = n; start = fc; }
+        var d = minDist[key(frameCells[i][0], frameCells[i][1])];
+        if (d > bestD) { bestD = d; ties = [frameCells[i]]; } else if (d === bestD) { ties.push(frameCells[i]); }
       }
-      var size = min + Math.floor(rand() * (max - min + 1));
-      var piece = [start];
-      delete free[key(start[0], start[1])];
-      while (piece.length < size) {
-        var cands = [], seenC = {};
-        for (i = 0; i < piece.length; i++) {
-          for (j = 0; j < 4; j++) {
-            var nx = piece[i][0] + DIRS[j][0], ny = piece[i][1] + DIRS[j][1], k = key(nx, ny);
-            if (free[k] && !seenC[k]) { seenC[k] = true; cands.push([nx, ny]); }
+      if (bestD <= 0) { return null; }
+      var seed = ties[Math.floor(rand() * ties.length)], nd = distancesFrom(inFrame, seed);
+      seeds.push(seed);
+      for (k in nd) { if (nd[k] < minDist[k]) { minDist[k] = nd[k]; } }
+    }
+
+    // Grow all pieces together: the smallest piece takes a random free neighbouring cell.
+    var owner = {}, pieces = [], remaining = frameCells.length - count;
+    for (i = 0; i < count; i++) { pieces.push([seeds[i]]); owner[key(seeds[i][0], seeds[i][1])] = i; }
+    while (remaining > 0) {
+      var order = [];
+      for (i = 0; i < count; i++) { order.push(i); }
+      order.sort(function (a, b) { return pieces[a].length - pieces[b].length; });
+      var grew = false;
+      for (i = 0; i < count && !grew; i++) {
+        // Among pieces of the same smallest size, start at a random one.
+        var size = pieces[order[i]].length, n = 0;
+        while (i + n < count && pieces[order[i + n]].length === size) { n++; }
+        var off = Math.floor(rand() * n);
+        for (j = 0; j < n && !grew; j++) {
+          var pi = order[i + (j + off) % n], cands = [], seenC = {}, c;
+          for (var m = 0; m < pieces[pi].length; m++) {
+            for (k = 0; k < 4; k++) {
+              var nx = pieces[pi][m][0] + DIRS[k][0], ny = pieces[pi][m][1] + DIRS[k][1], kk = key(nx, ny);
+              if (inFrame[kk] && owner[kk] === undefined && !seenC[kk]) { seenC[kk] = true; cands.push([nx, ny]); }
+            }
+          }
+          if (cands.length) {
+            c = cands[Math.floor(rand() * cands.length)];
+            pieces[pi].push(c);
+            owner[key(c[0], c[1])] = pi;
+            remaining--;
+            grew = true;
           }
         }
-        if (!cands.length) { break; }
-        // Weighted pick: fewer free neighbours -> larger weight.
-        var weights = [], total = 0;
-        for (i = 0; i < cands.length; i++) {
-          var w = 5 - freeCount(free, cands[i][0], cands[i][1]);
-          weights.push(w);
-          total += w;
-        }
-        var r = rand() * total, pick = cands.length - 1;
-        for (i = 0; i < cands.length; i++) {
-          r -= weights[i];
-          if (r < 0) { pick = i; break; }
-        }
-        piece.push(cands[pick]);
-        delete free[key(cands[pick][0], cands[pick][1])];
+        i += n - 1;
       }
-      if (piece.length < min) { return null; }
-      remaining -= piece.length;
-      pieces.push(piece);
-      if (remaining > 0 && !islandsOk(free, frameCells, min)) { return null; }
+      if (!grew) { return null; }
+    }
+    for (i = 0; i < count; i++) {
+      if (pieces[i].length < minSize || pieces[i].length > maxSize) { return null; }
     }
     return pieces;
   }
@@ -152,9 +127,7 @@
   G.Piece = {
     normalize: normalize,
     rotate: rotate,
-    flip: flip,
     orient: orient,
-    orientations: orientations,
     same: same,
     place: place,
     fits: fits,

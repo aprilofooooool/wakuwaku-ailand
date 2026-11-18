@@ -6,8 +6,8 @@ const fs = require('fs');
 const path = require('path');
 
 const root = path.join(__dirname, '..', '..');
-const D = 4; // dots per cell (Constants.DOTS_PER_CELL)
-const LEVEL = { easy: [20, 30, 24], normal: [30, 40, 28], hard: [40, 50, 32] }; // min cells, max cells, max dots (same as Constants.LEVEL)
+const D = 2; // dots per cell (Constants.DOTS_PER_CELL)
+const LEVEL = { easy: [80, 104, 24], normal: [96, 134, 28], hard: [132, 162, 32] }; // min cells, max cells, max dots (max dots same as Constants.LEVEL)
 
 // ---- shape parts (a dot is inside when its center is inside the shape) ----
 function Pic(w, h) {
@@ -477,7 +477,7 @@ function frameCells(rows) {
   for (let cy = 0; cy < rows.length / D; cy++) {
     for (let cx = 0; cx < rows[0].length / D; cx++) {
       let on = false;
-      for (let j = 0; j < D; j++) { if (rows[cy * D + j].substr(cx * D, D) !== '....') { on = true; } }
+      for (let j = 0; j < D; j++) { if (rows[cy * D + j].substr(cx * D, D) !== '.'.repeat(D)) { on = true; } }
       if (on) { n++; }
     }
   }
@@ -524,7 +524,7 @@ var PICS = [
 ${pics.map((p) => pictureText(p, '  ')).join(',\n')}
 ];
 (function(){
-  var PX=6,D=4,out=document.getElementById('out'),NAMES={easy:'かんたん',normal:'ふつう',hard:'むずかしい'},rows={};
+  var PX=6,D=2,out=document.getElementById('out'),NAMES={easy:'かんたん',normal:'ふつう',hard:'むずかしい'},rows={};
   ['easy','normal','hard'].forEach(function(lv){var h=document.createElement('h2');h.textContent=NAMES[lv];out.appendChild(h);
     var r=document.createElement('div');r.className='row';out.appendChild(r);rows[lv]=r;});
   PICS.forEach(function(p){

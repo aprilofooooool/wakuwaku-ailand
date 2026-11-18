@@ -1,7 +1,7 @@
 (function (A) {
   'use strict';
   var describe = A.Test.describe, it = A.Test.it, expect = A.Test.expect;
-  var F = A.games.fill, P = F.Piece, Z = F.Puzzle;
+  var F = A.games.fill, C = F.Constants, P = F.Piece, Z = F.Puzzle;
 
   function connected(cells) {
     var set = {}, i;
@@ -20,14 +20,14 @@
 
   function rectPicture(w, h) {
     var rows = [];
-    for (var y = 0; y < h * 4; y++) { rows.push(new Array(w * 4 + 1).join('a')); }
+    for (var y = 0; y < h * 2; y++) { rows.push(new Array(w * 2 + 1).join('a')); }
     return { id: 'rect', name: 'rect', level: 'easy', palette: { a: '#000' }, pixels: rows };
   }
 
   describe('fill puzzle', function () {
     it('frameOf counts cells from dots', function () {
       var pic = { id: 't', name: 't', level: 'easy', palette: { a: '#000' }, pixels: [
-        '..a.....', '........', '........', '........'
+        '.a..', '....'
       ] };
       var f = Z.frameOf(pic);
       expect(f.w).toBe(2);
@@ -38,11 +38,13 @@
     });
     it('every picture makes a valid puzzle', function () {
       F.Pictures.forEach(function (pic) {
-        for (var seed = 1; seed <= 20; seed++) {
-          var pz = Z.make(pic, seed), seen = {}, total = 0;
+        var count = C.LEVEL[pic.level].pieces;
+        for (var seed = 1; seed <= 30; seed++) {
+          var pz = Z.make(pic, seed), seen = {}, total = 0, avg = pz.frame.count / count;
+          expect(pz.pieces.length).toBe(count);
           pz.pieces.forEach(function (p) {
-            expect(p.cells.length).toBeGreaterThanOrEqual(4);
-            expect(p.cells.length).toBeLessThanOrEqual(5);
+            expect(p.cells.length).toBeGreaterThanOrEqual(Math.ceil(0.5 * avg));
+            expect(p.cells.length).toBeLessThanOrEqual(Math.floor(1.5 * avg));
             expect(connected(p.cells)).toBe(true);
             P.place(p.cells, p.answer.x, p.answer.y).forEach(function (c) {
               var k = c[0] + ',' + c[1];
@@ -72,53 +74,16 @@
       expect(P.normalize(all)).toEqual(P.normalize(pz.frame.cells));
       expect(all.length).toBe(pz.frame.count);
     });
-    it('start is one of 8 orientations and color is 0 to 3', function () {
-      var pz = Z.make(F.Pictures[0], 1);
-      pz.pieces.forEach(function (p) {
-        expect(p.start.rot >= 0 && p.start.rot <= 3).toBe(true);
-        expect(p.start.flip === 0 || p.start.flip === 1).toBe(true);
-        expect(p.color >= 0 && p.color <= 3).toBe(true);
-      });
-    });
-    it('same color on neighbors only when one of them sees all 4 colors around it', function () {
-      var D = [[1, 0], [-1, 0], [0, 1], [0, -1]], bad = 0, uncolored = 0;
+    it('start rot follows the level', function () {
       F.Pictures.forEach(function (pic) {
-        for (var seed = 1; seed <= 10; seed++) {
-          var pz = Z.make(pic, seed), owner = {};
-          pz.pieces.forEach(function (p, i) {
-            if (!(p.color >= 0 && p.color <= 3)) { uncolored++; }
-            P.place(p.cells, p.answer.x, p.answer.y).forEach(function (c) { owner[c[0] + ',' + c[1]] = i; });
-          });
-          var nb = pz.pieces.map(function () { return {}; });
-          Object.keys(owner).forEach(function (k) {
-            var xy = k.split(','), x = +xy[0], y = +xy[1];
-            D.forEach(function (d) {
-              var o = owner[(x + d[0]) + ',' + (y + d[1])];
-              if (o !== undefined && o !== owner[k]) { nb[owner[k]][o] = true; }
-            });
-          });
-          function distinct(i) {
-            var set = {};
-            Object.keys(nb[i]).forEach(function (j) { set[pz.pieces[j].color] = true; });
-            return Object.keys(set).length;
-          }
-          pz.pieces.forEach(function (p, i) {
-            Object.keys(nb[i]).forEach(function (j) {
-              if (+j > i && pz.pieces[+j].color === p.color && distinct(i) < 4 && distinct(+j) < 4) { bad++; }
-            });
-          });
-        }
+        var pz = Z.make(pic, 1), rotates = C.LEVEL[pic.level].rotate;
+        pz.pieces.forEach(function (p) {
+          expect(p.start.flip).toBe(undefined);
+          expect(p.color).toBe(undefined);
+          if (rotates) { expect(p.start.rot >= 0 && p.start.rot <= 3).toBe(true); }
+          else { expect(p.start.rot).toBe(0); }
+        });
       });
-      expect(uncolored).toBe(0);
-      expect(bad).toBe(0);
-    });
-    it('neighbors get different colors when possible', function () {
-      var pz = Z.make(rectPicture(2, 4), 1);
-      expect(pz.pieces.length).toBe(2);
-      expect(pz.pieces[0].color === pz.pieces[1].color).toBe(false);
-      // The first piece has only an uncolored neighbor, so color 0 must still be free.
-      expect(pz.pieces[0].color).toBe(0);
-      expect(pz.pieces[1].color).toBe(1);
     });
   });
 })(window.Ailand);
