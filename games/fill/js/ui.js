@@ -265,16 +265,18 @@
       var tray = el('div', 'fl-tray');
 
       var actEl = el('div', 'fl-act');
-      var canRotate = K.LEVEL[pictureOf(game.id).level].rotate;
-      game.acts = ACTS.filter(function () { return canRotate; }).map(function (a) {
-        var b = button('fl-actbtn', undefined, function () { turnSelected(); });
-        b.dataset.action = a[0];
-        b.setAttribute('aria-label', a[2]);
-        b.appendChild(el('span', 'fl-ico', a[1]));
-        b.appendChild(el('span', 'fl-actlabel', a[2]));
-        actEl.appendChild(b);
-        return b;
-      });
+      game.acts = [];
+      if (K.LEVEL[pictureOf(game.id).level].rotate) {   // easy has no rotate button
+        game.acts = ACTS.map(function (a) {
+          var b = button('fl-actbtn', undefined, function () { turnSelected(); });
+          b.dataset.action = a[0];
+          b.setAttribute('aria-label', a[2]);
+          b.appendChild(el('span', 'fl-ico', a[1]));
+          b.appendChild(el('span', 'fl-actlabel', a[2]));
+          actEl.appendChild(b);
+          return b;
+        });
+      }
 
       wrap.appendChild(boardWrap);
       wrap.appendChild(buddy);

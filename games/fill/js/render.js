@@ -41,65 +41,36 @@
     });
   }
 
-  // The N x N dots of picture cell (cx, cy) at (ox + cx * cell, oy + cy * cell). Edges are rounded so dots leave
-  // no seams. Dots with no colour stay see-through.
-  function cellDots(ctx, pic, cx, cy, cell, ox, oy) {
+  // The N x N dots of picture cell (px, py) drawn with the cell's top-left at (x, y) (canvas px). Edges are
+  // rounded so dots leave no seams. A dot with no colour gets `fallback`; null leaves it see-through.
+  function cellDots(ctx, pic, px, py, cell, x, y, fallback) {
     var d = cell / N;
     for (var dy = 0; dy < N; dy++) {
-      var row = pic.pixels[cy * N + dy] || '';
+      var row = pic.pixels[py * N + dy] || '';
       for (var dx = 0; dx < N; dx++) {
-        var ch = row.charAt(cx * N + dx);
-        var col = (ch === '' || ch === '.') ? null : pic.palette[ch];
+        var ch = row.charAt(px * N + dx);
+        var col = (ch === '' || ch === '.' ? null : pic.palette[ch]) || fallback;
         if (!col) { continue; }
-        var x0 = Math.round(ox + cx * cell + dx * d), x1 = Math.round(ox + cx * cell + (dx + 1) * d);
-        var y0 = Math.round(oy + cy * cell + dy * d), y1 = Math.round(oy + cy * cell + (dy + 1) * d);
+        var x0 = Math.round(x + dx * d), x1 = Math.round(x + (dx + 1) * d);
+        var y0 = Math.round(y + dy * d), y1 = Math.round(y + (dy + 1) * d);
         ctx.fillStyle = col;
         ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
       }
     }
   }
 
-  // One piece in its answer orientation with its top-left cell at (ox, oy): its slice of the picture, the
-  // outline, and a gold glow when selected. The slice is read from the picture at answer.x + c, answer.y + c.
-  function drawPiece(ctx, pic, piece, cell, ox, oy, selected) {
-    var lw = Math.max(2, Math.round(cell * 0.08));
-    var cells = piece.cells;
-    cells.forEach(function (c) {
-      // picture cell = answer + local cell; drawn at the piece's own origin
-      cellDotsShift(ctx, pic, piece.answer.x + c[0], piece.answer.y + c[1], c, cell, ox, oy);
+  // One piece in its answer orientation with its top-left cell at (ox, oy): its slice of the picture (the
+  // picture cell answer + local cell for each local cell) and the outline.
+  function drawPiece(ctx, pic, piece, cell, ox, oy) {
+    piece.cells.forEach(function (c) {
+      cellDots(ctx, pic, piece.answer.x + c[0], piece.answer.y + c[1], cell, ox + c[0] * cell, oy + c[1] * cell, NO_DOT);
     });
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    if (selected) {
-      ctx.save();
-      ctx.strokeStyle = SELECT;
-      ctx.lineWidth = lw * 3;
-      ctx.shadowColor = SELECT;
-      ctx.shadowBlur = cell * 0.4;
-      edgePath(ctx, cells, cell, ox, oy);
-      ctx.stroke();
-      ctx.restore();
-    }
     ctx.strokeStyle = OUTLINE;
-    ctx.lineWidth = lw;
-    edgePath(ctx, cells, cell, ox, oy);
+    ctx.lineWidth = Math.max(2, Math.round(cell * 0.08));
+    edgePath(ctx, piece.cells, cell, ox, oy);
     ctx.stroke();
-  }
-
-  // Draws picture cell (px, py) at the local cell position c of a piece placed at (ox, oy).
-  function cellDotsShift(ctx, pic, px, py, c, cell, ox, oy) {
-    var d = cell / N;
-    for (var dy = 0; dy < N; dy++) {
-      var row = pic.pixels[py * N + dy] || '';
-      for (var dx = 0; dx < N; dx++) {
-        var ch = row.charAt(px * N + dx);
-        var col = (ch === '' || ch === '.') ? null : pic.palette[ch];
-        var x0 = Math.round(ox + c[0] * cell + dx * d), x1 = Math.round(ox + c[0] * cell + (dx + 1) * d);
-        var y0 = Math.round(oy + c[1] * cell + dy * d), y1 = Math.round(oy + c[1] * cell + (dy + 1) * d);
-        ctx.fillStyle = col || NO_DOT;
-        ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
-      }
-    }
   }
 
   function sizeOf(cells) {
@@ -108,8 +79,8 @@
     return { w: w, h: h };
   }
 
-  // o: { frame, picture, guide (0..1), placed: [{ piece }], selected?, ghost: { cells }|null, hint: { cells }|null,
-  //      pop: { id, scale }|null, cell, dpr }. The canvas is frame.w x frame.h cells.
+  // o: { frame, picture, guide (0..1), placed: [{ piece }], ghost: { cells }|null, hint: { cells }|null,
+  //      pop: { id, scale }|null (a placed piece bounces), cell, dpr }. The canvas is frame.w x frame.h cells.
   function board(ctx, o) {
     var cell = o.cell, frame = o.frame, pic = o.picture;
     begin(ctx, o.dpr || 1);
@@ -126,7 +97,7 @@
     if (o.guide > 0 && pic) {
       ctx.save();
       ctx.globalAlpha = o.guide;
-      frame.cells.forEach(function (c) { cellDots(ctx, pic, c[0], c[1], cell, 0, 0); });
+      frame.cells.forEach(function (c) { cellDots(ctx, pic, c[0], c[1], cell, c[0] * cell, c[1] * cell, null); });
       ctx.restore();
     }
     ctx.strokeStyle = OUTLINE;
@@ -143,10 +114,10 @@
         ctx.translate(cx, cy);
         ctx.scale(o.pop.scale, o.pop.scale);
         ctx.translate(-cx, -cy);
-        drawPiece(ctx, pic, pc, cell, ox, oy, false);
+        drawPiece(ctx, pic, pc, cell, ox, oy);
         ctx.restore();
       } else {
-        drawPiece(ctx, pic, pc, cell, ox, oy, false);
+        drawPiece(ctx, pic, pc, cell, ox, oy);
       }
     });
     if (o.hint) {
@@ -178,14 +149,14 @@
 
   // A single piece (tray or dragged) turned rot x 90 degrees clockwise: it is drawn in its answer orientation
   // and the canvas is rotated, so the picture slice turns with it. The canvas is the turned bounding box.
-  // The tray shows the selection with CSS (fill.css .is-selected); `selected` adds a glow for other callers.
-  function piece(ctx, picture, pc, rot, cell, dpr, selected) {
+  // The tray shows the selection with CSS (fill.css .is-selected).
+  function piece(ctx, picture, pc, rot, cell, dpr) {
     begin(ctx, dpr || 1);
     var sz = sizeOf(pc.cells), W = sz.w * cell, H = sz.h * cell, r = ((rot % 4) + 4) % 4;
     ctx.save();
     if (r === 1) { ctx.translate(H, 0); } else if (r === 2) { ctx.translate(W, H); } else if (r === 3) { ctx.translate(0, W); }
     ctx.rotate(r * Math.PI / 2);
-    drawPiece(ctx, picture, pc, cell, 0, 0, !!selected);
+    drawPiece(ctx, picture, pc, cell, 0, 0);
     ctx.restore();
   }
 
