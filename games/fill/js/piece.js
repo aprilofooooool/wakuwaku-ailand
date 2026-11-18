@@ -1,0 +1,136 @@
+(function (G) {
+  'use strict';
+
+  var DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+  function key(x, y) { return x + ',' + y; }
+
+  // Shift min x/y to 0 and sort by y then x.
+  function normalize(cells) {
+    var minX = Infinity, minY = Infinity, i;
+    for (i = 0; i < cells.length; i++) {
+      if (cells[i][0] < minX) { minX = cells[i][0]; }
+      if (cells[i][1] < minY) { minY = cells[i][1]; }
+    }
+    var out = [];
+    for (i = 0; i < cells.length; i++) { out.push([cells[i][0] - minX, cells[i][1] - minY]); }
+    out.sort(function (a, b) { return a[1] - b[1] || a[0] - b[0]; });
+    return out;
+  }
+
+  // Clockwise once: (x, y) -> (-y, x).
+  function rotate(cells) {
+    return normalize(cells.map(function (c) { return [-c[1], c[0]]; }));
+  }
+
+  // Rotate clockwise rot times.
+  function orient(cells, rot) {
+    var r = normalize(cells);
+    for (var i = 0; i < rot; i++) { r = rotate(r); }
+    return r;
+  }
+
+  function same(a, b) {
+    return JSON.stringify(normalize(a)) === JSON.stringify(normalize(b));
+  }
+
+  function place(cells, x, y) {
+    return cells.map(function (c) { return [c[0] + x, c[1] + y]; });
+  }
+
+  function fits(frame, occupied, cells, x, y) {
+    for (var i = 0; i < cells.length; i++) {
+      var cx = cells[i][0] + x, cy = cells[i][1] + y;
+      if (cx < 0 || cy < 0 || cx >= frame.w || cy >= frame.h) { return false; }
+      if (!frame.on[cy] || !frame.on[cy][cx]) { return false; }
+      if (occupied[key(cx, cy)] !== undefined) { return false; }
+    }
+    return true;
+  }
+
+  // Grid (BFS) distance from src to every frame cell, keyed by key(x, y).
+  function distancesFrom(inFrame, src) {
+    var dist = {}, queue = [src], head = 0;
+    dist[key(src[0], src[1])] = 0;
+    while (head < queue.length) {
+      var c = queue[head++], d = dist[key(c[0], c[1])];
+      for (var j = 0; j < 4; j++) {
+        var nx = c[0] + DIRS[j][0], ny = c[1] + DIRS[j][1], k = key(nx, ny);
+        if (inFrame[k] && dist[k] === undefined) { dist[k] = d + 1; queue.push([nx, ny]); }
+      }
+    }
+    return dist;
+  }
+
+  // Split connected frameCells into count connected pieces (each 0.5x to 1.5x the average size), or null.
+  function partition(frameCells, rand, count) {
+    var inFrame = {}, i, j, k;
+    for (i = 0; i < frameCells.length; i++) { inFrame[key(frameCells[i][0], frameCells[i][1])] = true; }
+    var avg = frameCells.length / count;
+    var minSize = Math.ceil(0.5 * avg), maxSize = Math.floor(1.5 * avg);
+    if (frameCells.length < count) { return null; }
+
+    // Seeds: first at random, then the cell farthest from all chosen seeds (ties by rand).
+    var seeds = [frameCells[Math.floor(rand() * frameCells.length)]];
+    var minDist = distancesFrom(inFrame, seeds[0]);
+    while (seeds.length < count) {
+      var bestD = -1, ties = [];
+      for (i = 0; i < frameCells.length; i++) {
+        var d = minDist[key(frameCells[i][0], frameCells[i][1])];
+        if (d > bestD) { bestD = d; ties = [frameCells[i]]; } else if (d === bestD) { ties.push(frameCells[i]); }
+      }
+      if (bestD <= 0) { return null; }
+      var seed = ties[Math.floor(rand() * ties.length)], nd = distancesFrom(inFrame, seed);
+      seeds.push(seed);
+      for (k in nd) { if (nd[k] < minDist[k]) { minDist[k] = nd[k]; } }
+    }
+
+    // Grow all pieces together: the smallest piece takes a random free neighbouring cell.
+    var owner = {}, pieces = [], remaining = frameCells.length - count;
+    for (i = 0; i < count; i++) { pieces.push([seeds[i]]); owner[key(seeds[i][0], seeds[i][1])] = i; }
+    while (remaining > 0) {
+      var order = [];
+      for (i = 0; i < count; i++) { order.push(i); }
+      order.sort(function (a, b) { return pieces[a].length - pieces[b].length; });
+      var grew = false;
+      for (i = 0; i < count && !grew; i++) {
+        // Among pieces of the same smallest size, start at a random one.
+        var size = pieces[order[i]].length, n = 0;
+        while (i + n < count && pieces[order[i + n]].length === size) { n++; }
+        var off = Math.floor(rand() * n);
+        for (j = 0; j < n && !grew; j++) {
+          var pi = order[i + (j + off) % n], cands = [], seenC = {}, c;
+          for (var m = 0; m < pieces[pi].length; m++) {
+            for (k = 0; k < 4; k++) {
+              var nx = pieces[pi][m][0] + DIRS[k][0], ny = pieces[pi][m][1] + DIRS[k][1], kk = key(nx, ny);
+              if (inFrame[kk] && owner[kk] === undefined && !seenC[kk]) { seenC[kk] = true; cands.push([nx, ny]); }
+            }
+          }
+          if (cands.length) {
+            c = cands[Math.floor(rand() * cands.length)];
+            pieces[pi].push(c);
+            owner[key(c[0], c[1])] = pi;
+            remaining--;
+            grew = true;
+          }
+        }
+        i += n - 1;
+      }
+      if (!grew) { return null; }
+    }
+    for (i = 0; i < count; i++) {
+      if (pieces[i].length < minSize || pieces[i].length > maxSize) { return null; }
+    }
+    return pieces;
+  }
+
+  G.Piece = {
+    normalize: normalize,
+    rotate: rotate,
+    orient: orient,
+    same: same,
+    place: place,
+    fits: fits,
+    partition: partition
+  };
+})(Ailand.games.fill);

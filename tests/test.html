@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="../games/whack/css/whack.css">
 <link rel="stylesheet" href="../games/blocks/css/blocks.css">
 <link rel="stylesheet" href="../games/chain/css/chain.css">
+<link rel="stylesheet" href="../games/fill/css/fill.css">
 <style>
   body { font-family: sans-serif; margin: 16px; }
   #summary { padding: 8px 12px; color: #fff; font-weight: bold; }
@@ -102,6 +103,21 @@
 <script src="../games/blocks/js/fx.js"></script>
 <script src="../games/blocks/js/sounds.js"></script>
 <script src="../games/blocks/js/ui.js"></script>
+<script src="../games/fill/js/namespace.js"></script>
+<script src="../games/fill/js/constants.js"></script>
+<script src="../games/fill/js/piece.js"></script>
+<script src="../games/fill/js/pictures.js"></script>
+<script src="../games/fill/js/puzzle.js"></script>
+<script src="../games/fill/js/engine.js"></script>
+<script src="../games/fill/js/reactions.js"></script>
+<script src="../games/fill/js/lines.js"></script>
+<script src="../games/fill/js/controller.js"></script>
+<script src="../games/fill/js/layout.js"></script>
+<script src="../games/fill/js/sounds.js"></script>
+<script src="../games/fill/js/render.js"></script>
+<script src="../games/fill/js/drag.js"></script>
+<script src="../games/fill/js/fx.js"></script>
+<script src="../games/fill/js/ui.js"></script>
 <script src="othello/core.test.js"></script>
 <script src="othello/engine.test.js"></script>
 <script src="othello/four.test.js"></script>
@@ -164,6 +180,15 @@
 <script src="blocks/controller.test.js"></script>
 <script src="blocks/layout.test.js"></script>
 <script src="blocks/ui.dom.test.js" data-browser-only></script>
+<script src="fill/piece.test.js"></script>
+<script src="fill/pictures.test.js"></script>
+<script src="fill/puzzle.test.js"></script>
+<script src="fill/engine.test.js"></script>
+<script src="fill/reactions.test.js"></script>
+<script src="fill/lines.test.js"></script>
+<script src="fill/controller.test.js"></script>
+<script src="fill/layout.test.js"></script>
+<script src="fill/ui.dom.test.js" data-browser-only></script>
 <script>
   Ailand.Test.run().then(function (r) {
     var s = document.getElementById('summary');
