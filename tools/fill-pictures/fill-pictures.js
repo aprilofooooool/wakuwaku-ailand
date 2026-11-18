@@ -517,14 +517,14 @@ h1{font-size:20px;margin:0 0 4px}h2{font-size:17px;margin:20px 0 8px}p{font-size
 .name{font-size:18px;font-weight:bold;margin-top:6px}.meta{font-size:12px;color:#9a8a7a}
 </style></head><body>
 <h1>ピタうめっち 絵の見本</h1>
-<p>道具（tools/fill-pictures/fill-pictures.js）が書き出した一覧。上：完成したときの絵。下：遊ぶ前の枠（点線のマス）。1マス＝4×4ドット。</p>
+<p>道具（tools/fill-pictures/fill-pictures.js）が書き出した一覧。上：完成したときの絵。下：遊ぶ前の枠（点線のマス）。1マス＝${D}×${D}ドット。</p>
 <div id="out"></div>
 <script>
 var PICS = [
 ${pics.map((p) => pictureText(p, '  ')).join(',\n')}
 ];
 (function(){
-  var PX=6,D=2,out=document.getElementById('out'),NAMES={easy:'かんたん',normal:'ふつう',hard:'むずかしい'},rows={};
+  var PX=6,D=${D},out=document.getElementById('out'),NAMES={easy:'かんたん',normal:'ふつう',hard:'むずかしい'},rows={};
   ['easy','normal','hard'].forEach(function(lv){var h=document.createElement('h2');h.textContent=NAMES[lv];out.appendChild(h);
     var r=document.createElement('div');r.className='row';out.appendChild(r);rows[lv]=r;});
   PICS.forEach(function(p){

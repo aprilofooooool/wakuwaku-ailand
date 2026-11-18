@@ -335,6 +335,25 @@
       } finally { t.done(); }
     });
 
+    it('rotate button is off after the selected piece snaps', function () {
+      var t = make('normal');
+      try {
+        startFirst(t);
+        var id = trayIds(t)[0], a = answerOf(t, id);
+        turnToAnswer(t, id);
+        down(t, id);
+        ptr(wrap(t), 'pointerup', 1, 0, 0);
+        expect(act(t, 'rotate').disabled).toBe(false);
+        down(t, id);
+        dragTo(t, a.x, a.y);
+        expect(eng(t).state(id).at).toEqual(a);
+        expect(act(t, 'rotate').disabled).toBe(true);
+        act(t, 'rotate').click();
+        expect(eng(t).state(id).rot).toBe(0);
+        expect(eng(t).state(id).at).toEqual(a);
+      } finally { t.done(); }
+    });
+
     it('pieces show the picture', function () {
       var t = make();
       var orig = G.Render.piece, calls = [];

@@ -661,6 +661,8 @@
     on('placed', function (p) {
       sfx('fill-place');
       if (game.hint && game.hint.id === p.id) { game.hint = null; }
+      game.selected = null;   // a placed piece is locked: nothing left to turn
+      refresh();
       if (!C.Effects.isReduced()) { game.pop = { id: p.id, t: 0 }; }
       reactTo(reactions.forPlaced());
     });
