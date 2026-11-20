@@ -7,9 +7,9 @@
   }
 
   describe('core/Games', function () {
-    it('lists 7 games, 6 of them ready', function () {
+    it('lists 7 games, all of them ready', function () {
       expect(G.LIST.length).toBe(7);
-      expect(G.LIST.filter(function (g) { return g.ready; }).length).toBe(6);
+      expect(G.LIST.filter(function (g) { return g.ready; }).length).toBe(7);
     });
     it('whack is ready at games/whack/index.html without a save key', function () {
       var w = G.LIST.filter(function (g) { return g.id === 'whack'; })[0];
@@ -36,6 +36,18 @@
       expect(f.name).toBe('ピタうめっち');
       expect(f.href).toBe('games/fill/index.html');
       expect(f.saveKey).toBe(null);
+    });
+    it('territory is ready with its save key', function () {
+      var t = G.LIST.filter(function (g) { return g.id === 'territory'; })[0];
+      expect(t.ready).toBe(true);
+      expect(t.name).toBe('ピースじんとり');
+      expect(t.href).toBe('games/territory/index.html');
+      expect(t.saveKey).toBe('ailand:territory:save.v1');
+    });
+    it('entry card shows continue when a save exists', function () {
+      var t = G.LIST.filter(function (g) { return g.id === 'territory'; })[0];
+      expect(G.hasSave(t, backend([]))).toBe(false);
+      expect(G.hasSave(t, backend(['ailand:territory:save.v1']))).toBe(true);
     });
     it('ids are lowercase alphanumeric with hyphens and unique', function () {
       var seen = {};

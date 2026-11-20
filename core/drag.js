@@ -1,4 +1,4 @@
-(function (G) {
+(function (C) {
   'use strict';
   // One-finger drag on an element (design 2.3). Follows only the first pointerId: other fingers are ignored
   // until it lifts. The pointer is captured so moves outside the element still arrive. DOM is not touched at load.
@@ -59,5 +59,5 @@
     };
   }
 
-  G.Drag = { attach: attach };
-})(Ailand.games.fill);
+  C.Drag = { attach: attach };
+})(window.Ailand.core);

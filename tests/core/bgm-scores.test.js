@@ -54,6 +54,7 @@
   var BLOCKS = A.games.blocks && A.games.blocks.Sounds.BGM;
   var CHAIN = A.games.chain && A.games.chain.Sounds.BGM;
   var FILL = A.games.fill && A.games.fill.Sounds.BGM;
+  var TERRITORY = A.games.territory && A.games.territory.Sounds.BGM;
 
   checkScore('entry page', TOP, { bpm: 128, beats: 32, wave: 'square' });
 
@@ -73,9 +74,10 @@
   checkScore('blocks', BLOCKS, { bpm: 132, beats: 32, wave: 'triangle' });
   checkScore('chain', CHAIN, { bpm: 116, beats: 32, wave: 'square' });
   checkScore('fill', FILL, { bpm: 88, beats: 32, wave: 'sine' });
+  checkScore('territory', TERRITORY, { bpm: 96, beats: 32, wave: 'triangle' });
 
   describe('BGM scores differ from each other', function () {
-    var all = [TOP, DROP4, OTHELLO, WHACK, BLOCKS, CHAIN, FILL];
+    var all = [TOP, DROP4, OTHELLO, WHACK, BLOCKS, CHAIN, FILL, TERRITORY];
     function distinct(list) { return list.filter(function (v, i) { return list.indexOf(v) === i; }).length === list.length; }
     it('tempos are all different', function () {
       expect(distinct(all.map(function (s) { return s.bpm; }))).toBe(true);
@@ -87,11 +89,11 @@
       function rhythm(s) { return JSON.stringify([beats(s.steps), s.swing || 0, s.drums || null]); }
       expect(distinct(all.map(rhythm))).toBe(true);
     });
-    it('only drop4 swings; only drop4 and chain bend; only othello sparkles and has no drums (fill is plain)', function () {
-      expect(all.map(function (s) { return !!s.swing; })).toEqual([false, true, false, false, false, false, false]);
-      expect(all.map(function (s) { return !!s.bend; })).toEqual([false, true, false, false, false, true, false]);
-      expect(all.map(function (s) { return !!s.sparkle; })).toEqual([false, false, true, false, false, false, false]);
-      expect(all.map(function (s) { return !!s.drums; })).toEqual([true, true, false, true, true, true, true]);
+    it('only drop4 swings; only drop4, chain and territory bend; only othello sparkles and has no drums (fill is plain)', function () {
+      expect(all.map(function (s) { return !!s.swing; })).toEqual([false, true, false, false, false, false, false, false]);
+      expect(all.map(function (s) { return !!s.bend; })).toEqual([false, true, false, false, false, true, false, true]);
+      expect(all.map(function (s) { return !!s.sparkle; })).toEqual([false, false, true, false, false, false, false, false]);
+      expect(all.map(function (s) { return !!s.drums; })).toEqual([true, true, false, true, true, true, true, true]);
     });
     it('drop4 ENDGAME_BPM (126) and whack FINAL_BPM (180) are faster than their normal tempo', function () {
       expect(A.games.drop4.Sounds.ENDGAME_BPM).toBe(126);
@@ -101,6 +103,7 @@
       expect(A.games.chain.Sounds.ALMOST_BPM > CHAIN.bpm).toBe(true);
       expect(A.games.chain.Sounds.HURRY_BPM > A.games.chain.Sounds.ALMOST_BPM).toBe(true);
       expect(A.games.drop4.Sounds.ENDGAME_BPM > DROP4.bpm).toBe(true);
+      expect(A.games.territory.Sounds.ENDGAME_BPM > TERRITORY.bpm).toBe(true);
       expect(A.games.whack.Sounds.FINAL_BPM > WHACK.bpm).toBe(true);
     });
   });
