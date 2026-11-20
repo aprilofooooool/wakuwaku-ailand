@@ -3,8 +3,6 @@
   var describe = A.Test.describe, it = A.Test.it, expect = A.Test.expect;
   var P = A.games.fill.Piece;
 
-  var L5 = [[0, 0], [0, 1], [0, 2], [0, 3], [1, 3]];
-
   function rect(w, h) {
     var c = [];
     for (var y = 0; y < h; y++) { for (var x = 0; x < w; x++) { c.push([x, y]); } }
@@ -28,28 +26,6 @@
   }
 
   describe('fill piece', function () {
-    it('normalize shifts to zero and sorts', function () {
-      expect(P.normalize([[2, 3], [1, 3], [1, 4]])).toEqual([[0, 0], [1, 0], [0, 1]]);
-    });
-    it('rotate four times returns the same', function () {
-      var c = P.normalize(L5), r = c;
-      for (var i = 0; i < 4; i++) { r = P.rotate(r); }
-      expect(r).toEqual(c);
-      expect(P.rotate([[0, 0], [0, 1], [0, 2], [1, 2]])).toEqual([[0, 0], [1, 0], [2, 0], [0, 1]]);
-    });
-    it('orient rotates clockwise and four turns equal normalize', function () {
-      var c = [[3, 4], [3, 5], [3, 6], [4, 6]];
-      expect(P.orient(c, 4)).toEqual(P.normalize(c));
-      expect(P.orient(c, 0)).toEqual(P.normalize(c));
-      expect(P.orient(c, 1)).toEqual(P.rotate(P.normalize(c)));
-    });
-    it('same compares after normalize', function () {
-      expect(P.same([[5, 5], [6, 5]], [[0, 0], [1, 0]])).toBe(true);
-      expect(P.same([[0, 0], [1, 0]], [[0, 0], [0, 1]])).toBe(false);
-    });
-    it('place moves to absolute cells', function () {
-      expect(P.place([[0, 0], [1, 0]], 2, 3)).toEqual([[2, 3], [3, 3]]);
-    });
     it('fits checks frame and overlap', function () {
       var frame = { w: 3, h: 2, on: [[true, true, false], [true, true, true]] };
       var occ = { '0,1': 'p1' };

@@ -5,39 +5,6 @@
 
   function key(x, y) { return x + ',' + y; }
 
-  // Shift min x/y to 0 and sort by y then x.
-  function normalize(cells) {
-    var minX = Infinity, minY = Infinity, i;
-    for (i = 0; i < cells.length; i++) {
-      if (cells[i][0] < minX) { minX = cells[i][0]; }
-      if (cells[i][1] < minY) { minY = cells[i][1]; }
-    }
-    var out = [];
-    for (i = 0; i < cells.length; i++) { out.push([cells[i][0] - minX, cells[i][1] - minY]); }
-    out.sort(function (a, b) { return a[1] - b[1] || a[0] - b[0]; });
-    return out;
-  }
-
-  // Clockwise once: (x, y) -> (-y, x).
-  function rotate(cells) {
-    return normalize(cells.map(function (c) { return [-c[1], c[0]]; }));
-  }
-
-  // Rotate clockwise rot times.
-  function orient(cells, rot) {
-    var r = normalize(cells);
-    for (var i = 0; i < rot; i++) { r = rotate(r); }
-    return r;
-  }
-
-  function same(a, b) {
-    return JSON.stringify(normalize(a)) === JSON.stringify(normalize(b));
-  }
-
-  function place(cells, x, y) {
-    return cells.map(function (c) { return [c[0] + x, c[1] + y]; });
-  }
-
   function fits(frame, occupied, cells, x, y) {
     for (var i = 0; i < cells.length; i++) {
       var cx = cells[i][0] + x, cy = cells[i][1] + y;
@@ -124,13 +91,18 @@
     return pieces;
   }
 
+  // Shape math lives in core; re-exported under the same names so the other fill files are unchanged.
+  var K = Ailand.core.Piece;
   G.Piece = {
-    normalize: normalize,
-    rotate: rotate,
-    orient: orient,
-    same: same,
-    place: place,
+    normalize: K.normalize,
+    rotate: K.rotate,
+    flip: K.flip,
+    orient: K.orient,
+    orientations: K.orientations,
+    same: K.same,
+    place: K.place,
     fits: fits,
+    distancesFrom: distancesFrom,
     partition: partition
   };
 })(Ailand.games.fill);

@@ -293,7 +293,7 @@
       game.mark = mark;
       game.say = sayEl;
       game.tray = tray;
-      detachDrag = G.Drag.attach(wrap, { pick: pick, onStart: onDragStart, onMove: onDragMove, onEnd: onDragEnd, onCancel: onDragCancel });
+      detachDrag = C.Drag.attach(wrap, { pick: pick, onStart: onDragStart, onMove: onDragMove, onEnd: onDragEnd, onCancel: onDragCancel });
     }
 
     // Board cell size: the largest board that fits its area (design 4.4). Canvas follows devicePixelRatio.
