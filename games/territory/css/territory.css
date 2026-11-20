@@ -128,13 +128,35 @@ body.tr-playing { overflow: hidden; }
   .tr-facewrap { width: 32px; height: 32px; }
 }
 
-/* ---------- game over (placeholder; Task 8 adds the result screen) ---------- */
-.tr-result { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--overlay); }
-.tr-result-card { background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-l); box-shadow: var(--shadow-soft); padding: 20px; text-align: center; max-width: 420px; width: 100%; }
-.tr-result-text { margin: 0 0 12px; font-size: 1.6rem; font-weight: 900; }
-.tr-result-list { list-style: none; margin: 0 0 16px; padding: 0; font-size: 18px; font-weight: 800; }
+/* ---------- result screen (design 4.5) ---------- */
+.tr-result { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--overlay); overflow-y: auto; touch-action: pan-y; }
+.tr-result-card { background: var(--surface); border: var(--border-w) solid var(--outline); border-radius: var(--radius-l); box-shadow: var(--shadow-soft); padding: 16px 20px; text-align: center; max-width: 420px; width: 100%; margin: auto; }
+.tr-result-card.is-lose, .tr-result-card.is-draw { background: var(--tr-tray); }
+.tr-heroes { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 0 8px; }
+.tr-hero { width: min(36vw, 22vh, 160px); aspect-ratio: 1; border-radius: 50%; background: var(--surface); border: var(--border-w) solid var(--outline); box-shadow: var(--shadow-m); overflow: hidden; }
+.tr-hero .char-img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.tr-heroes.is-multi .tr-hero { width: min(20vw, 14vh, 96px); }
+.is-win .tr-hero { animation: tr-hero 1100ms ease-in-out infinite; }
+.is-lose .tr-hero, .is-draw .tr-hero { animation: tr-gentle 500ms ease-out both; }
+@keyframes tr-hero { 0%, 100% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-5%) rotate(-8deg); } 60% { transform: translateY(0) rotate(8deg); } }
+@keyframes tr-gentle { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.tr-result-text { margin: 0; font-size: 1.6rem; font-weight: 900; }
+.tr-result-sub { margin: 2px 0 8px; font-size: 18px; font-weight: 800; }
+.tr-result-list { list-style: none; margin: 8px 0 12px; padding: 0; font-size: 18px; font-weight: 800; }
 .tr-result-list li { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 4px 0; }
 .tr-result-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+
+/* Full-screen effects (fx.js): small pops and tags on the shared #fx-layer. */
+.tr-pop { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 4px; transform: translate(-50%, -50%); font-size: 3rem; font-weight: 900; line-height: 1; text-shadow: 0 0 8px #fff, 0 0 16px var(--fx-gold); animation: tr-pop 1300ms ease-out both; }
+.tr-pop.is-small { font-size: 2.4rem; }
+.tr-pop-text { font-size: 1.2rem; color: var(--ink); background: #fff; border: 3px solid var(--outline); border-radius: var(--radius-round); padding: 2px 14px; text-shadow: none; white-space: nowrap; }
+@keyframes tr-pop {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+  25% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+  40% { transform: translate(-50%, -50%) scale(1); }
+  85% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+}
 
 /* Reduced motion (design 5.1): base.css stops every animation; the dots stay still. */
 @media (prefers-reduced-motion: reduce) {

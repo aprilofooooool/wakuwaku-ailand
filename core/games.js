@@ -7,7 +7,7 @@
     { id: 'othello', name: 'オセロっち', href: 'games/othello/index.html', ready: true, saveKey: 'ailand:othello:save.v1' },
     { id: 'whack', name: 'ピコハンっち', href: 'games/whack/index.html', ready: true, saveKey: null },
     { id: 'fill', name: 'ピタうめっち', href: 'games/fill/index.html', ready: true, saveKey: null },
-    { id: 'territory', name: 'ピースじんとり', href: '', ready: false, saveKey: null },
+    { id: 'territory', name: 'ピースじんとり', href: 'games/territory/index.html', ready: true, saveKey: 'ailand:territory:save.v1' },
     { id: 'blocks', name: 'テトリっち', href: 'games/blocks/index.html', ready: true, saveKey: null },
     { id: 'chain', name: 'ぷにっち', href: 'games/chain/index.html', ready: true, saveKey: null }
   ];

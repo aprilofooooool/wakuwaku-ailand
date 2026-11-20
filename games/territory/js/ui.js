@@ -2,7 +2,7 @@
   'use strict';
   // territory screens: settings (design 4.3), how-to (2.5) and play (3, 4.4) with drag. DOM is touched only after init().
   // Bus events are applied synchronously; the CPU flash is a timed overlay that never blocks input.
-  // Full-screen effects (reaction `screen`) and the result screen come in Task 8 (fx.js); gameover shows a simple card.
+  // Full-screen effects (reaction `screen`) are drawn by fx.js; the result screen is built here (design 4.5).
   var C = Ailand.core, K = G.Constants, E = G.Engine, L = G.Layout, R = G.Render, P = C.Piece;
   var Sound = C.Sound, Bgm = C.Bgm;
 
@@ -275,6 +275,10 @@
 
     function buildGame(settings) {
       if (detachDrag) { detachDrag(); detachDrag = null; }
+      // A new game must not inherit the old tip / CPU-flash timers or an effect still on screen.
+      timers.forEach(clearTimeout);
+      timers = [];
+      G.Fx.stop();
       gameScreen.innerHTML = '';
       var wrap = el('div', 'tr-game');
       var cards = el('div', 'tr-cards');
@@ -351,7 +355,7 @@
         humans: humans, cpus: settings.seats.length - humans.length,
         turnSeat: 0, humanTurn: false, over: false, fast: false,
         cell: 0, dpr: 1, selected: null, orient: {}, drag: null, flash: null, flashTimer: null,
-        greetUntil: 0
+        greetUntil: 0, at: null, endScreen: null
       };
       detachDrag = C.Drag.attach(wrap, { pick: pick, onStart: onDragStart, onMove: onDragMove, onEnd: onDragEnd, onCancel: onDragCancel });
     }
@@ -369,6 +373,7 @@
       endDrag();
       timers.forEach(clearTimeout);
       timers = [];
+      G.Fx.stop();
       if (detachDrag) { detachDrag(); detachDrag = null; }
       game = null;
       resumeOnShow = false;
@@ -684,16 +689,27 @@
       m = C.UI.modal('せってい', nodes);
     }
 
-    // ---------- game over (placeholder card; Task 8 replaces it with the result screen) ----------
+    // ---------- result screen (design 4.5) ----------
 
+    var HEADLINE = { win: 'やったー！', lose: 'おしかった！', draw: 'いいしょうぶ！' };
     function showResult(result) {
+      var kind = game.endScreen || (result.draw ? 'draw' : 'win');
       var box = game.result;
       box.innerHTML = '';
-      var card = el('div', 'tr-result-card');
-      var names = result.winners.map(function (s) { return game.seats[s].profile.name; });
-      card.appendChild(el('p', 'tr-result-text', result.draw ? 'いいしょうぶ！' : names.join('と ') + 'の かち！'));
+      var card = el('div', 'tr-result-card is-' + kind);
+      var heroes = el('div', 'tr-heroes' + (result.winners.length > 1 ? ' is-multi' : ''));
+      result.winners.forEach(function (s) {
+        var hero = el('div', 'tr-hero');
+        faceInto(hero, game.seats[s].profile, game.seats[s].emotion || 'joy');
+        heroes.appendChild(hero);
+      });
+      card.appendChild(heroes);
+      card.appendChild(el('p', 'tr-result-text', HEADLINE[kind]));
+      if (!result.draw) {
+        card.appendChild(el('p', 'tr-result-sub', result.winners.map(function (s) { return game.seats[s].profile.name; }).join('と ') + 'の かち！'));
+      }
       var list = el('ol', 'tr-result-list');
-      Object.keys(result.scores).map(Number).sort(function (a, b) { return result.scores[b] - result.scores[a]; }).forEach(function (s) {
+      Object.keys(result.scores).map(Number).sort(function (x, y) { return result.scores[y] - result.scores[x] || x - y; }).forEach(function (s) {
         var li = el('li');
         li.appendChild(chip(game.seats[s].color));
         li.appendChild(el('span', null, game.seats[s].profile.name + ' ' + result.scores[s] + 'マス'));
@@ -706,6 +722,13 @@
       card.appendChild(row);
       box.appendChild(card);
       box.hidden = false;
+    }
+
+    // Centre of the piece just placed, in client px (where the small effects appear).
+    function centerOfMove(move) {
+      var cells = E.cellsOf(move), br = game.canvas.getBoundingClientRect(), x = 0, y = 0;
+      cells.forEach(function (c) { x += c[0] + 0.5; y += c[1] + 0.5; });
+      return { x: br.left + x / cells.length * game.cell, y: br.top + y / cells.length * game.cell };
     }
 
     // ---------- controller events ----------
@@ -754,6 +777,7 @@
       endDrag();
       if (game.selected === p.move.pieceId) { game.selected = null; }
       clearTip();
+      game.at = centerOfMove(p.move);
       if (game.flashTimer) { cancel(game.flashTimer); game.flashTimer = null; }
       game.flash = null;
       // A CPU piece shines on its spot first (design 3); not with reduced motion.
@@ -787,7 +811,14 @@
       } else if (SOUND_OF[kind]) {
         sfx(SOUND_OF[kind]);
       }
-      // p.screen: the one full-screen effect for this move — drawn by fx.js (Task 8).
+      // p.screen: the one full-screen effect for this move (win / lose / draw end in the result screen).
+      game.endScreen = TERMINAL[p.screen] ? p.screen : null;
+      var blocked = kind === 'block' && p.picked.event.others ? p.picked.event.others : [];
+      G.Fx.play(p.screen, {
+        at: game.at, boardEl: game.canvas, blocked: blocked,
+        resting: p.events.filter(function (e) { return e.kind === 'rest'; }).map(function (e) { return e.seat; }),
+        cardOf: function (s) { return game.seats[s] && game.seats[s].card; }
+      });
     });
     on('gameover', function (p) {
       if (!game) { return; }
@@ -808,6 +839,7 @@
       game.selected = null;
       game.over = false;
       game.result.hidden = true;
+      G.Fx.stop();
       clearTip();
       resetFaces();
       syncTempo(controller.state());

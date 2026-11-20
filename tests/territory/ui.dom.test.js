@@ -333,4 +333,101 @@
       } finally { t.done(); }
     });
   });
+
+  // ---- result screen and full-screen effects (Task 8) ----
+  function overGame(t, screen, perspective, scores, winners, draw) {
+    t.controller.start(settings(2, [1], 'me'));
+    t.bus.emit('reaction', { events: [], picked: { event: { kind: perspective }, perspective: perspective }, lines: {}, screen: screen });
+    t.bus.emit('gameover', { result: { scores: scores, winners: winners, draw: !!draw } });
+  }
+  function withReduced(on, fn) {
+    var old = window.matchMedia;
+    window.matchMedia = function (q) { return { matches: on && /reduce/.test(q), media: q, addListener: function () {}, removeListener: function () {} }; };
+    try { fn(); } finally { window.matchMedia = old; }
+  }
+  function confettiCount() { var l = document.getElementById('fx-layer'); return l ? l.querySelectorAll('.fx-p').length : 0; }
+  function clearFx() { A.games.territory.Fx.stop(); var l = document.getElementById('fx-layer'); if (l) { l.innerHTML = ''; } }
+
+  describe('territory UI result screen (browser)', function () {
+    it('game over shows the result screen in score order', function () {
+      var t = make();
+      try {
+        withReduced(false, function () { overGame(t, 'win', 'win', { 1: 30, 2: 14 }, [1]); });
+        var card = t.box.querySelector('.tr-result .tr-result-card');
+        expect(!!card).toBe(true);
+        expect(card.classList.contains('is-win')).toBe(true);
+        expect(card.querySelectorAll('.tr-hero img').length).toBe(1);
+        var rows = card.querySelectorAll('.tr-result-list li');
+        expect(rows.length).toBe(2);
+        expect(rows[0].textContent.indexOf('30マス') >= 0).toBe(true);
+        expect(rows[1].textContent.indexOf('14マス') >= 0).toBe(true);
+        expect(card.querySelector('.tr-again').textContent).toBe('もういちど');
+        expect(card.querySelector('.tr-tosettings').textContent).toBe('せっていに もどる');
+        expect(confettiCount() > 0).toBe(true);
+      } finally { clearFx(); t.done(); }
+    });
+
+    it('cpu-only win shows the lose screen', function () {
+      var t = make();
+      try {
+        withReduced(false, function () { overGame(t, 'lose', 'lose', { 1: 12, 2: 33 }, [2]); });
+        var card = t.box.querySelector('.tr-result-card');
+        expect(card.classList.contains('is-lose')).toBe(true);
+        expect(card.textContent.indexOf('おしかった！') >= 0).toBe(true);
+        var rows = card.querySelectorAll('.tr-result-list li');
+        expect(rows[0].textContent.indexOf('33マス') >= 0).toBe(true);
+        expect(confettiCount()).toBe(0);
+      } finally { clearFx(); t.done(); }
+    });
+
+    it('draw shows the draw message', function () {
+      var t = make();
+      try {
+        withReduced(false, function () { overGame(t, 'draw', 'draw', { 1: 22, 2: 22 }, [1, 2], true); });
+        var card = t.box.querySelector('.tr-result-card');
+        expect(card.classList.contains('is-draw')).toBe(true);
+        expect(card.textContent.indexOf('いいしょうぶ！') >= 0).toBe(true);
+        expect(card.querySelectorAll('.tr-hero img').length).toBe(2);
+        expect(confettiCount()).toBe(0);
+      } finally { clearFx(); t.done(); }
+    });
+
+    it('reduced motion has no confetti or blinking dots', function () {
+      var t = make();
+      try {
+        withReduced(true, function () { overGame(t, 'win', 'win', { 1: 30, 2: 14 }, [1]); });
+        expect(!!t.box.querySelector('.tr-result-card')).toBe(true);
+        expect(confettiCount()).toBe(0);
+        // the anchor dots: the stylesheet turns the blink off for reduced motion (static opacity 1)
+        var off = false;
+        Array.prototype.forEach.call(document.styleSheets, function (ss) {
+          var rules; try { rules = ss.cssRules; } catch (e) { return; }
+          Array.prototype.forEach.call(rules, function (r) {
+            if (!r.media || !/reduce/.test(r.media.mediaText)) { return; }
+            Array.prototype.forEach.call(r.cssRules, function (c) {
+              if (c.selectorText === '.tr-dots' && c.style.animationName === 'none') { off = true; }
+            });
+          });
+        });
+        expect(off).toBe(true);
+      } finally { clearFx(); t.done(); }
+    });
+
+    it('a restart clears the old tip and cpu-flash timers', function () {
+      var t = make();
+      var made = [], cleared = [], st = window.setTimeout, ct = window.clearTimeout;
+      try {
+        t.controller.start(settings(2, [1], 'me'));
+        window.setTimeout = function (fn, ms) { var id = st(fn, ms); made.push(id); return id; };
+        window.clearTimeout = function (id) { cleared.push(id); return ct(id); };
+        dragTo(t, 'p1', 6, 6, 1, 1);   // not the start corner: shows the tip (its timer is made)
+        expect(t.box.querySelector('.tr-tip').textContent !== '').toBe(true);
+        var tipTimers = made.slice();
+        expect(tipTimers.length > 0).toBe(true);
+        t.controller.start(settings(2, [1], 'me'));
+        tipTimers.forEach(function (id) { expect(cleared.indexOf(id) >= 0).toBe(true); });
+        expect(t.box.querySelector('.tr-tip').textContent).toBe('');
+      } finally { window.setTimeout = st; window.clearTimeout = ct; t.done(); }
+    });
+  });
 })(window.Ailand);
