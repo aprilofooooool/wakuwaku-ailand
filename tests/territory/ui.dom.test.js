@@ -269,6 +269,19 @@
         } finally { t.done(); }
       }
       expect(undoShown(settings(2, [1]))).toBe(true);
+      // after a human move: off on the CPU turn, on again on the human turn
+      var t = make();
+      try {
+        t.controller.start(settings(2, [1], 'me'));
+        var u = act(t, 'undo');
+        expect(u.getAttribute('aria-disabled')).toBe('true');
+        t.controller.input({ seat: 1, pieceId: 'p1', rot: 0, flip: 0, x: 0, y: 0 });
+        expect(t.controller.isBusy()).toBe(true);
+        expect(u.getAttribute('aria-disabled')).toBe('true');
+        t.flush();
+        expect(t.controller.isBusy()).toBe(false);
+        expect(u.getAttribute('aria-disabled')).toBe('false');
+      } finally { t.done(); }
       expect(undoShown(settings(4, [1]))).toBe(true);
       expect(undoShown(settings(2, [1, 2]))).toBe(false);
       expect(undoShown(settings(3, [1, 3]))).toBe(false);

@@ -444,7 +444,7 @@
       u.hidden = !(game.humans.length === 1 && game.cpus > 0 && controller.undoLeft() > 0);
       u.textContent = '1て もどす' + NL + 'のこり' + controller.undoLeft();
       u.setAttribute('aria-label', '1て もどす');
-      u.setAttribute('aria-disabled', String(!controller.canUndo() || game.over));
+      u.setAttribute('aria-disabled', String(locked() || !controller.canUndo()));
     }
 
     function renderCards() {
@@ -745,6 +745,7 @@
       C.Effects.thinking(v.bubble, p.on);
       // While the greeting is up, thinking shows the dots only.
       if (p.on && p.line && Date.now() >= game.greetUntil) { say(p.seat, p.line); }
+      paintActs();   // canUndo() follows the controller's thinking flag
     });
     on('moved', function (p) {
       if (!game) { return; }
