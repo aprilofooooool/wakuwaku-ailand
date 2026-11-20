@@ -8,6 +8,7 @@ if /i "%~1"=="check" goto check
 if /i "%~1"=="serve" goto serve
 if /i "%~1"=="resize-images" goto resize
 if /i "%~1"=="measure-drop4" goto drop4
+if /i "%~1"=="measure-territory" goto territory
 if /i "%~1"=="fill-pictures" goto fillpics
 if /i "%~1"=="replay-othello" goto replay
 goto usage
@@ -32,6 +33,10 @@ exit /b %errorlevel%
 node tests\tools\measure-drop4.js %2 %3 %4 %5 %6 %7 %8 %9
 exit /b %errorlevel%
 
+:territory
+node tests\tools\measure-territory.js %2 %3 %4 %5 %6 %7 %8 %9
+exit /b %errorlevel%
+
 :fillpics
 node tools\fill-pictures\fill-pictures.js %2
 exit /b %errorlevel%
@@ -42,6 +47,6 @@ node tests\tools\replay-othello.js %2 %3 %4 %5 %6 %7 %8 %9
 exit /b %errorlevel%
 
 :usage
-echo Usage: scripts\run.bat ^<test^|check^|serve^|resize-images^|measure-drop4^|fill-pictures^|replay-othello^>
+echo Usage: scripts\run.bat ^<test^|check^|serve^|resize-images^|measure-drop4^|measure-territory^|fill-pictures^|replay-othello^>
 echo   replay-othello extra args: --write, --verbose, --only ^<key prefix^> (space-separated)
 exit /b 1

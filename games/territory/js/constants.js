@@ -12,6 +12,10 @@
     SLEEP_AFTER_MS: 20000,
     BLOCK_MIN: 3,
     TIP_MS: 2000,
-    AI: { weak: {}, normal: {}, strong: {} }
+    AI: {
+      weak: { size: 1, mine: 1, opp: 1, noise: 75 },
+      normal: { size: 3, mine: 1, opp: 1, noise: 38 },
+      strong: { size: 3, mine: 1, opp: 1, noise: 0, budgetMs: 400, topK: 30, reply: 0.5 }
+    }
   };
 })(Ailand.games.territory);

@@ -106,6 +106,34 @@
       s.hands[1] = [];
       expect(E.hasMove(s, 1)).toBe(false);
     });
+    it('legalMoves matches a brute-force scan', function () {
+      function playRandom(players, plies, seed) {
+        var rng = A.core.Rng.mulberry32(seed), s = E.create({ players: players, firstSeat: 1 });
+        for (var i = 0; i < plies && !E.isOver(s); i++) {
+          var ms = E.legalMoves(s, E.currentSeat(s));
+          s = E.apply(s, ms[Math.floor(rng() * ms.length)]);
+        }
+        return s;
+      }
+      [[2, 8, 1], [2, 20, 2], [2, 30, 3], [4, 12, 4], [4, 28, 5], [3, 20, 6]].forEach(function (c) {
+        var s = playRandom(c[0], c[1], c[2]), seat = E.currentSeat(s);
+        if (seat === null) { return; }
+        var fast = {}, brute = {}, n = 0;
+        E.legalMoves(s, seat).forEach(function (m) { fast[JSON.stringify(m)] = true; });
+        s.hands[seat].forEach(function (id) {
+          A.core.Piece.orientations(Pieces.byId(id).cells).forEach(function (o) {
+            for (var y = -4; y < s.size + 4; y++) {
+              for (var x = -4; x < s.size + 4; x++) {
+                var m = mv(seat, id, o.rot, o.flip, x, y);
+                if (E.check(s, m).ok) { brute[JSON.stringify(m)] = true; n++; }
+              }
+            }
+          });
+        });
+        expect(Object.keys(fast).sort()).toEqual(Object.keys(brute).sort());
+        expect(n > 0).toBe(true);
+      });
+    });
     it('apply does not mutate and places the piece', function () {
       var s = two();
       var before = JSON.stringify(s);
