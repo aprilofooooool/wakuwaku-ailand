@@ -1,7 +1,7 @@
 # ピースじんとり（territory）設計書
 
 - 作成日：2026-11-20
-- 状態：ユーザー確認待ち
+- 状態：ユーザー承認済み（2026-11-20）
 - 位置づけ：ピースじんとりの仕様の正。あいランド共通の要件は `.claude/docs/specs/2026-11-08-ailand-requirements.md`（以下「要件」）、フォルダ構成・テストの約束は `.claude/docs/specs/2026-11-08-ailand-phase1-design.md`（以下「phase1 設計」）に従う。対戦・CPU・設定画面・つづきからの見本はぽとん4（要件 §3・`games/drop4/`）、ドラッグとピースの見本はピタうめっち（`.claude/docs/specs/2026-11-17-pita-design.md`・`2026-11-18-pita-jigsaw-design.md`・`games/fill/`）。
 - 表記：「（判断）」は本書作成者が決めた点。ユーザーが決めた点には付けない。
 
