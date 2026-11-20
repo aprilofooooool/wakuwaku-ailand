@@ -430,4 +430,101 @@
       } finally { window.setTimeout = st; window.clearTimeout = ct; t.done(); }
     });
   });
+  describe('territory UI effects and sounds (browser)', function () {
+    function react(t, kind, screen, extra) {
+      var ev = { kind: kind, seat: 1, emotion: 'joy', by: 1 };
+      if (extra) { Object.keys(extra).forEach(function (k) { ev[k] = extra[k]; }); }
+      var events = [ev];
+      if (kind === 'rest') { events = [{ kind: 'rest', seat: 2, emotion: 'worried', by: 1 }]; }
+      t.bus.emit('reaction', { events: events, picked: { event: events[0], perspective: kind }, lines: {}, screen: screen });
+    }
+    // Runs fn with Sound.play / Bgm.setTempo recorded; real audio is not touched.
+    function spied(fn) {
+      var S = A.core.Sound, B = A.core.Bgm, played = [], tempos = [], sp = S.play, st = B.setTempo;
+      S.play = function (n) { played.push(n); };
+      B.setTempo = function (b) { tempos.push(b); };
+      try { fn(played, tempos); } finally { S.play = sp; B.setTempo = st; }
+    }
+    function groups() { var l = document.getElementById('fx-layer'); return l ? l.querySelectorAll('.fx-group').length : 0; }
+    function started() { var t = make(); t.controller.start(settings(2, [1], 'me')); clearFx(); return t; }
+
+    it('big shows a small sparkle pop', function () {
+      var t = started();
+      try {
+        withReduced(false, function () { react(t, 'big', 'big'); });
+        expect(!!document.querySelector('#fx-layer .tr-fx-mini .tr-pop')).toBe(true);
+        expect(document.querySelectorAll('#fx-layer .fx-sparkle').length > 0).toBe(true);
+      } finally { clearFx(); t.done(); }
+    });
+    it('block shows the shield pop with its words and rings the blocked card', function () {
+      var t = started();
+      try {
+        withReduced(false, function () { react(t, 'block', 'block', { others: [2] }); });
+        var pop = document.querySelector('#fx-layer .tr-pop');
+        expect(!!pop && pop.textContent.indexOf('とおせんぼ！') >= 0).toBe(true);
+        expect(t.box.querySelectorAll('.tr-card[data-seat="2"] .fx-ring').length).toBe(1);
+      } finally { clearFx(); t.done(); }
+    });
+    it('mark shows the shield alone, without words or rings', function () {
+      var t = started();
+      try {
+        withReduced(false, function () { react(t, 'block', 'mark', { others: [1] }); });
+        var pop = document.querySelector('#fx-layer .tr-pop');
+        expect(!!pop && pop.textContent.indexOf('とおせんぼ') < 0).toBe(true);
+        expect(t.box.querySelectorAll('.fx-ring').length).toBe(0);
+      } finally { clearFx(); t.done(); }
+    });
+    it('rest shows a tag over the resting card', function () {
+      var t = started();
+      try {
+        withReduced(false, function () { react(t, 'rest', 'rest'); });
+        var tag = document.querySelector('#fx-layer .tr-pop.is-tag');
+        expect(!!tag && tag.textContent.indexOf('おやすみ') >= 0).toBe(true);
+      } finally { clearFx(); t.done(); }
+    });
+    it('a new reaction replaces the previous effect (one group only)', function () {
+      var t = started();
+      try {
+        withReduced(false, function () {
+          react(t, 'big', 'big');
+          react(t, 'block', 'block', { others: [2] });
+        });
+        expect(groups()).toBe(1);
+        expect(document.querySelectorAll('#fx-layer .tr-pop').length).toBe(1);
+        expect(document.querySelector('#fx-layer .tr-pop').textContent.indexOf('とおせんぼ！') >= 0).toBe(true);
+        withReduced(false, function () { react(t, 'win', 'win'); });
+        expect(groups()).toBe(1);
+        expect(document.querySelectorAll('#fx-layer .tr-pop').length).toBe(0);
+      } finally { clearFx(); t.done(); }
+    });
+    it('plays one sound per event kind', function () {
+      var t = started();
+      try {
+        spied(function (played) {
+          react(t, 'big', 'big');
+          react(t, 'block', 'block', { others: [2] });
+          react(t, 'rest', 'rest');
+          expect(played.join(',')).toBe('territory-big,territory-block,territory-rest');
+        });
+        ['win', 'lose', 'draw'].forEach(function (k) {
+          spied(function (played) {
+            react(t, k, k);
+            expect(played.join(',')).toBe('territory-' + k);
+          });
+        });
+      } finally { clearFx(); t.done(); }
+    });
+    it('endgame speeds up the BGM and a new game puts the tempo back', function () {
+      var t = started();
+      try {
+        spied(function (played, tempos) {
+          react(t, 'endgame', 'endgame');
+          expect(tempos[tempos.length - 1]).toBe(G.Sounds.ENDGAME_BPM);
+          expect(groups()).toBe(0);
+          t.controller.start(settings(2, [1], 'me'));
+          expect(tempos[tempos.length - 1]).toBe(G.Sounds.BGM.bpm);
+        });
+      } finally { clearFx(); t.done(); }
+    });
+  });
 })(window.Ailand);
