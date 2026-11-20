@@ -58,6 +58,7 @@
   }
 
   // o: { size, cell, dpr, board (rows of 0|seat), colors {seat: css}, corners [{x, y, color}] (empty start corners),
+  //      pieces [{seat, cells}] (optional: outline each piece on its own instead of each connected region),
   //      ghost {cells, ok, color}|null, flash {cells, color}|null }.
   function board(ctx, o) {
     var cell = o.cell, n = o.size, x, y;
@@ -79,15 +80,20 @@
       ctx.moveTo(0, i * cell + 0.5); ctx.lineTo(n * cell, i * cell + 0.5);
     }
     ctx.stroke();
-    // placed cells, grouped per seat so each seat's shapes get one outline
-    var bySeat = {};
-    for (y = 0; y < n; y++) {
-      for (x = 0; x < n; x++) {
-        var s = o.board[y][x];
-        if (s) { (bySeat[s] = bySeat[s] || []).push([x, y]); }
+    if (o.pieces) {
+      // The caller knows each piece: outline every one on its own (the how-to pictures need touching pieces apart).
+      o.pieces.forEach(function (p) { shape(ctx, p.cells, cell, 0, 0, o.colors[p.seat]); });
+    } else {
+      // placed cells, grouped per seat so each seat's shapes get one outline
+      var bySeat = {};
+      for (y = 0; y < n; y++) {
+        for (x = 0; x < n; x++) {
+          var s = o.board[y][x];
+          if (s) { (bySeat[s] = bySeat[s] || []).push([x, y]); }
+        }
       }
+      Object.keys(bySeat).forEach(function (s) { shape(ctx, bySeat[s], cell, 0, 0, o.colors[s]); });
     }
-    Object.keys(bySeat).forEach(function (s) { shape(ctx, bySeat[s], cell, 0, 0, o.colors[s]); });
     if (o.flash) {
       ctx.save();
       ctx.fillStyle = '#fffbe0';

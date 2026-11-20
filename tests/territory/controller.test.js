@@ -41,7 +41,9 @@
     for (var k in o) { s[k] = o[k]; }
     return s;
   }
-  function fire(h) { h.queue.splice(0).forEach(function (e) { e.fn(); }); }
+  // step = run the timers queued right now once; fire = keep going until nothing is queued (the CPU turn takes two timers).
+  function step(h) { h.queue.splice(0).forEach(function (e) { e.fn(); }); }
+  function fire(h) { for (var i = 0; i < 1000 && h.queue.length; i++) { step(h); } }
   function names(h, n) { return h.log.filter(function (e) { return e.name === n; }); }
   function humanMove(h) { return firstMove(h.ctl.state()); }
   // Human plays the first legal move and the CPU answers.
@@ -118,8 +120,10 @@
       expect(h.ctl.isBusy()).toBe(true);
       expect(typeof h.backend.m[SAVE]).toBe('string');
       expect(h.queue.length).toBe(1);
-      expect(h.queue[0].ms).toBe(600);
       expect(names(h, 'moved').length).toBe(1);
+      step(h);
+      expect(h.queue.length).toBe(1);
+      expect(h.queue[0].ms).toBe(600);
       expect(names(h, 'thinking')[0].p.on).toBe(true);
       fire(h);
       expect(names(h, 'moved').length).toBe(2);
@@ -131,7 +135,45 @@
       var h = make({ ai: { chooseMove: function (s) { h.clock.t += 250; return firstMove(s); } } });
       h.ctl.start(settings());
       h.ctl.input(humanMove(h));
+      step(h);
       expect(h.queue[0].ms).toBe(350);
+    });
+    it('the cpu search runs in a later timer, not inside the human move', function () {
+      var calls = 0;
+      var h = make({ ai: { chooseMove: function (s) { calls++; return firstMove(s); } } });
+      h.ctl.start(settings());
+      h.ctl.input(humanMove(h));
+      expect(calls).toBe(0);
+      expect(h.queue[0].ms).toBe(0);
+      expect(names(h, 'thinking')[0].p.on).toBe(true);
+      step(h);
+      expect(calls).toBe(1);
+      h.ctl.stop();
+      fire(h);
+      expect(h.ctl.state().moves).toBe(1);
+    });
+    it('stop before the search timer skips the search', function () {
+      var calls = 0;
+      var h = make({ ai: { chooseMove: function (s) { calls++; return firstMove(s); } } });
+      h.ctl.start(settings());
+      h.ctl.input(humanMove(h));
+      h.ctl.stop();
+      fire(h);
+      expect(calls).toBe(0);
+    });
+    it('input refuses out-of-range rot / flip / position quickly', function () {
+      var h = make();
+      h.ctl.start(settings());
+      var m = humanMove(h), t0 = Date.now();
+      [{ rot: 1e9 }, { rot: -1 }, { rot: 1.5 }, { flip: 2 }, { x: 0.5 }, { y: 'a' }].forEach(function (d) {
+        var bad = { seat: 1, pieceId: m.pieceId, rot: m.rot, flip: m.flip, x: m.x, y: m.y };
+        for (var k in d) { bad[k] = d[k]; }
+        var r = h.ctl.input(bad);
+        expect(r.ok).toBe(false);
+        expect(r.reason).toBe('bad');
+      });
+      expect(Date.now() - t0 < 500).toBe(true);
+      expect(h.ctl.state().moves).toBe(0);
     });
     it('illegal input returns the reason and does not save', function () {
       var h = make();
@@ -161,6 +203,7 @@
       expect(h.ctl.state().moves).toBe(1);
       h.ctl.start(settings());
       h.ctl.input(humanMove(h));
+      step(h);
       var old = h.queue.splice(0);
       h.ctl.start(settings());
       old.forEach(function (e) { e.fn(); });
@@ -228,6 +271,12 @@
         JSON.stringify({ settings: good, history: [{ seat: 2, pieceId: first.pieceId, rot: 0, flip: 0, x: 0, y: 0 }], undoLeft: 3 }),
         JSON.stringify({ settings: good, history: [first, first], undoLeft: 3 }),
         JSON.stringify({ settings: good, history: [{ seat: 1, pieceId: 'zzz', rot: 0, flip: 0, x: 0, y: 0 }], undoLeft: 3 }),
+        // rotation / flip / position out of range (a huge rot must not hang the replay)
+        JSON.stringify({ settings: good, history: [{ seat: 1, pieceId: first.pieceId, rot: 1e9, flip: 0, x: first.x, y: first.y }], undoLeft: 3 }),
+        JSON.stringify({ settings: good, history: [{ seat: 1, pieceId: first.pieceId, rot: 4, flip: 0, x: first.x, y: first.y }], undoLeft: 3 }),
+        JSON.stringify({ settings: good, history: [{ seat: 1, pieceId: first.pieceId, rot: 0.5, flip: 0, x: first.x, y: first.y }], undoLeft: 3 }),
+        JSON.stringify({ settings: good, history: [{ seat: 1, pieceId: first.pieceId, rot: 0, flip: 2, x: first.x, y: first.y }], undoLeft: 3 }),
+        JSON.stringify({ settings: good, history: [{ seat: 1, pieceId: first.pieceId, rot: 0, flip: 0, x: 0.5, y: first.y }], undoLeft: 3 }),
         // player count that does not match the seats
         JSON.stringify({ settings: settings({ firstSeat: 1, players: 3 }), history: [], undoLeft: 3 })
       ];
@@ -332,7 +381,8 @@
         var seats = [{ seat: 1, charId: 'mametchi', human: humanSeats.indexOf(1) >= 0 }, { seat: 2, charId: 'kuchipatchi', human: humanSeats.indexOf(2) >= 0 }];
         h.backend.m[SAVE] = JSON.stringify({ settings: settings({ firstSeat: 1, seats: seats }), history: hist, undoLeft: 3 });
         h.ctl.resume();
-        // Seat 1 rests, so seat 2 plays alone; force the final score through the engine state.
+        // Seat 1 rests, so seat 2 plays alone; let the CPU pick its move first, then force the final score.
+        step(h);
         mutate(h.ctl.state());
         for (var i = 0; i < 300 && h.queue.length; i++) { fire(h); }
         var rx = names(h, 'reaction');

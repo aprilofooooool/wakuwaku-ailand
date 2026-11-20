@@ -44,6 +44,14 @@
     return validSettings(s) && s.firstSeat % 1 === 0 && s.firstSeat >= 1 && s.firstSeat <= s.players;
   }
 
+  // Orientation and position must be plain in-range integers before the engine touches them (a huge rot would loop for ages).
+  function wellFormed(m) {
+    return !!m && typeof m === 'object' &&
+      m.rot % 1 === 0 && m.rot >= 0 && m.rot <= 3 &&
+      (m.flip === 0 || m.flip === 1) &&
+      typeof m.x === 'number' && m.x % 1 === 0 && typeof m.y === 'number' && m.y % 1 === 0;
+  }
+
   function cleanMove(m) {
     return { seat: m.seat, pieceId: m.pieceId, rot: m.rot, flip: m.flip, x: m.x, y: m.y };
   }
@@ -53,7 +61,7 @@
     var state = E.create({ players: settings.players, firstSeat: settings.firstSeat });
     var ctx = { endgameFired: false };
     history.forEach(function (m) {
-      if (!m || m.seat !== E.currentSeat(state) || !E.check(state, m).ok) { throw new Error('illegal history'); }
+      if (!wellFormed(m) || m.seat !== E.currentSeat(state) || !E.check(state, m).ok) { throw new Error('illegal history'); }
       var after = E.apply(state, m);
       R.detect(state, m, after, ctx);
       state = after;
@@ -158,19 +166,24 @@
       var myGen = gen, t0 = now();
       thinking = true;
       bus.emit('thinking', { seat: seat, on: true, line: linePicker.pick(charOf(seat), 'thinking') });
-      var snapshot = state, move = null;
-      try { move = ai.chooseMove(snapshot, settings.level, { rng: rng, now: now }); } catch (e) { move = null; }
-      // Fall back to a random legal move so the game never stalls (AI error or illegal answer).
-      if (!move || move.seat !== seat || !legal(snapshot, move)) {
-        var ms = E.legalMoves(snapshot, seat);
-        move = ms[Math.floor(rng() * ms.length)];
-      }
+      var snapshot = state;
+      // The search runs in its own timer so the child's drop is drawn first (a strong search can take 300 ms).
       later(function () {
         if (myGen !== gen) { return; }
-        thinking = false;
-        bus.emit('thinking', { seat: seat, on: false });
-        commit(move);
-      }, Math.max(0, CPU_MIN_WAIT_MS - (now() - t0)));
+        var move = null;
+        try { move = ai.chooseMove(snapshot, settings.level, { rng: rng, now: now }); } catch (e) { move = null; }
+        // Fall back to a random legal move so the game never stalls (AI error or illegal answer).
+        if (!move || move.seat !== seat || !legal(snapshot, move)) {
+          var ms = E.legalMoves(snapshot, seat);
+          move = ms[Math.floor(rng() * ms.length)];
+        }
+        later(function () {
+          if (myGen !== gen) { return; }
+          thinking = false;
+          bus.emit('thinking', { seat: seat, on: false });
+          commit(move);
+        }, Math.max(0, CPU_MIN_WAIT_MS - (now() - t0)));
+      }, 0);
     }
 
     function begin(newSettings, newHistory, newUndo, replayed) {
@@ -246,6 +259,7 @@
         if (!state || thinking || E.isOver(state) || !move) { return { ok: false, reason: 'busy' }; }
         var seat = E.currentSeat(state);
         if (!isHuman(seat) || move.seat !== seat) { return { ok: false, reason: 'turn' }; }
+        if (!wellFormed(move)) { return { ok: false, reason: 'bad' }; }
         var c;
         try { c = E.check(state, move); } catch (e) { return { ok: false, reason: 'bad' }; }
         if (!c.ok) { return { ok: false, reason: c.reason }; }

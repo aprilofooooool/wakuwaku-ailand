@@ -213,16 +213,22 @@
     // ---------- how-to (design 2.5): four pictures with one line each ----------
 
     var HOW_CELL = 18;
-    function picture(n, cells1, cells2, dot) {
+    // pieces1 / pieces2: lists of pieces (each a list of cells) for the two colours; each piece is outlined on its own.
+    function picture(n, pieces1, pieces2, dot) {
       var dpr = dprNow(), cv = el('canvas', 'tr-howto-pic');
       var c1 = C.Characters.get(K.CHARS[0]).colors.main, c2 = C.Characters.get(K.CHARS[1]).colors.main;
       sizeCanvas(cv, n * HOW_CELL, n * HOW_CELL, dpr);
       var b = [];
       for (var y = 0; y < n; y++) { b.push([]); for (var x = 0; x < n; x++) { b[y].push(0); } }
-      (cells1 || []).forEach(function (c) { b[c[1]][c[0]] = 1; });
-      (cells2 || []).forEach(function (c) { b[c[1]][c[0]] = 2; });
+      var pieces = [];
+      [pieces1 || [], pieces2 || []].forEach(function (list, i) {
+        list.forEach(function (cells) {
+          cells.forEach(function (c) { b[c[1]][c[0]] = i + 1; });
+          pieces.push({ seat: i + 1, cells: cells });
+        });
+      });
       var ctx = cv.getContext('2d');
-      R.board(ctx, { size: n, cell: HOW_CELL, dpr: dpr, board: b, colors: { 1: c1, 2: c2 },
+      R.board(ctx, { size: n, cell: HOW_CELL, dpr: dpr, board: b, pieces: pieces, colors: { 1: c1, 2: c2 },
         corners: dot ? [{ x: 0, y: 0, color: c1 }] : [] });
       if (dot) { R.dots(ctx, { cell: HOW_CELL, dpr: dpr, color: c1, dots: [{ x: 0, y: 0, big: true }], keep: true }); }
       return cv;
@@ -246,11 +252,12 @@
       var body = el('div', 'tr-howto-body');
       body.appendChild(howRow('さいしょは じぶんの すみから おこう', [picture(4, [], [], true)]));
       body.appendChild(howRow('じぶんの いろとは かどで つなげるよ', [
-        labelled(picture(4, [[0, 0], [1, 0], [0, 1], [2, 1], [2, 2], [3, 2]]), '○'),
-        labelled(picture(4, [[0, 0], [1, 0], [0, 1], [2, 0], [2, 1]]), '×')
+        // two pieces joined at a corner (ok) / two pieces touching by a side (not ok)
+        labelled(picture(4, [[[0, 0], [1, 0], [0, 1]], [[2, 1], [2, 2], [3, 2]]]), '○'),
+        labelled(picture(4, [[[0, 0], [1, 0], [0, 1]], [[2, 0], [2, 1]]]), '×')
       ]));
       body.appendChild(howRow('あいての いろとは くっついても いいよ', [
-        picture(4, [[0, 0], [1, 0], [0, 1], [2, 1]], [[1, 1], [1, 2], [2, 2], [3, 2]])
+        picture(4, [[[0, 0], [1, 0], [0, 1]], [[2, 1]]], [[[1, 1], [1, 2], [2, 2], [3, 2]]])
       ]));
       body.appendChild(howRow('いちばん たくさん おけた ひとの かち！', []));
       var m = null;
@@ -803,22 +810,32 @@
       Object.keys(game.seats).forEach(function (s) { if (game.seats[s].emotion !== 'thinking') { setFace(Number(s), 'normal'); } });
       events.forEach(function (e) { if (e.emotion) { setFace(e.seat, e.emotion); } });
       Object.keys(p.lines || {}).forEach(function (s) { say(Number(s), p.lines[s]); });
+      // While a CPU piece is still flashing (FLASH_MS), the reaction sound and mark wait for the piece to land.
+      var delay = (game.flash && !TERMINAL[p.screen]) ? FLASH_MS : 0;
+      var playReaction = function () {
+        if (!game) { return; }
+        if (SOUND_OF[kind]) { sfx(SOUND_OF[kind]); }
+        G.Fx.play(p.screen, {
+          at: game.at, boardEl: game.canvas, blocked: blocked,
+          resting: p.events.filter(function (e) { return e.kind === 'rest'; }).map(function (e) { return e.seat; }),
+          cardOf: function (s) { return game.seats[s] && game.seats[s].card; }
+        });
+      };
       if (p.events.some(function (e) { return e.kind === 'endgame'; })) { game.fast = true; Bgm.setTempo(G.Sounds.ENDGAME_BPM); }
       var kind = p.picked && p.picked.event.kind;
       if (kind && TERMINAL[kind]) {
         Bgm.stop();
         sfx('territory-' + (p.picked.perspective || 'draw'));
-      } else if (SOUND_OF[kind]) {
-        sfx(SOUND_OF[kind]);
       }
       // p.screen: the one full-screen effect for this move (win / lose / draw end in the result screen).
       game.endScreen = TERMINAL[p.screen] ? p.screen : null;
       var blocked = kind === 'block' && p.picked.event.others ? p.picked.event.others : [];
-      G.Fx.play(p.screen, {
-        at: game.at, boardEl: game.canvas, blocked: blocked,
-        resting: p.events.filter(function (e) { return e.kind === 'rest'; }).map(function (e) { return e.seat; }),
-        cardOf: function (s) { return game.seats[s] && game.seats[s].card; }
-      });
+      if (game.reactTimer) { cancel(game.reactTimer); game.reactTimer = null; }
+      if (delay) {
+        game.reactTimer = later(function () { game.reactTimer = null; playReaction(); }, delay);
+      } else {
+        playReaction();
+      }
     });
     on('gameover', function (p) {
       if (!game) { return; }
@@ -835,6 +852,7 @@
       idle.stop();
       endDrag();
       if (game.flashTimer) { cancel(game.flashTimer); game.flashTimer = null; }
+      if (game.reactTimer) { cancel(game.reactTimer); game.reactTimer = null; }
       game.flash = null;
       game.selected = null;
       game.over = false;

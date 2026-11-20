@@ -146,6 +146,19 @@
           if (btn.hidden) { return; }
           expect(inside(btn.getBoundingClientRect(), doc)).toBe(true);
         });
+        // The longest tip is shown whole (no clipping, no ellipsis) and does not move the layout.
+        var tip = doc.querySelector('.tr-tip'), boardBefore = doc.querySelector('.tr-board').getBoundingClientRect().top;
+        tip.textContent = 'じぶんの いろと へんで くっつけちゃ だめ';
+        expect(tip.scrollWidth <= tip.clientWidth).toBe(true);
+        expect(tip.scrollHeight <= tip.clientHeight).toBe(true);
+        expect(doc.querySelector('.tr-board').getBoundingClientRect().top).toBe(boardBefore);
+        tip.textContent = '';
+        // The おやすみ tag is 16px or more.
+        var rest = doc.createElement('div');
+        rest.className = 'tr-rest';
+        doc.querySelector('.tr-card').appendChild(rest);
+        expect(parseFloat(doc.defaultView.getComputedStyle(rest).fontSize) >= 16).toBe(true);
+        rest.remove();
       });
     });
 
@@ -299,6 +312,8 @@
         expect(!!document.querySelector('#modal-root .tr-howto-body')).toBe(false);
         t.box.querySelector('.tr-howto').click();
         expect(!!document.querySelector('#modal-root .tr-howto-body')).toBe(true);
+        // four pictures, each a drawn canvas (the two-piece pictures outline each piece, see render.test.js)
+        expect(document.querySelectorAll('#modal-root .tr-howto-pic').length).toBe(4);
       } finally { t.done(); }
     });
 

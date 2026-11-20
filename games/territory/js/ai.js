@@ -18,12 +18,16 @@
     var seat = move.seat, cells = E.cellsOf(move), i, s, mine, opp = 0;
     for (i = 0; i < cells.length; i++) { state.board[cells[i][1]][cells[i][0]] = seat; }
     sc.placed[seat] += cells.length;
-    mine = E.anchors(sc, seat).length;
-    for (s = 1; s <= state.players; s++) {
-      if (s !== seat && !state.resting[s]) { opp += E.anchors(sc, s).length; }
+    try {
+      mine = E.anchors(sc, seat).length;
+      for (s = 1; s <= state.players; s++) {
+        if (s !== seat && !state.resting[s]) { opp += E.anchors(sc, s).length; }
+      }
+    } finally {
+      // Always undo the temporary placement, even if counting throws.
+      sc.placed[seat] -= cells.length;
+      for (i = 0; i < cells.length; i++) { state.board[cells[i][1]][cells[i][0]] = 0; }
     }
-    sc.placed[seat] -= cells.length;
-    for (i = 0; i < cells.length; i++) { state.board[cells[i][1]][cells[i][0]] = 0; }
     return w.size * cells.length + w.mine * mine - w.opp * opp;
   }
 

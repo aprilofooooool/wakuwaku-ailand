@@ -42,6 +42,11 @@
         });
       });
     });
+    it('draw lines do not say ふたりとも (ties can have 3 or 4 players)', function () {
+      CHARS.forEach(function (c) {
+        expect(Lines[c].draw.every(function (t) { return t.indexOf('ふたり') < 0; })).toBe(true);
+      });
+    });
     it('thinking lines start with うーん', function () {
       CHARS.forEach(function (c) {
         expect(Lines[c].thinking.every(function (t) { return t.indexOf('うーん') === 0; })).toBe(true);

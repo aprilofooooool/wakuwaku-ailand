@@ -39,6 +39,14 @@
         expect(a).toEqual(b);
       });
     });
+    it('an error while scoring leaves the live board untouched', function () {
+      var s = midGame(2, 10, 5), before = JSON.stringify(s.board), orig = E.anchors, threw = false;
+      E.anchors = function () { throw new Error('boom'); };
+      try { Ai.chooseMove(s, 'weak', { rng: mulberry32(1), now: function () { return 0; } }); } catch (e) { threw = true; }
+      E.anchors = orig;
+      expect(threw).toBe(true);
+      expect(JSON.stringify(s.board)).toBe(before);
+    });
     it('strong stops within its budget', function () {
       var s = midGame(2, 10, 5), t = 0, calls = 0;
       var m = Ai.chooseMove(s, 'strong', { rng: mulberry32(1), now: function () { calls++; t += 100; return t; } });
